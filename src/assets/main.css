@@ -1,0 +1,335 @@
+/* ============================================================
+   Gestion Clinique — feuille de style globale
+   Thème médical : teal / blanc, sobre et lisible
+   ============================================================ */
+
+:root {
+  --primary: #0e7490;
+  --primary-dark: #155e75;
+  --primary-light: #ecfeff;
+  --accent: #14b8a6;
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 25px rgba(15, 23, 42, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ---------- Boutons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-dark);
+}
+.btn-outline {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+.btn-outline:hover:not(:disabled) {
+  background: var(--bg);
+}
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+/* ---------- Champs de formulaire ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+.field label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.field input,
+.field select,
+.field textarea {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--text);
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+  border-color: var(--primary);
+}
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0 16px;
+}
+
+/* ---------- Cartes ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.card-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* ---------- Tableaux ---------- */
+.table-wrap {
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+th,
+td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+th {
+  background: var(--bg);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* ---------- Badges ---------- */
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-success {
+  background: #dcfce7;
+  color: #166534;
+}
+.badge-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+.badge-danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.badge-muted {
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+/* ---------- Alertes ---------- */
+.alert {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+.alert-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+.alert-success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+/* ---------- Divers ---------- */
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.page-subtitle {
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.text-muted {
+  color: var(--text-muted);
+}
+.spacer {
+  flex: 1;
+}
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+/* ---------- Barre d'outils (recherche + filtres) ---------- */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.search-input {
+  flex: 1;
+  min-width: 220px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-family: inherit;
+}
+.search-input:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+.toolbar select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--surface);
+}
+
+/* ---------- Actions de table ---------- */
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ---------- Modales ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+  z-index: 100;
+}
+.modal {
+  width: 100%;
+  max-width: 640px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 24px;
+}
+.modal h2 {
+  font-size: 18px;
+  margin-bottom: 18px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* ---------- Checkboxes ---------- */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.checkbox-label input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+/* ---------- Impression : seul le ticket est imprimé ---------- */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #ticket-print,
+  #ticket-print * {
+    visibility: visible;
+  }
+  #ticket-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: #fff;
+  }
+}
