@@ -77,7 +77,7 @@ const MODULES = [
   { code: 'ACCUEIL', label: 'Accueil', icon: '🏥', description: 'Enregistrement des patients et des passages', route: '/accueil' },
   { code: 'CAISSE', label: 'Caisse', icon: '💰', description: 'Paiements, reçus et activation des actes', route: '/caisse' },
   { code: 'CONSULTATION', label: 'Consultation', icon: '🩺', description: 'Dossiers médicaux, diagnostics et prescriptions', route: '/consultation' },
-  { code: 'PHARMACIE', label: 'Pharmacie', icon: '💊', description: 'Ordonnances, stocks et consommables', route: null },
+  { code: 'PHARMACIE', label: 'Pharmacie', icon: '💊', description: 'Ordonnances, stocks et consommables', route: '/pharmacie' },
   { code: 'LABORATOIRE', label: 'Laboratoire', icon: '🧪', description: 'Examens, prélèvements et résultats', route: null },
   { code: 'IMAGERIE', label: 'Imagerie', icon: '🩻', description: 'Échographies et comptes rendus', route: null },
   { code: 'MATERNITE', label: 'Maternité', icon: '🤰', description: 'CPN, accouchements et suivi', route: null },

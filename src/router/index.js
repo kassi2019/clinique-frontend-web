@@ -34,6 +34,13 @@ const routes = [
     component: () => import('../views/ConsultationView.vue'),
     meta: { module: 'CONSULTATION' },
   },
+  // Module Pharmacie
+  {
+    path: '/pharmacie',
+    name: 'pharmacie',
+    component: () => import('../views/PharmacieView.vue'),
+    meta: { module: 'PHARMACIE' },
+  },
   // Module Paramétrage (Administration)
   {
     path: '/parametrage',

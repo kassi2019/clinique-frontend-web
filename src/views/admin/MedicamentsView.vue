@@ -31,6 +31,8 @@
               <th>Nom</th>
               <th>Forme</th>
               <th>Dosage</th>
+              <th>Prix de vente</th>
+              <th>Unité</th>
               <th>Stock</th>
               <th>Statut</th>
               <th>Actions</th>
@@ -41,6 +43,13 @@
               <td><strong>{{ m.nom }}</strong></td>
               <td>{{ m.forme || '—' }}</td>
               <td>{{ m.dosage || '—' }}</td>
+              <td>
+                <span v-if="m.prixVente" class="prix">{{ m.prixVente.toLocaleString('fr-FR') }} F</span>
+                <span v-else class="text-muted">—</span>
+              </td>
+              <td>
+                <span class="badge badge-muted">{{ m.uniteVente === 'PLAQUE' ? 'Plaque' : 'Boîte' }}</span>
+              </td>
               <td>
                 <span v-if="m.stock > 0" class="badge badge-success">{{ m.stock }}</span>
                 <span v-else class="badge badge-danger">Rupture</span>
@@ -83,9 +92,25 @@
               <input v-model.trim="form.dosage" placeholder="Ex : 500 mg" />
             </div>
             <div class="field">
+              <label>Prix de vente (FCFA)</label>
+              <input v-model.number="form.prixVente" type="number" min="0" step="1" placeholder="Ex : 2500" />
+            </div>
+            <div class="field">
+              <label>Unité de vente</label>
+              <select v-model="form.uniteVente">
+                <option value="BOITE">Boîte</option>
+                <option value="PLAQUE">Plaque</option>
+              </select>
+              <small class="text-muted">Le prix de vente s'applique à cette unité.</small>
+            </div>
+            <div class="field">
               <label>Stock</label>
               <input v-model.number="form.stock" type="number" min="0" placeholder="Quantité disponible" />
               <small class="text-muted">Le stock sera géré par le module Pharmacie.</small>
+            </div>
+            <div class="field">
+              <label>Seuil d'alerte</label>
+              <input v-model.number="form.seuilAlerte" type="number" min="0" placeholder="Ex : 10" />
             </div>
           </div>
           <div class="modal-actions">
@@ -150,10 +175,21 @@ function openForm(m) {
       nom: m.nom,
       forme: m.forme ?? '',
       dosage: m.dosage ?? '',
+      prixVente: m.prixVente ?? null,
+      uniteVente: m.uniteVente ?? 'BOITE',
       stock: m.stock ?? 0,
+      seuilAlerte: m.seuilAlerte ?? 0,
     })
   } else {
-    Object.assign(form, { nom: '', forme: '', dosage: '', stock: 0 })
+    Object.assign(form, {
+      nom: '',
+      forme: '',
+      dosage: '',
+      prixVente: null,
+      uniteVente: 'BOITE',
+      stock: 0,
+      seuilAlerte: 0,
+    })
   }
   formVisible.value = true
 }
@@ -167,7 +203,10 @@ async function save() {
       nom: form.nom,
       forme: form.forme || undefined,
       dosage: form.dosage || undefined,
+      prixVente: form.prixVente ?? undefined,
+      uniteVente: form.uniteVente ?? 'BOITE',
       stock: form.stock ?? 0,
+      seuilAlerte: form.seuilAlerte ?? 0,
     }
     if (form.id) {
       await http.patch(`/medicaments/${form.id}`, payload)
@@ -234,5 +273,9 @@ onMounted(load)
 }
 .reactiver-btn:hover {
   background: #f0fdf4;
+}
+.prix {
+  font-weight: 700;
+  color: #134e4a;
 }
 </style>
