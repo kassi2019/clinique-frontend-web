@@ -14,6 +14,13 @@
         </div>
         <div class="header-actions">
           <span class="date-pill">{{ todayLabel }}</span>
+          <button
+            v-if="peutBasculer"
+            class="btn btn-outline btn-sm btn-bascule"
+            @click="basculerPoste"
+          >
+            ⚡ Basculer vers {{ posteConstante ? 'Enregistrement' : 'Constante' }}
+          </button>
           <button class="btn btn-outline btn-sm btn-back" @click="router.push({ name: 'home' })">
             ← Modules
           </button>
@@ -623,10 +630,19 @@ const cliniqueId = computed(() => auth.user?.clinique?.id ?? null)
 const cliniqueNom = computed(() => auth.user?.clinique?.nom || 'Gestion Clinique')
 const cliniqueAdresse = ref('')
 
-// Poste de travail : service « Constante » (code CON)
-const posteConstante = computed(
-  () => auth.user?.personnel?.service?.code === 'CON',
-)
+// Poste de travail : service « Constante » (code CON).
+// Basculable temporairement pour les agents ACC/CON (sans toucher à la base).
+const serviceCode = computed(() => auth.user?.personnel?.service?.code)
+const posteConstante = ref(serviceCode.value === 'CON')
+const peutBasculer = computed(() => ['ACC', 'CON'].includes(serviceCode.value))
+
+function basculerPoste() {
+  posteConstante.value = !posteConstante.value
+  // Revenir sur l'onglet par défaut du poste cible
+  onglet.value = posteConstante.value ? 'attente' : 'formulaire'
+  page.value = 1
+  chargerListe()
+}
 
 const services = ref([])
 const passages = ref([])
@@ -1125,6 +1141,15 @@ onUnmounted(() => {
 }
 .btn-back:hover {
   background: rgba(255, 255, 255, 0.16);
+}
+.btn-bascule {
+  color: #1b3a1e;
+  background: linear-gradient(135deg, #b5dc5f, #8bc34a);
+  border-color: rgba(255, 255, 255, 0.35);
+  font-weight: 700;
+}
+.btn-bascule:hover {
+  filter: brightness(1.06);
 }
 
 /* ---------- Contenu ---------- */

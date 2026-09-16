@@ -66,6 +66,7 @@ const navItems = [
   { to: 'admin-roles', label: 'Rôles & habilitations', icon: '🛡️' },
   { to: 'admin-services', label: 'Services', icon: '🏥' },
   { to: 'admin-prestations', label: 'Prestations & tarifs', icon: '💲' },
+  { to: 'admin-medicaments', label: 'Médicaments', icon: '💊' },
   { to: 'admin-parametres', label: 'Paramètres', icon: '🎨' },
 ]
 

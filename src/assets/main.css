@@ -316,20 +316,35 @@ tbody tr:hover {
   accent-color: var(--primary);
 }
 
-/* ---------- Impression : seul le ticket est imprimé ---------- */
+/* ---------- Impression : seul le ticket / reçu / ordonnance est imprimé ----------
+   Le contenu masqué est aussi réduit en hauteur (height: 0) : sans cela,
+   la page garde la hauteur de l'écran et des pages blanches s'ajoutent. */
 @media print {
   body * {
     visibility: hidden;
+    height: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
   }
   #ticket-print,
-  #ticket-print * {
+  #ticket-print *,
+  #recu-print,
+  #recu-print *,
+  #ordo-print,
+  #ordo-print * {
     visibility: visible;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
-  #ticket-print {
+  #ticket-print,
+  #recu-print,
+  #ordo-print {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
+    height: auto !important;
     background: #fff;
   }
 }

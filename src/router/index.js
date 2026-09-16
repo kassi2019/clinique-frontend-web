@@ -20,6 +20,20 @@ const routes = [
     component: () => import('../views/AccueilView.vue'),
     meta: { module: 'ACCUEIL' },
   },
+  // Module Caisse
+  {
+    path: '/caisse',
+    name: 'caisse',
+    component: () => import('../views/CaisseView.vue'),
+    meta: { module: 'CAISSE' },
+  },
+  // Module Consultation
+  {
+    path: '/consultation',
+    name: 'consultation',
+    component: () => import('../views/ConsultationView.vue'),
+    meta: { module: 'CONSULTATION' },
+  },
   // Module Paramétrage (Administration)
   {
     path: '/parametrage',
@@ -61,6 +75,11 @@ const routes = [
         path: 'parametres',
         name: 'admin-parametres',
         component: () => import('../views/admin/ParametresView.vue'),
+      },
+      {
+        path: 'medicaments',
+        name: 'admin-medicaments',
+        component: () => import('../views/admin/MedicamentsView.vue'),
       },
     ],
   },
