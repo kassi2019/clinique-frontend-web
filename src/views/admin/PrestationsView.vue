@@ -81,15 +81,19 @@
           <div class="form-row">
             <div class="field">
               <label>Clinique *</label>
-              <select v-model="form.cliniqueId" required>
-                <option v-for="c in cliniques" :key="c.id" :value="c.id">{{ c.nom }}</option>
-              </select>
+              <SelectSearch
+                v-model="form.cliniqueId"
+                :options="optionsCliniques"
+                placeholder="— Choisir —"
+              />
             </div>
             <div class="field">
               <label>Service *</label>
-              <select v-model="form.serviceId" required>
-                <option v-for="s in services" :key="s.id" :value="s.id">{{ s.nom }}</option>
-              </select>
+              <SelectSearch
+                v-model="form.serviceId"
+                :options="optionsServices"
+                placeholder="— Choisir —"
+              />
             </div>
           </div>
           <div class="form-row">
@@ -99,9 +103,11 @@
             </div>
             <div class="field">
               <label>Type *</label>
-              <select v-model="form.type" required>
-                <option v-for="t in types" :key="t.value" :value="t.value">{{ t.label }}</option>
-              </select>
+              <SelectSearch
+                v-model="form.type"
+                :options="optionsTypes"
+                placeholder="— Choisir —"
+              />
             </div>
           </div>
           <div class="field">
@@ -125,10 +131,11 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import Swal from 'sweetalert2'
 import http from '../../api/http'
 import PaginationBar from '../../components/PaginationBar.vue'
+import SelectSearch from '../../components/SelectSearch.vue'
 import { toastError, toastSuccess } from '../../utils/notifications'
 
 const TYPES = [
@@ -142,6 +149,7 @@ const TYPES = [
   { value: 'AUTRE', label: 'Autre' },
 ]
 const types = TYPES
+const optionsTypes = TYPES.map((t) => ({ value: t.value, label: t.label }))
 
 const liste = ref([])
 const services = ref([])
@@ -162,6 +170,13 @@ const formVisible = ref(false)
 const form = reactive({})
 const formError = ref('')
 const saving = ref(false)
+
+const optionsCliniques = computed(() =>
+  cliniques.value.map((c) => ({ value: c.id, label: c.nom })),
+)
+const optionsServices = computed(() =>
+  services.value.map((s) => ({ value: s.id, label: s.nom })),
+)
 
 function typeLabel(t) {
   return TYPES.find((x) => x.value === t)?.label || t

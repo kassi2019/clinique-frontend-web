@@ -279,13 +279,16 @@
         <p v-if="ajoutError" class="alert alert-error">{{ ajoutError }}</p>
         <form @submit.prevent="confirmerAjoutMedicament">
           <div class="field">
-            <label>Médicament (catalogue)</label>
-            <select v-model="ajoutMedicamentId" @change="onMedicamentChoisi">
-              <option :value="null">— Saisie libre ci-dessous —</option>
-              <option v-for="m in medicaments" :key="m.id" :value="m.id">
-                {{ m.nom }}{{ m.dosage ? ' — ' + m.dosage : '' }}
-              </option>
-            </select>
+            <label>
+              Médicament (catalogue)
+              <span v-if="estInterne" class="text-muted"> — uniquement les médicaments disponibles</span>
+            </label>
+            <SelectSearch
+              v-model="ajoutMedicamentId"
+              :options="optionsMedicaments"
+              placeholder="— Saisie libre ci-dessous —"
+              @change="onMedicamentChoisi"
+            />
           </div>
           <div class="field">
             <label>Nom du médicament (saisie libre)</label>
@@ -449,6 +452,7 @@ import { useAuthStore } from '../stores/auth'
 import http from '../api/http'
 import { toastError, toastSuccess } from '../utils/notifications'
 import logoClinique from '../assets/logoclinique.jpeg'
+import SelectSearch from '../components/SelectSearch.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -565,6 +569,31 @@ async function enregistrerConsultation() {
   }
 }
 
+// Type du passage courant : interne ou externe (règles de prescription)
+const estInterne = computed(() => passageCourant.value?.typePatient !== 'EXTERNE')
+
+const medicamentsDisponibles = computed(() =>
+  medicaments.value.filter((m) => m.stock > 0),
+)
+const medicamentsRupture = computed(() =>
+  medicaments.value.filter((m) => m.stock <= 0),
+)
+
+/** Options du SelectSearch : disponibles + rupture (externe uniquement). */
+const optionsMedicaments = computed(() => {
+  const dispo = medicamentsDisponibles.value.map((m) => ({
+    value: m.id,
+    label: `${m.nom}${m.dosage ? ' — ' + m.dosage : ''} (stock ${m.stock})`,
+  }))
+  const rupture = estInterne.value
+    ? []
+    : medicamentsRupture.value.map((m) => ({
+        value: m.id,
+        label: `${m.nom}${m.dosage ? ' — ' + m.dosage : ''} (rupture)`,
+      }))
+  return [...dispo, ...rupture]
+})
+
 async function ouvrirAjoutMedicament() {
   ajoutVisible.value = true
   ajoutMedicamentId.value = null
@@ -581,8 +610,8 @@ async function ouvrirAjoutMedicament() {
   }
 }
 
-function onMedicamentChoisi() {
-  const m = medicaments.value.find((x) => x.id === ajoutMedicamentId.value)
+function onMedicamentChoisi(valeur) {
+  const m = medicaments.value.find((x) => x.id === valeur)
   if (m) ajoutNom.value = m.nom
 }
 

@@ -66,9 +66,11 @@
           <div class="form-row">
             <div class="field">
               <label>Clinique *</label>
-              <select v-model="form.cliniqueId" required>
-                <option v-for="c in cliniques" :key="c.id" :value="c.id">{{ c.nom }}</option>
-              </select>
+              <SelectSearch
+                v-model="form.cliniqueId"
+                :options="optionsCliniques"
+                placeholder="— Choisir —"
+              />
             </div>
             <div class="field">
               <label>Code * (auto à partir du nom)</label>
@@ -96,10 +98,11 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import Swal from 'sweetalert2'
 import http from '../../api/http'
 import PaginationBar from '../../components/PaginationBar.vue'
+import SelectSearch from '../../components/SelectSearch.vue'
 import { toastError, toastSuccess } from '../../utils/notifications'
 
 const liste = ref([])
@@ -118,6 +121,10 @@ const form = reactive({})
 const formError = ref('')
 const saving = ref(false)
 const codeManuel = ref(false)
+
+const optionsCliniques = computed(() =>
+  cliniques.value.map((c) => ({ value: c.id, label: c.nom })),
+)
 
 /** Génère le code depuis les 3 premières lettres du nom (sauf saisie manuelle). */
 function genererCode() {

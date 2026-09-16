@@ -237,23 +237,19 @@
         <form @submit.prevent="confirmerAjout">
           <div class="field">
             <label>Filtrer par service</label>
-            <select v-model="ajoutFiltreService">
-              <option :value="null">Tous les services</option>
-              <option v-for="s in services" :key="s.id" :value="s.id">{{ s.nom }}</option>
-            </select>
+            <SelectSearch
+              v-model="ajoutFiltreService"
+              :options="optionsServices"
+              placeholder="Tous les services"
+            />
           </div>
           <div class="field">
             <label>Prestation *</label>
-            <select v-model="ajoutPrestationId" required>
-              <option :value="null" disabled>— Choisir —</option>
-              <option
-                v-for="p in prestationsFiltrees"
-                :key="p.id"
-                :value="p.id"
-              >
-                {{ p.libelle }} — {{ p.montant.toLocaleString('fr-FR') }} FCFA
-              </option>
-            </select>
+            <SelectSearch
+              v-model="ajoutPrestationId"
+              :options="optionsPrestationsFiltrees"
+              placeholder="— Choisir —"
+            />
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-outline" @click="ajoutVisible = false">Annuler</button>
@@ -331,6 +327,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import http from '../api/http'
 import { toastError, toastSuccess } from '../utils/notifications'
+import SelectSearch from '../components/SelectSearch.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -398,6 +395,18 @@ const prestationsFiltrees = computed(() => {
   if (!ajoutFiltreService.value) return prestations.value
   return prestations.value.filter((p) => p.serviceId === ajoutFiltreService.value)
 })
+
+const optionsServices = computed(() => [
+  { value: null, label: 'Tous les services' },
+  ...services.value.map((s) => ({ value: s.id, label: s.nom })),
+])
+
+const optionsPrestationsFiltrees = computed(() =>
+  prestationsFiltrees.value.map((p) => ({
+    value: p.id,
+    label: `${p.libelle} — ${p.montant.toLocaleString('fr-FR')} FCFA`,
+  })),
+)
 
 function onRecherche() {
   clearTimeout(rechercheTimer)

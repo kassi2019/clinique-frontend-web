@@ -6,11 +6,14 @@
     </p>
 
     <div class="card">
-      <div class="field">
+      <div class="field clinique-field">
         <label>Clinique</label>
-        <select v-model="cliniqueId" class="clinique-select" @change="loadParametre">
-          <option v-for="c in cliniques" :key="c.id" :value="c.id">{{ c.nom }}</option>
-        </select>
+        <SelectSearch
+          v-model="cliniqueId"
+          :options="optionsCliniques"
+          placeholder="— Choisir —"
+          @change="loadParametre"
+        />
       </div>
 
       <div class="parametre-grid">
@@ -150,6 +153,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import http from '../../api/http'
 import { optimiserImage } from '../../utils/image'
 import { toastError, toastSuccess } from '../../utils/notifications'
+import SelectSearch from '../../components/SelectSearch.vue'
 
 const cliniques = ref([])
 const cliniqueId = ref(null)
@@ -207,6 +211,9 @@ async function sauvegarderConfig() {
 
 const cliniqueCourante = computed(() =>
   cliniques.value.find((c) => c.id === cliniqueId.value),
+)
+const optionsCliniques = computed(() =>
+  cliniques.value.map((c) => ({ value: c.id, label: c.nom })),
 )
 const previewImage = computed(() => imageChoisie.value ?? imageEnBase.value)
 
@@ -293,7 +300,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.clinique-select {
+.clinique-field {
   max-width: 340px;
 }
 .parametre-grid {

@@ -31,6 +31,7 @@
               <th>Nom</th>
               <th>Forme</th>
               <th>Dosage</th>
+              <th>Stock</th>
               <th>Statut</th>
               <th>Actions</th>
             </tr>
@@ -40,6 +41,10 @@
               <td><strong>{{ m.nom }}</strong></td>
               <td>{{ m.forme || '—' }}</td>
               <td>{{ m.dosage || '—' }}</td>
+              <td>
+                <span v-if="m.stock > 0" class="badge badge-success">{{ m.stock }}</span>
+                <span v-else class="badge badge-danger">Rupture</span>
+              </td>
               <td>
                 <span class="badge" :class="m.actif ? 'badge-success' : 'badge-danger'">
                   {{ m.actif ? 'Actif' : 'Inactif' }}
@@ -76,6 +81,11 @@
             <div class="field">
               <label>Dosage</label>
               <input v-model.trim="form.dosage" placeholder="Ex : 500 mg" />
+            </div>
+            <div class="field">
+              <label>Stock</label>
+              <input v-model.number="form.stock" type="number" min="0" placeholder="Quantité disponible" />
+              <small class="text-muted">Le stock sera géré par le module Pharmacie.</small>
             </div>
           </div>
           <div class="modal-actions">
@@ -140,9 +150,10 @@ function openForm(m) {
       nom: m.nom,
       forme: m.forme ?? '',
       dosage: m.dosage ?? '',
+      stock: m.stock ?? 0,
     })
   } else {
-    Object.assign(form, { nom: '', forme: '', dosage: '' })
+    Object.assign(form, { nom: '', forme: '', dosage: '', stock: 0 })
   }
   formVisible.value = true
 }
@@ -156,6 +167,7 @@ async function save() {
       nom: form.nom,
       forme: form.forme || undefined,
       dosage: form.dosage || undefined,
+      stock: form.stock ?? 0,
     }
     if (form.id) {
       await http.patch(`/medicaments/${form.id}`, payload)

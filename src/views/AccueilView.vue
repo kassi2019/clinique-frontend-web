@@ -392,10 +392,11 @@
           <div class="form-row">
             <div class="field">
               <label>Service à consulter *</label>
-              <select v-model="form.serviceId" required>
-                <option :value="null" disabled>— Choisir un service —</option>
-                <option v-for="s in services" :key="s.id" :value="s.id">{{ s.nom }}</option>
-              </select>
+              <SelectSearch
+                v-model="form.serviceId"
+                :options="optionsServices"
+                placeholder="— Choisir un service —"
+              />
             </div>
             <div class="field">
               <label>Type de patient</label>
@@ -549,9 +550,11 @@
           <div class="form-row">
             <div class="field">
               <label>Service à consulter *</label>
-              <select v-model="formEdit.serviceId" required>
-                <option v-for="s in services" :key="s.id" :value="s.id">{{ s.nom }}</option>
-              </select>
+              <SelectSearch
+                v-model="formEdit.serviceId"
+                :options="optionsServices"
+                placeholder="— Choisir un service —"
+              />
             </div>
             <div class="field">
               <label>Type de patient</label>
@@ -622,6 +625,7 @@ import { useAuthStore } from '../stores/auth'
 import http from '../api/http'
 import { toastError, toastInfo, toastSuccess } from '../utils/notifications'
 import PaginationBar from '../components/PaginationBar.vue'
+import SelectSearch from '../components/SelectSearch.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -648,6 +652,10 @@ const services = ref([])
 const passages = ref([])
 const loading = ref(false)
 const error = ref('')
+
+const optionsServices = computed(() =>
+  services.value.map((s) => ({ value: s.id, label: s.nom })),
+)
 
 // Onglet actif par défaut : le premier de la barre selon le poste
 const onglet = ref(posteConstante.value ? 'attente' : 'formulaire')

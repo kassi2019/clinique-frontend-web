@@ -137,9 +137,11 @@
           <div class="form-row">
             <div class="field">
               <label>Clinique *</label>
-              <select v-model="form.cliniqueId" required>
-                <option v-for="c in cliniques" :key="c.id" :value="c.id">{{ c.nom }}</option>
-              </select>
+              <SelectSearch
+                v-model="form.cliniqueId"
+                :options="optionsCliniques"
+                placeholder="— Choisir —"
+              />
             </div>
             <div class="field">
               <label>Matricule *</label>
@@ -167,10 +169,11 @@
             </div>
             <div class="field">
               <label>Service de rattachement</label>
-              <select v-model="form.serviceId">
-                <option :value="null">—</option>
-                <option v-for="s in services" :key="s.id" :value="s.id">{{ s.nom }}</option>
-              </select>
+              <SelectSearch
+                v-model="form.serviceId"
+                :options="optionsServices"
+                placeholder="—"
+              />
             </div>
             <div class="field">
               <label>Téléphone</label>
@@ -205,11 +208,12 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import Swal from 'sweetalert2'
 import http from '../../api/http'
 import { initialesDe, optimiserImage } from '../../utils/image'
 import PaginationBar from '../../components/PaginationBar.vue'
+import SelectSearch from '../../components/SelectSearch.vue'
 import { toastError, toastSuccess } from '../../utils/notifications'
 
 const liste = ref([])
@@ -232,6 +236,14 @@ const form = reactive({})
 const formError = ref('')
 const saving = ref(false)
 const photoAvertissement = ref('')
+
+const optionsCliniques = computed(() =>
+  cliniques.value.map((c) => ({ value: c.id, label: c.nom })),
+)
+const optionsServices = computed(() => [
+  { value: null, label: '—' },
+  ...services.value.map((s) => ({ value: s.id, label: s.nom })),
+])
 
 /** Charge la photo (caméra ou fichier), redimensionnée pour un avatar. */
 async function onPhotoChoisie(e) {

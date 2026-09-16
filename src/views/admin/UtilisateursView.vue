@@ -81,11 +81,11 @@
         <form @submit.prevent="save">
           <div class="field">
             <label>Fiche personnel rattachée *</label>
-            <select v-model="form.personnelId" :disabled="!!form.id" required>
-              <option v-for="p in personnelDisponibles" :key="p.id" :value="p.id">
-                {{ p.matricule }} — {{ p.nom }} {{ p.prenom }} ({{ p.fonction }})
-              </option>
-            </select>
+            <SelectSearch
+              v-model="form.personnelId"
+              :options="optionsPersonnel"
+              placeholder="— Choisir —"
+            />
           </div>
           <div class="form-row">
             <div class="field">
@@ -94,9 +94,11 @@
             </div>
             <div class="field">
               <label>Rôle *</label>
-              <select v-model="form.roleId" required>
-                <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.nom }}</option>
-              </select>
+              <SelectSearch
+                v-model="form.roleId"
+                :options="optionsRoles"
+                placeholder="— Choisir —"
+              />
             </div>
           </div>
           <div v-if="!form.id" class="field">
@@ -147,6 +149,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import Swal from 'sweetalert2'
 import http from '../../api/http'
 import PaginationBar from '../../components/PaginationBar.vue'
+import SelectSearch from '../../components/SelectSearch.vue'
 import { toastError, toastSuccess } from '../../utils/notifications'
 
 const liste = ref([])
@@ -176,6 +179,16 @@ const personnelDisponibles = computed(() => {
   const rattache = form.id ? form.personnelId : null
   return personnel.value.filter((p) => !p.utilisateur || p.utilisateur?.id === rattache)
 })
+
+const optionsPersonnel = computed(() =>
+  personnelDisponibles.value.map((p) => ({
+    value: p.id,
+    label: `${p.matricule} — ${p.nom} ${p.prenom} (${p.fonction})`,
+  })),
+)
+const optionsRoles = computed(() =>
+  roles.value.map((r) => ({ value: r.id, label: r.nom })),
+)
 
 async function load() {
   loading.value = true
