@@ -85,68 +85,435 @@
         </div>
       </section>
 
-      <!-- Contenu consultation -->
-      <div v-if="passageCourant && passageCourant.consultable" class="consultation-grid">
-        <!-- Colonne gauche : consultation -->
-        <section class="card">
+      <!-- Contenu consultation : 4 onglets -->
+      <div v-if="passageCourant && passageCourant.consultable" class="consultation-tabs">
+        <nav class="tabs-nav">
+          <button class="tab-btn" :class="{ active: onglet === 'fiche' }" @click="onglet = 'fiche'">
+            📋 Fiche de consultation
+          </button>
+          <button class="tab-btn" :class="{ active: onglet === 'medicaments' }" @click="onglet = 'medicaments'">
+            💊 Prescription de médicaments
+          </button>
+          <button class="tab-btn" :class="{ active: onglet === 'examens' }" @click="onglet = 'examens'">
+            🔬 Examens (labo / imagerie)
+          </button>
+          <button class="tab-btn" :class="{ active: onglet === 'historique' }" @click="onglet = 'historique'">
+            📂 Historique médical
+          </button>
+        </nav>
+
+        <!-- ══ Onglet 1 : Fiche de consultation ══ -->
+        <section v-if="onglet === 'fiche'" class="card">
           <div class="card-header">
-            <h2>Consultation</h2>
+            <h2>Fiche de consultation</h2>
             <span v-if="consultation" class="badge" :class="consultation.statut === 'VALIDEE' ? 'badge-success' : 'badge-warning'">
               {{ consultation.statut === 'VALIDEE' ? 'Validée' : 'En cours' }}
             </span>
           </div>
 
-          <!-- Constantes récupérées de l'accueil -->
-          <div v-if="detail" class="constantes-box">
-            <h3 class="section-title">Constantes (accueil)</h3>
-            <div class="constantes-grid">
-              <span v-if="detail.passage.constantes.temperature">🌡️ T° : <strong>{{ detail.passage.constantes.temperature }} °C</strong></span>
-              <span v-if="detail.passage.constantes.pouls">💓 Pouls : <strong>{{ detail.passage.constantes.pouls }} bpm</strong></span>
-              <span v-if="detail.passage.constantes.tensionGauche">🩸 TA : <strong>{{ detail.passage.constantes.tensionGauche }}{{ detail.passage.constantes.tensionDroite ? ' / ' + detail.passage.constantes.tensionDroite : '' }}</strong></span>
-              <span v-if="detail.passage.constantes.poids">⚖️ Poids : <strong>{{ detail.passage.constantes.poids }} kg</strong></span>
-              <span v-if="detail.passage.constantes.taille">📏 Taille : <strong>{{ detail.passage.constantes.taille }} cm</strong></span>
+          <form @submit.prevent="validerEtEnregistrer">
+            <!-- ══ 1. Données administratives ══ -->
+            <h3 class="section-title">Données administratives</h3>
+            <div class="form-row">
+              <div class="field">
+                <label>Mode d'entrée</label>
+                <div class="chips">
+                  <label class="chip" :class="{ actif: formConsult.modeEntree === 'VENUE_DIRECTE' }">
+                    <input v-model="formConsult.modeEntree" type="radio" value="VENUE_DIRECTE" hidden /> Venue du même
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.modeEntree === 'REFERE_CENTRE' }">
+                    <input v-model="formConsult.modeEntree" type="radio" value="REFERE_CENTRE" hidden /> Référée d'un centre
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.modeEntree === 'REFERE_MEDECIN' }">
+                    <input v-model="formConsult.modeEntree" type="radio" value="REFERE_MEDECIN" hidden /> Référée par un médecin
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.modeEntree === 'AUTRE' }">
+                    <input v-model="formConsult.modeEntree" type="radio" value="AUTRE" hidden /> Autre
+                  </label>
+                </div>
+                <input
+                  v-if="formConsult.modeEntree === 'AUTRE'"
+                  v-model.trim="formConsult.modeEntreeAutre"
+                  class="mt-6"
+                  placeholder="Préciser…"
+                />
+              </div>
             </div>
-          </div>
 
-          <form @submit.prevent="enregistrerConsultation">
-            <h3 class="section-title">Éléments de consultation</h3>
-            <div class="field">
-              <label>Motif</label>
-              <input v-model.trim="formConsult.motif" placeholder="Ex : fièvre, douleurs abdominales…" />
+            <div class="form-row">
+              <div class="field">
+                <label>Nom</label>
+                <input :value="passageCourant?.patient?.nom" disabled />
+              </div>
+              <div class="field">
+                <label>Prénoms</label>
+                <input :value="passageCourant?.patient?.prenom" disabled />
+              </div>
+              <div class="field">
+                <label>Âge (ans)</label>
+                <input :value="passageCourant?.patient?.age + ' ans'" disabled />
+              </div>
+              <div class="field">
+                <label>Tranche d'âge</label>
+                <input :value="trancheAge" disabled />
+              </div>
+              <div class="field">
+                <label>Sexe</label>
+                <input :value="passageCourant?.patient?.sexe === 'M' ? 'Masculin' : passageCourant?.patient?.sexe === 'F' ? 'Féminin' : '—'" disabled />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="field">
+                <label>Profession</label>
+                <input v-model.trim="formConsult.profession" />
+              </div>
+              <div class="field">
+                <label>Nationalité</label>
+                <input v-model.trim="formConsult.nationalite" />
+              </div>
+              <div class="field">
+                <label>Contacts téléphoniques</label>
+                <input v-model.trim="formConsult.telephone" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="field">
+                <label>Résidence habituelle</label>
+                <input v-model.trim="formConsult.residenceHabituelle" />
+              </div>
+              <div class="field">
+                <label>Résidence actuelle</label>
+                <input v-model.trim="formConsult.residenceActuelle" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="field">
+                <label>En cours de scolarisation</label>
+                <div class="chips">
+                  <label v-for="o in OUI_NON_NA" :key="o" class="chip" :class="{ actif: formConsult.scolarisation === o }">
+                    <input v-model="formConsult.scolarisation" type="radio" :value="o" hidden /> {{ o }}
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <label>Statut conjugal</label>
+                <div class="chips">
+                  <label v-for="o in STATUTS_CONJUGAUX" :key="o" class="chip" :class="{ actif: formConsult.statutConjugal === o }">
+                    <input v-model="formConsult.statutConjugal" type="radio" :value="o" hidden /> {{ o }}
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="field">
+                <label>Type de population</label>
+                <div class="chips">
+                  <label v-for="o in TYPES_POPULATION" :key="o" class="chip" :class="{ actif: formConsult.typePopulation === o }">
+                    <input v-model="formConsult.typePopulation" type="radio" :value="o" hidden /> {{ o }}
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <label>Protection sociale</label>
+                <div class="chips">
+                  <label v-for="o in PROTECTIONS_SOCIALES" :key="o" class="chip" :class="{ actif: formConsult.protectionSociale === o }">
+                    <input v-model="formConsult.protectionSociale" type="radio" :value="o" hidden /> {{ o }}
+                  </label>
+                </div>
+              </div>
             </div>
             <div class="field">
-              <label>Observations</label>
-              <textarea v-model.trim="formConsult.observation" rows="3" placeholder="Examen clinique, antécédents…"></textarea>
+              <label>Autres populations à haut risque</label>
+              <input v-model.trim="formConsult.populationsRisque" />
             </div>
+
+            <!-- ══ 2. Antécédents ══ -->
+            <h3 class="section-title">Antécédents</h3>
             <div class="field">
-              <label>Diagnostic</label>
-              <input v-model.trim="formConsult.diagnostic" placeholder="Ex : Paludisme simple" />
+              <label>Traitement médicamenteux antérieur / en cours</label>
+              <input v-model.trim="formConsult.traitementAnterieur" />
             </div>
             <div class="form-row">
-              <div class="field checkbox-field">
-                <label class="checkbox-label">
-                  <input v-model="formConsult.hospitalisation" type="checkbox" />
-                  Hospitalisation
-                </label>
+              <div class="field">
+                <label>HTA</label>
+                <div class="chips">
+                  <label class="chip" :class="{ actif: formConsult.hta === true }">
+                    <input v-model="formConsult.hta" type="radio" :value="true" hidden /> Oui
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.hta === false }">
+                    <input v-model="formConsult.hta" type="radio" :value="false" hidden /> Non
+                  </label>
+                </div>
               </div>
-              <div v-if="formConsult.hospitalisation" class="field">
-                <label>Durée prévue</label>
-                <input v-model.trim="formConsult.hospitalisationDuree" placeholder="Ex : 3 jours" />
+              <div class="field">
+                <label>Diabète</label>
+                <div class="chips">
+                  <label class="chip" :class="{ actif: formConsult.diabete === true }">
+                    <input v-model="formConsult.diabete" type="radio" :value="true" hidden /> Oui
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.diabete === false }">
+                    <input v-model="formConsult.diabete" type="radio" :value="false" hidden /> Non
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <label>Tabac</label>
+                <div class="chips">
+                  <label class="chip" :class="{ actif: formConsult.tabac === true }">
+                    <input v-model="formConsult.tabac" type="radio" :value="true" hidden /> Oui
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.tabac === false }">
+                    <input v-model="formConsult.tabac" type="radio" :value="false" hidden /> Non
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <label>Alcool</label>
+                <div class="chips">
+                  <label class="chip" :class="{ actif: formConsult.alcool === true }">
+                    <input v-model="formConsult.alcool" type="radio" :value="true" hidden /> Oui
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.alcool === false }">
+                    <input v-model="formConsult.alcool" type="radio" :value="false" hidden /> Non
+                  </label>
+                </div>
               </div>
             </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Antécédents médicaux (autres)</label>
+                <input v-model.trim="formConsult.antecedentsMedicaux" />
+              </div>
+              <div class="field">
+                <label>Antécédents chirurgicaux</label>
+                <input v-model.trim="formConsult.antecedentsChirurgicaux" />
+              </div>
+              <div class="field">
+                <label>DDR</label>
+                <input v-model.trim="formConsult.ddr" placeholder="Date des dernières règles" />
+              </div>
+              <div class="field">
+                <label>Grossesse en cours</label>
+                <div class="chips">
+                  <label class="chip" :class="{ actif: formConsult.grossesseEnCours === true }">
+                    <input v-model="formConsult.grossesseEnCours" type="radio" :value="true" hidden /> Oui
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.grossesseEnCours === false }">
+                    <input v-model="formConsult.grossesseEnCours" type="radio" :value="false" hidden /> Non
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- ══ 3. Examen clinique et constantes ══ -->
+            <h3 class="section-title">Examen clinique et constantes physiques</h3>
+            <div class="field">
+              <label>Motifs de consultation</label>
+              <input v-model.trim="formConsult.motif" placeholder="Ex : fièvre, douleurs abdominales…" />
+            </div>
+            <div class="constantes-grid fiche-constantes">
+              <label class="constante-item">Poids (kg) <input v-model.trim="formConsult.poids" /></label>
+              <label class="constante-item">Taille (m) <input v-model.trim="formConsult.taille" /></label>
+              <label class="constante-item">IMC (kg/m²) <input v-model.trim="formConsult.imc" /></label>
+              <label class="constante-item">Z-score <input v-model.trim="formConsult.zscore" /></label>
+              <label class="constante-item">Température (°C) <input v-model.trim="formConsult.temperature" /></label>
+              <label class="constante-item">Fréq. resp. (c/min) <input v-model.trim="formConsult.frequenceRespiratoire" /></label>
+              <label class="constante-item">TA (mmHg) <input v-model.trim="formConsult.tension" /></label>
+              <label class="constante-item">Pouls (batt/min) <input v-model.trim="formConsult.pouls" /></label>
+              <label class="constante-item">Périm. brachial (cm) <input v-model.trim="formConsult.perimetreBrachial" /></label>
+              <label class="constante-item">Périm. crânien (cm) <input v-model.trim="formConsult.perimetreCranien" /></label>
+            </div>
+            <div class="field">
+              <label>Recherche active de la tuberculose</label>
+              <div class="chips">
+                <label v-for="o in OUI_NON_NA" :key="o" class="chip" :class="{ actif: formConsult.rechercheTB === o }">
+                  <input v-model="formConsult.rechercheTB" type="radio" :value="o" hidden /> {{ o }}
+                </label>
+              </div>
+            </div>
+            <div class="field">
+              <label>Examen physique</label>
+              <textarea v-model.trim="formConsult.observation" rows="2"></textarea>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Diagnostic retenu</label>
+                <input v-model.trim="formConsult.diagnostic" placeholder="Ex : Paludisme simple" />
+              </div>
+              <div class="field">
+                <label>Autres pathologies associées</label>
+                <input v-model.trim="formConsult.pathologiesAssociees" />
+              </div>
+            </div>
+
+            <h4 class="section-title">Examens complémentaires</h4>
+            <div class="form-row">
+              <div class="field">
+                <label>TDR Paludisme</label>
+                <div class="chips">
+                  <label v-for="o in ['positif', 'négatif', 'non réalisé', 'NA']" :key="o" class="chip" :class="{ actif: formConsult.tdrPaludisme === o }">
+                    <input v-model="formConsult.tdrPaludisme" type="radio" :value="o" hidden /> {{ o }}
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <label>Goutte épaisse</label>
+                <div class="chips">
+                  <label v-for="o in ['positive', 'négative', 'non réalisée', 'NA']" :key="o" class="chip" :class="{ actif: formConsult.goutteEpaisse === o }">
+                    <input v-model="formConsult.goutteEpaisse" type="radio" :value="o" hidden /> {{ o }}
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>MILDA Enfant 12–59 mois — Éligible</label>
+                <div class="chips">
+                  <label v-for="o in OUI_NON_NA" :key="o" class="chip" :class="{ actif: formConsult.mildaEligible === o }">
+                    <input v-model="formConsult.mildaEligible" type="radio" :value="o" hidden /> {{ o }}
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <label>Remise MILDA</label>
+                <div class="chips">
+                  <label v-for="o in OUI_NON_NA" :key="o" class="chip" :class="{ actif: formConsult.mildaRemise === o }">
+                    <input v-model="formConsult.mildaRemise" type="radio" :value="o" hidden /> {{ o }}
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <label>CDIP proposé</label>
+                <div class="chips">
+                  <label class="chip" :class="{ actif: formConsult.cdipPropose === true }">
+                    <input v-model="formConsult.cdipPropose" type="radio" :value="true" hidden /> Oui
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.cdipPropose === false }">
+                    <input v-model="formConsult.cdipPropose" type="radio" :value="false" hidden /> Non
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <label>CDIP réalisé</label>
+                <div class="chips">
+                  <label class="chip" :class="{ actif: formConsult.cdipRealise === true }">
+                    <input v-model="formConsult.cdipRealise" type="radio" :value="true" hidden /> Oui
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.cdipRealise === false }">
+                    <input v-model="formConsult.cdipRealise" type="radio" :value="false" hidden /> Non
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Code dépistage client</label>
+                <input v-model.trim="formConsult.codeDepistage" />
+              </div>
+              <div class="field">
+                <label>Glycémie à jeun</label>
+                <input v-model.trim="formConsult.glycemieAjeun" />
+              </div>
+              <div class="field">
+                <label>Glycémie non à jeun</label>
+                <input v-model.trim="formConsult.glycemieNonAjeun" />
+              </div>
+            </div>
+            <div class="field">
+              <label>Autres examens</label>
+              <textarea v-model.trim="formConsult.autresExamens" rows="2"></textarea>
+            </div>
+
+            <!-- ══ 4. Conduite à tenir ══ -->
+            <h3 class="section-title">Conduite à tenir — traitement</h3>
+            <div class="field">
+              <label>Médicaments, posologie, voie d'administration, durée ; conseils hygiéno-diététiques</label>
+              <textarea v-model.trim="formConsult.conduiteTenir" rows="3"></textarea>
+            </div>
+
+            <!-- ══ 5. Issue de la consultation ══ -->
+            <h3 class="section-title">Issue de la consultation</h3>
+            <div class="form-row">
+              <div class="field">
+                <label>Sortie</label>
+                <div class="chips">
+                  <label v-for="o in ISSUES_SORTIE" :key="o.value" class="chip" :class="{ actif: formConsult.issueSortie === o.value }">
+                    <input v-model="formConsult.issueSortie" type="radio" :value="o.value" hidden /> {{ o.label }}
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <label>Cas présumé de TB référé</label>
+                <div class="chips">
+                  <label class="chip" :class="{ actif: formConsult.casPresumeTB === 'A_REVOIR' }">
+                    <input v-model="formConsult.casPresumeTB" type="radio" value="A_REVOIR" hidden /> À revoir
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.casPresumeTB === 'DECEDE' }">
+                    <input v-model="formConsult.casPresumeTB" type="radio" value="DECEDE" hidden /> Décédé(e)
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div v-if="formConsult.issueSortie === 'MO'" class="form-row">
+              <div class="field">
+                <label>Durée M.O. (heures)</label>
+                <input v-model.number="formConsult.moDureeHeures" type="number" min="0" />
+              </div>
+              <div class="field">
+                <label>Durée M.O. (minutes)</label>
+                <input v-model.number="formConsult.moDureeMinutes" type="number" min="0" />
+              </div>
+              <div class="field">
+                <label>Début M.O.</label>
+                <input v-model="formConsult.moDebut" type="datetime-local" />
+              </div>
+              <div class="field">
+                <label>Fin M.O.</label>
+                <input v-model="formConsult.moFin" type="datetime-local" />
+              </div>
+            </div>
+
             <div class="form-actions">
-              <button class="btn btn-primary" type="submit" :disabled="savingConsult">
-                {{ savingConsult ? 'Enregistrement…' : '💾 Enregistrer' }}
+              <button
+                class="btn btn-outline"
+                type="button"
+                @click="imprimerFicheApercu"
+              >
+                🖨️ Imprimer
+              </button>
+              <button
+                class="btn btn-primary"
+                type="button"
+                :disabled="savingConsult"
+                @click="validerEtEnregistrer"
+              >
+                {{
+                  savingConsult
+                    ? 'Enregistrement…'
+                    : consultation?.statut === 'VALIDEE'
+                      ? '💾 Enregistrer les modifications'
+                      : '💾 Enregistrer'
+                }}
               </button>
             </div>
           </form>
+        </section>
 
-          <!-- Médicaments -->
-          <h3 class="section-title">Prescription de médicaments</h3>
-          <div v-if="consultation && consultation.medicaments.length === 0" class="text-muted small-note">
+        <!-- ══ Onglet 2 : Prescription de médicaments ══ -->
+        <section v-else-if="onglet === 'medicaments'" class="card">
+          <div class="card-header"><h2>Prescription de médicaments</h2></div>
+          <div v-if="!consultation" class="empty-state">
+            💊 Enregistrez d'abord la fiche de consultation pour prescrire des médicaments.
+          </div>
+          <template v-else>
+          <div v-if="consultation.medicaments.length === 0" class="text-muted small-note">
             Aucun médicament prescrit.
           </div>
-          <div v-else-if="consultation" class="table-wrap">
+          <div v-else class="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -174,8 +541,60 @@
             + Ajouter un médicament
           </button>
 
-          <!-- Examens -->
-          <h3 class="section-title">Examens (laboratoire / imagerie)</h3>
+          <!-- Ordonnance -->
+          <div class="form-actions validation-row">
+            <div class="ordo-save-group">
+              <button class="btn btn-primary" :disabled="savingOrdo" @click="sauvegarderOrdonnance">
+                💾 {{ savingOrdo ? 'Sauvegarde…' : 'Sauvegarder l\'ordonnance' }}
+              </button>
+              <button class="btn btn-outline" @click="imprimerOrdonnance">
+                🖨️ Imprimer l'ordonnance
+              </button>
+              <span v-if="consultation.ordonnanceSauveeLe" class="badge badge-success ordo-saved-badge">
+                ✓ Sauvegardée le {{ formatDateHeure(consultation.ordonnanceSauveeLe) }}
+              </span>
+            </div>
+          </div>
+          </template>
+        </section>
+
+        <!-- ══ Onglet 3 : Examens (laboratoire / imagerie) ══ -->
+        <section v-else-if="onglet === 'examens'" class="card">
+          <div class="card-header"><h2>Examens (laboratoire / imagerie)</h2></div>
+          <div v-if="!consultation" class="text-muted small-note">
+            Enregistrez la fiche de consultation pour prescrire des examens.
+          </div>
+          <div v-if="consultation" class="ajout-examen">
+            <div class="ajout-examen-select">
+              <SelectSearch
+                v-model="nouvelExamenId"
+                :options="optionsExamensCatalogue"
+                placeholder="— Choisir un examen à prescrire (labo, imagerie…) —"
+              />
+            </div>
+            <button
+              class="btn btn-outline btn-sm"
+              :disabled="!nouvelExamenId || ajoutExamenEnCours"
+              @click="ajouterExamen"
+            >
+              ＋ Ajouter
+            </button>
+          </div>
+          <div v-if="consultation" class="ajout-examen">
+            <input
+              v-model.trim="nouvelExamenLibre"
+              class="search-input ajout-examen-libre"
+              placeholder="Ou saisir librement un examen non réalisé à la clinique (non facturable)…"
+              @keyup.enter="ajouterExamenLibre"
+            />
+            <button
+              class="btn btn-outline btn-sm"
+              :disabled="!nouvelExamenLibre || ajoutExamenEnCours"
+              @click="ajouterExamenLibre"
+            >
+              ＋ Ajouter (libre)
+            </button>
+          </div>
           <div v-if="detail && detail.passage.prestations.length === 0" class="text-muted small-note">
             Aucune prestation disponible pour ce service.
           </div>
@@ -194,10 +613,13 @@
                 <tr v-for="l in detail.passage.prestations" :key="l.id">
                   <td>{{ l.libelle }}</td>
                   <td>{{ l.service?.nom || '—' }}</td>
-                  <td>{{ l.montant.toLocaleString('fr-FR') }}</td>
+                  <td>{{ l.statut === 'EXTERNE' ? '—' : l.montant.toLocaleString('fr-FR') }}</td>
                   <td>
                     <span v-if="l.statut === 'NON_PRESCRITE'" class="badge badge-muted">Pas prescrit</span>
                     <span v-else-if="l.statut === 'EN_ATTENTE'" class="badge badge-warning">Prescrit — à payer</span>
+                    <span v-else-if="l.statut === 'EXTERNE'" class="badge badge-muted" title="Examen réalisé hors clinique — non facturable">
+                      Prescrit (externe)
+                    </span>
                     <span v-else class="badge badge-success">Payé</span>
                   </td>
                   <td>
@@ -209,7 +631,7 @@
                       ✍️ Prescrire
                     </button>
                     <button
-                      v-if="l.statut === 'EN_ATTENTE' && consultation"
+                      v-if="(l.statut === 'EN_ATTENTE' || l.statut === 'EXTERNE') && consultation"
                       class="btn btn-danger btn-sm"
                       title="Retirer la prescription"
                       @click="retirerExamen(l)"
@@ -222,31 +644,10 @@
             </table>
           </div>
 
-          <!-- Validation / ordonnance -->
-          <div v-if="consultation" class="form-actions validation-row">
-            <div class="ordo-save-group">
-              <button class="btn btn-primary" :disabled="savingOrdo" @click="sauvegarderOrdonnance">
-                💾 {{ savingOrdo ? 'Sauvegarde…' : 'Sauvegarder l\'ordonnance' }}
-              </button>
-              <button class="btn btn-outline" @click="imprimerOrdonnance">
-                🖨️ Imprimer l'ordonnance
-              </button>
-              <span v-if="consultation.ordonnanceSauveeLe" class="badge badge-success ordo-saved-badge">
-                ✓ Sauvegardée le {{ formatDateHeure(consultation.ordonnanceSauveeLe) }}
-              </span>
-            </div>
-            <button
-              class="btn btn-primary btn-validate"
-              :disabled="consultation.statut === 'VALIDEE'"
-              @click="validerConsultation"
-            >
-              ✓ Valider la consultation
-            </button>
-          </div>
         </section>
 
-        <!-- Colonne droite : historique médical -->
-        <section class="card">
+        <!-- ══ Onglet 4 : Historique médical ══ -->
+        <section v-else class="card">
           <div class="card-header"><h2>Historique médical</h2></div>
           <div v-if="!detail || detail.historique.length === 0" class="empty-state">
             Aucune consultation antérieure.
@@ -384,6 +785,177 @@
       </div>
     </div>
 
+    <!-- Aperçu de la fiche avant impression (la fiche flotte au-dessus de la page) -->
+    <div v-if="apercuFicheVisible" class="apercu-voile"></div>
+    <div v-if="apercuFicheVisible" class="apercu-barre">
+      <span>👁️ Aperçu de la fiche — vérifiez avant d'imprimer</span>
+      <div class="apercu-barre-actions">
+        <button class="btn btn-primary btn-sm" @click="imprimerFiche">🖨️ Imprimer</button>
+        <button class="btn btn-outline btn-sm btn-back" @click="apercuFicheVisible = false">
+          Fermer
+        </button>
+      </div>
+    </div>
+
+    <!-- Fiche de consultation imprimable (A4, format papier) -->
+    <div
+      v-if="passageCourant"
+      id="fiche-print"
+      :class="{ 'apercu-flottant': apercuFicheVisible }"
+    >
+      <div class="fiche-a4">
+        <div class="fiche-a4-head">
+          <h1>{{ cliniqueNom }}</h1>
+          <p v-if="cliniqueAdresse">{{ cliniqueAdresse }}</p>
+        </div>
+        <h2 class="fiche-a4-titre">FICHE DE CONSULTATION CURATIVE</h2>
+
+        <!-- Données administratives -->
+        <h2 class="fiche-a4-section">Données administratives</h2>
+        <p class="fiche-a4-ligne">Numéro d'ordre : <strong>{{ passageCourant.numeroOrdre }}</strong></p>
+        <p class="fiche-a4-ligne">
+          Mode d'entrée :
+          {{ caseCoche(formConsult.modeEntree === 'VENUE_DIRECTE') }} Venue du même &nbsp;&nbsp;
+          {{ caseCoche(formConsult.modeEntree === 'REFERE_CENTRE') }} Référée d'un centre de santé<br />
+          {{ caseCoche(formConsult.modeEntree === 'AUTRE') }} Autre : {{ formConsult.modeEntreeAutre }} &nbsp;&nbsp;
+          {{ caseCoche(formConsult.modeEntree === 'REFERE_MEDECIN') }} Référée par un médecin/praticien
+        </p>
+        <p class="fiche-a4-ligne">
+          Nom : <strong>{{ passageCourant.patient.nom }}</strong> &nbsp;&nbsp;&nbsp;
+          Prénoms : <strong>{{ passageCourant.patient.prenom }}</strong>
+        </p>
+        <p class="fiche-a4-ligne">
+          Profession : {{ formConsult.profession }} &nbsp;&nbsp;&nbsp;
+          Nationalité : {{ formConsult.nationalite }}
+        </p>
+        <p class="fiche-a4-ligne">
+          Âge : <strong>{{ passageCourant.patient.age }} ans</strong> &nbsp;&nbsp;&nbsp;
+          Tranche d'âge :
+          <span v-for="t in TRANCHES_AGE" :key="t">{{ caseCoche(trancheAge === t) }} {{ t }} &nbsp;</span>
+        </p>
+        <p class="fiche-a4-ligne">
+          Sexe :
+          {{ caseCoche(passageCourant.patient.sexe === 'F') }} Féminin &nbsp;&nbsp;
+          {{ caseCoche(passageCourant.patient.sexe === 'M') }} Masculin
+        </p>
+        <p class="fiche-a4-ligne">
+          En cours de scolarisation :
+          <span v-for="o in OUI_NON_NA" :key="o">{{ caseCoche(formConsult.scolarisation === o) }} {{ o }} &nbsp;</span>
+        </p>
+        <p class="fiche-a4-ligne">Résidence habituelle : {{ formConsult.residenceHabituelle }}</p>
+        <p class="fiche-a4-ligne">Résidence actuelle : {{ formConsult.residenceActuelle }}</p>
+        <p class="fiche-a4-ligne">
+          Statut conjugal :
+          <span v-for="o in STATUTS_CONJUGAUX" :key="o">{{ caseCoche(formConsult.statutConjugal === o) }} {{ o }} &nbsp;</span>
+        </p>
+        <p class="fiche-a4-ligne">
+          Type de population :
+          <span v-for="o in TYPES_POPULATION" :key="o">{{ caseCoche(formConsult.typePopulation === o) }} {{ o }} &nbsp;</span>
+        </p>
+        <p class="fiche-a4-ligne">Autres populations à haut risque : {{ formConsult.populationsRisque }}</p>
+        <p class="fiche-a4-ligne">Contacts téléphoniques : {{ formConsult.telephone }}</p>
+        <p class="fiche-a4-ligne">
+          Protection sociale :
+          <span v-for="o in PROTECTIONS_SOCIALES" :key="o">{{ caseCoche(formConsult.protectionSociale === o) }} {{ o }} &nbsp;</span>
+        </p>
+
+        <!-- Antécédents -->
+        <h2 class="fiche-a4-section">ANTÉCÉDENTS</h2>
+        <p class="fiche-a4-ligne">Traitement médicamenteux antérieur / en cours : {{ formConsult.traitementAnterieur }}</p>
+        <p class="fiche-a4-ligne">
+          Médicaux : HTA : {{ caseCoche(formConsult.hta === true) }} Oui {{ caseCoche(formConsult.hta === false) }} Non &nbsp;&nbsp;
+          DIABÈTE : {{ caseCoche(formConsult.diabete === true) }} Oui {{ caseCoche(formConsult.diabete === false) }} Non<br />
+          Autres : {{ formConsult.antecedentsMedicaux }}
+        </p>
+        <p class="fiche-a4-ligne">Chirurgicaux : {{ formConsult.antecedentsChirurgicaux }}</p>
+        <p class="fiche-a4-ligne">Gynéco-obstétricaux : DDR : {{ formConsult.ddr }} &nbsp;&nbsp;
+          Grossesse en cours : {{ caseCoche(formConsult.grossesseEnCours === true) }} Oui {{ caseCoche(formConsult.grossesseEnCours === false) }} Non</p>
+        <p class="fiche-a4-ligne">
+          Modes de vie : Tabac : {{ caseCoche(formConsult.tabac === true) }} Oui {{ caseCoche(formConsult.tabac === false) }} Non &nbsp;&nbsp;
+          Alcool : {{ caseCoche(formConsult.alcool === true) }} Oui {{ caseCoche(formConsult.alcool === false) }} Non
+        </p>
+        <p class="fiche-a4-ligne">Type de suivi : {{ formConsult.typeSuivi }} &nbsp;&nbsp; Consultant : {{ formConsult.consultantType }}</p>
+
+        <!-- Examen clinique -->
+        <h2 class="fiche-a4-section">Examen clinique et constantes physiques du patient</h2>
+        <p class="fiche-a4-ligne">Motifs de consultation : {{ formConsult.motif }}</p>
+        <p class="fiche-a4-ligne">
+          Constantes physiques : Poids : {{ formConsult.poids }} kg &nbsp; Taille : {{ formConsult.taille }} m &nbsp;
+          IMC : {{ formConsult.imc }} kg/m² &nbsp; Z-score : {{ formConsult.zscore }}<br />
+          Température : {{ formConsult.temperature }} °C &nbsp; Fréquence respiratoire : {{ formConsult.frequenceRespiratoire }} cycles/min<br />
+          TA : {{ formConsult.tension }} mmHg &nbsp; Pouls : {{ formConsult.pouls }} batt/min<br />
+          Périmètre brachial : {{ formConsult.perimetreBrachial }} cm &nbsp; Périmètre crânien : {{ formConsult.perimetreCranien }} cm
+        </p>
+        <p class="fiche-a4-ligne">
+          Recherche active de la tuberculose :
+          <span v-for="o in OUI_NON_NA" :key="o">{{ caseCoche(formConsult.rechercheTB === o) }} {{ o }} &nbsp;</span>
+        </p>
+        <p class="fiche-a4-ligne">Examen physique : {{ formConsult.observation }}</p>
+        <p class="fiche-a4-ligne">Diagnostic retenu : <strong>{{ formConsult.diagnostic }}</strong></p>
+        <p class="fiche-a4-ligne">Autres pathologies associées : {{ formConsult.pathologiesAssociees }}</p>
+
+        <h2 class="fiche-a4-section">Examens complémentaires</h2>
+        <p class="fiche-a4-ligne">
+          TDR Paludisme : {{ caseCoche(formConsult.tdrPaludisme === 'positif') }} positif
+          {{ caseCoche(formConsult.tdrPaludisme === 'négatif') }} Négatif
+          {{ caseCoche(formConsult.tdrPaludisme === 'non réalisé') }} Non réalisé
+          {{ caseCoche(formConsult.tdrPaludisme === 'NA') }} NA<br />
+          Goutte épaisse : {{ caseCoche(formConsult.goutteEpaisse === 'positive') }} positive
+          {{ caseCoche(formConsult.goutteEpaisse === 'négative') }} Négative
+          {{ caseCoche(formConsult.goutteEpaisse === 'non réalisée') }} Non réalisée
+          {{ caseCoche(formConsult.goutteEpaisse === 'NA') }} NA
+        </p>
+        <p class="fiche-a4-ligne">
+          MILDA Enfant de 12 à 59 mois : Éligible :
+          <span v-for="o in OUI_NON_NA" :key="o">{{ caseCoche(formConsult.mildaEligible === o) }} {{ o }} &nbsp;</span>
+          &nbsp; Remise :
+          <span v-for="o in OUI_NON_NA" :key="o">{{ caseCoche(formConsult.mildaRemise === o) }} {{ o }} &nbsp;</span>
+        </p>
+        <p class="fiche-a4-ligne">
+          CDIP proposé : {{ caseCoche(formConsult.cdipPropose === true) }} Oui {{ caseCoche(formConsult.cdipPropose === false) }} Non &nbsp;&nbsp;
+          CDIP réalisé : {{ caseCoche(formConsult.cdipRealise === true) }} Oui {{ caseCoche(formConsult.cdipRealise === false) }} Non
+        </p>
+        <p class="fiche-a4-ligne">Code dépistage client : {{ formConsult.codeDepistage }}</p>
+        <p class="fiche-a4-ligne">Glycémie : à jeun {{ formConsult.glycemieAjeun }} / non à jeun {{ formConsult.glycemieNonAjeun }}</p>
+        <p class="fiche-a4-ligne">Autres examens : {{ formConsult.autresExamens }}</p>
+
+        <!-- Conduite à tenir -->
+        <h2 class="fiche-a4-section">CONDUITE À TENIR — TRAITEMENT</h2>
+        <p class="fiche-a4-ligne">Médicaments, posologie, voie d'administration, durée ; conseils hygiéno-diététiques :</p>
+        <p class="fiche-a4-texte">{{ formConsult.conduiteTenir }}</p>
+
+        <!-- Issue -->
+        <h2 class="fiche-a4-section">Issue de la consultation</h2>
+        <p class="fiche-a4-ligne">
+          Sortie :
+          <span v-for="o in ISSUES_SORTIE" :key="o.value">{{ caseCoche(formConsult.issueSortie === o.value) }} {{ o.label }} &nbsp;</span>
+        </p>
+        <p class="fiche-a4-ligne">
+          Cas présumé de TB référé :
+          {{ caseCoche(formConsult.casPresumeTB === 'A_REVOIR') }} À revoir &nbsp;&nbsp;
+          {{ caseCoche(formConsult.casPresumeTB === 'DECEDE') }} Décédé(e)
+        </p>
+        <p class="fiche-a4-ligne" v-if="formConsult.issueSortie === 'MO'">
+          Si M.O. préciser la durée : {{ formConsult.moDureeHeures }} h {{ formConsult.moDureeMinutes }} mn<br />
+          Date et heure de début M.O. : {{ formConsult.moDebut }} &nbsp;&nbsp;
+          Date et heure de fin M.O. : {{ formConsult.moFin }}
+        </p>
+
+        <!-- Signature et cachet -->
+        <div class="fiche-a4-sign">
+          <div class="fiche-a4-sign-date">
+            Fait le {{ formatDate(new Date()) }}
+          </div>
+          <div class="fiche-a4-sign-doc">
+            <p>Le médecin : Dr {{ auth.user?.personnel?.nom }} {{ auth.user?.personnel?.prenom }}</p>
+            <div class="fiche-a4-cachet">
+              Signature et cachet
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Ordonnance imprimable (A4, navigateur) -->
     <div v-if="ordonnance" id="ordo-print">
       <div class="ordo-a4">
@@ -473,9 +1045,72 @@ const detail = ref(null)
 const consultation = ref(null)
 let rechercheTimer = null
 
-// Formulaire consultation
+// Onglets de la consultation
+const onglet = ref('fiche') // fiche | medicaments | examens | historique
+
+// Formulaire consultation (fiche curative)
 const formConsult = reactive({})
 const savingConsult = ref(false)
+
+const OUI_NON_NA = ['Oui', 'Non', 'NA']
+const STATUTS_CONJUGAUX = ['Marié(e)', 'Concubinage', 'Célibataire', 'Séparé(e)', 'Veuf/Veuve', 'Autre']
+const TYPES_POPULATION = ['Population générale', 'TS', 'OEV', 'HSH', 'PC']
+const PROTECTIONS_SOCIALES = ['Non assuré', 'CMU', 'Assurance privée (AP)', 'CMU + AP', 'Indigent']
+const ISSUES_SORTIE = [
+  { value: 'HOSPITALISE', label: 'Hospitalisé(e)' },
+  { value: 'MO', label: 'M.O.' },
+  { value: 'REFERE_INTERNE', label: 'Référé(e) en interne' },
+  { value: 'REFERE_EXTERNE', label: 'Référé(e) externe' },
+]
+
+const TRANCHES_AGE = ['0–4 ans', '5–9 ans', '10–14 ans', '15–19 ans', '20–24 ans', '25–49 ans', '50 ans et plus']
+
+const trancheAge = computed(() => {
+  const age = Number(passageCourant.value?.patient?.age)
+  if (!age) return '—'
+  if (age <= 4) return '0–4 ans'
+  if (age <= 9) return '5–9 ans'
+  if (age <= 14) return '10–14 ans'
+  if (age <= 19) return '15–19 ans'
+  if (age <= 24) return '20–24 ans'
+  if (age <= 49) return '25–49 ans'
+  return '50 ans et plus'
+})
+
+/** Case cochée ☑ ou vide ☐ pour la fiche imprimée. */
+function caseCoche(valeur) {
+  return valeur ? '☑' : '☐'
+}
+
+function imprimerFiche() {
+  window.print()
+}
+
+// Aperçu de la fiche (flottant) avant impression
+const apercuFicheVisible = ref(false)
+
+/** Bouton Enregistrer : enregistre la fiche et valide la consultation (sans aperçu). */
+async function validerEtEnregistrer() {
+  if (!passageCourant.value) return
+  // 1. Enregistrer la fiche
+  await sauvegarderFiche()
+  if (!consultation.value) return
+  // 2. Valider la consultation (si ce n'est pas déjà fait)
+  if (consultation.value.statut !== 'VALIDEE') {
+    try {
+      await http.post(`/consultations/${consultation.value.id}/valider`)
+      toastSuccess('Consultation validée.')
+      await chargerDetail()
+    } catch (e) {
+      toastError(e.response?.data?.message || 'Erreur lors de la validation.')
+    }
+  }
+}
+
+/** Bouton Imprimer : ouvre l'aperçu de la fiche pour tirer l'impression. */
+function imprimerFicheApercu() {
+  apercuFicheVisible.value = true
+}
 
 // Médicaments
 const medicaments = ref([])
@@ -514,6 +1149,7 @@ async function choisirPassage(p) {
   passageCourant.value = p
   resultats.value = []
   recherche.value = ''
+  onglet.value = 'fiche'
   await chargerDetail()
 }
 
@@ -522,6 +1158,7 @@ function quitterPatient() {
   detail.value = null
   consultation.value = null
   ordonnance.value = null
+  apercuFicheVisible.value = false
   Object.keys(formConsult).forEach((k) => delete formConsult[k])
 }
 
@@ -531,36 +1168,144 @@ async function chargerDetail() {
     const { data } = await http.get(`/consultations/passages/${passageCourant.value.id}`)
     detail.value = data
     consultation.value = data.passage.consultation
+    const c = data.passage.consultation ?? {}
+    const pat = data.passage.patient ?? {}
+    const cons = data.passage.constantes ?? {}
     Object.keys(formConsult).forEach((k) => delete formConsult[k])
-    if (data.passage.consultation) {
-      Object.assign(formConsult, {
-        motif: data.passage.consultation.motif ?? '',
-        observation: data.passage.consultation.observation ?? '',
-        diagnostic: data.passage.consultation.diagnostic ?? '',
-        hospitalisation: data.passage.consultation.hospitalisation,
-        hospitalisationDuree: data.passage.consultation.hospitalisationDuree ?? '',
-      })
-    } else {
-      Object.assign(formConsult, {
-        motif: '', observation: '', diagnostic: '',
-        hospitalisation: false, hospitalisationDuree: '',
-      })
-    }
+    Object.assign(formConsult, {
+      // Fiche (déjà saisie ou vide)
+      motif: c.motif ?? '',
+      observation: c.observation ?? '',
+      diagnostic: c.diagnostic ?? '',
+      hospitalisation: c.hospitalisation ?? false,
+      hospitalisationDuree: c.hospitalisationDuree ?? '',
+      modeEntree: c.modeEntree ?? '',
+      modeEntreeAutre: c.modeEntreeAutre ?? '',
+      traitementAnterieur: c.traitementAnterieur ?? '',
+      hta: c.hta ?? null,
+      diabete: c.diabete ?? null,
+      antecedentsMedicaux: c.antecedentsMedicaux ?? '',
+      antecedentsChirurgicaux: c.antecedentsChirurgicaux ?? '',
+      ddr: c.ddr ?? '',
+      grossesseEnCours: c.grossesseEnCours ?? null,
+      tabac: c.tabac ?? null,
+      alcool: c.alcool ?? null,
+      typeSuivi: c.typeSuivi ?? '',
+      consultantType: c.consultantType ?? '',
+      imc: c.imc ?? '',
+      zscore: c.zscore ?? '',
+      frequenceRespiratoire: c.frequenceRespiratoire ?? '',
+      perimetreBrachial: c.perimetreBrachial ?? '',
+      perimetreCranien: c.perimetreCranien ?? '',
+      rechercheTB: c.rechercheTB ?? '',
+      pathologiesAssociees: c.pathologiesAssociees ?? '',
+      tdrPaludisme: c.tdrPaludisme ?? '',
+      goutteEpaisse: c.goutteEpaisse ?? '',
+      mildaEligible: c.mildaEligible ?? '',
+      mildaRemise: c.mildaRemise ?? '',
+      cdipPropose: c.cdipPropose ?? null,
+      cdipRealise: c.cdipRealise ?? null,
+      codeDepistage: c.codeDepistage ?? '',
+      glycemieAjeun: c.glycemieAjeun ?? '',
+      glycemieNonAjeun: c.glycemieNonAjeun ?? '',
+      autresExamens: c.autresExamens ?? '',
+      conduiteTenir: c.conduiteTenir ?? '',
+      issueSortie: c.issueSortie ?? '',
+      casPresumeTB: c.casPresumeTB ?? '',
+      moDureeHeures: c.moDureeHeures ?? null,
+      moDureeMinutes: c.moDureeMinutes ?? null,
+      moDebut: c.moDebut ? new Date(c.moDebut).toISOString().slice(0, 16) : '',
+      moFin: c.moFin ? new Date(c.moFin).toISOString().slice(0, 16) : '',
+      // Données administratives → fiche patient
+      profession: pat.profession ?? '',
+      nationalite: pat.nationalite ?? '',
+      scolarisation: pat.scolarisation ?? '',
+      statutConjugal: pat.statutConjugal ?? '',
+      typePopulation: pat.typePopulation ?? '',
+      populationsRisque: pat.populationsRisque ?? '',
+      protectionSociale: pat.protectionSociale ?? '',
+      residenceHabituelle: pat.residenceHabituelle ?? '',
+      residenceActuelle: pat.residenceActuelle ?? '',
+      telephone: pat.telephone ?? '',
+      // Constantes de l'accueil (modifiables)
+      poids: cons.poids ?? '',
+      taille: cons.taille ?? '',
+      temperature: cons.temperature ?? '',
+      pouls: cons.pouls ?? '',
+      tension: cons.tensionGauche
+        ? `${cons.tensionGauche}${cons.tensionDroite ? ' / ' + cons.tensionDroite : ''}`
+        : '',
+    })
   } catch (e) {
     toastError('Impossible de charger le passage.')
   }
 }
 
-async function enregistrerConsultation() {
+async function sauvegarderFiche() {
   if (!passageCourant.value) return
   savingConsult.value = true
   try {
-    const { data } = await http.post(`/consultations/passages/${passageCourant.value.id}`, {
-      ...formConsult,
-      hospitalisationDuree: formConsult.hospitalisationDuree || undefined,
-    })
+    const f = formConsult
+    const vider = (x) => (x === '' || x === null ? undefined : x)
+    const payload = {
+      motif: vider(f.motif),
+      observation: vider(f.observation),
+      diagnostic: vider(f.diagnostic),
+      hospitalisation: f.hospitalisation,
+      hospitalisationDuree: vider(f.hospitalisationDuree),
+      modeEntree: vider(f.modeEntree),
+      modeEntreeAutre: vider(f.modeEntreeAutre),
+      traitementAnterieur: vider(f.traitementAnterieur),
+      hta: f.hta,
+      diabete: f.diabete,
+      antecedentsMedicaux: vider(f.antecedentsMedicaux),
+      antecedentsChirurgicaux: vider(f.antecedentsChirurgicaux),
+      ddr: vider(f.ddr),
+      grossesseEnCours: f.grossesseEnCours,
+      tabac: f.tabac,
+      alcool: f.alcool,
+      typeSuivi: vider(f.typeSuivi),
+      consultantType: vider(f.consultantType),
+      imc: vider(f.imc),
+      zscore: vider(f.zscore),
+      frequenceRespiratoire: vider(f.frequenceRespiratoire),
+      perimetreBrachial: vider(f.perimetreBrachial),
+      perimetreCranien: vider(f.perimetreCranien),
+      rechercheTB: vider(f.rechercheTB),
+      pathologiesAssociees: vider(f.pathologiesAssociees),
+      tdrPaludisme: vider(f.tdrPaludisme),
+      goutteEpaisse: vider(f.goutteEpaisse),
+      mildaEligible: vider(f.mildaEligible),
+      mildaRemise: vider(f.mildaRemise),
+      cdipPropose: f.cdipPropose,
+      cdipRealise: f.cdipRealise,
+      codeDepistage: vider(f.codeDepistage),
+      glycemieAjeun: vider(f.glycemieAjeun),
+      glycemieNonAjeun: vider(f.glycemieNonAjeun),
+      autresExamens: vider(f.autresExamens),
+      conduiteTenir: vider(f.conduiteTenir),
+      issueSortie: vider(f.issueSortie),
+      casPresumeTB: vider(f.casPresumeTB),
+      moDureeHeures: f.moDureeHeures,
+      moDureeMinutes: f.moDureeMinutes,
+      moDebut: vider(f.moDebut),
+      moFin: vider(f.moFin),
+      // Données administratives → fiche patient
+      patient: {
+        profession: vider(f.profession),
+        nationalite: vider(f.nationalite),
+        scolarisation: vider(f.scolarisation),
+        statutConjugal: vider(f.statutConjugal),
+        typePopulation: vider(f.typePopulation),
+        populationsRisque: vider(f.populationsRisque),
+        protectionSociale: vider(f.protectionSociale),
+        residenceHabituelle: vider(f.residenceHabituelle),
+        residenceActuelle: vider(f.residenceActuelle),
+      },
+    }
+    const { data } = await http.post(`/consultations/passages/${passageCourant.value.id}`, payload)
     consultation.value = data
-    toastSuccess('Consultation enregistrée.')
+    toastSuccess('Fiche de consultation enregistrée.')
     await chargerDetail()
   } catch (e) {
     toastError(e.response?.data?.message || 'Erreur lors de l\'enregistrement.')
@@ -681,14 +1426,69 @@ async function retirerExamen(l) {
   }
 }
 
-async function validerConsultation() {
-  if (!consultation.value) return
+// ── Ajout d'un examen depuis le catalogue (labo, imagerie…) ──
+const nouvelExamenId = ref(null)
+const ajoutExamenEnCours = ref(false)
+const prestationsCatalogue = ref([])
+
+/** Examens du catalogue proposés au médecin : actifs, hors consultation, pas déjà sur le passage. */
+const optionsExamensCatalogue = computed(() => {
+  const deja = new Set(
+    (detail.value?.passage.prestations ?? [])
+      .map((l) => l.prestationId)
+      .filter(Boolean),
+  )
+  return prestationsCatalogue.value
+    .filter((p) => p.actif && p.type !== 'CONSULTATION' && !deja.has(p.id))
+    .map((p) => ({ value: p.id, label: `${p.libelle} — ${Number(p.montant).toLocaleString('fr-FR')} F` }))
+})
+
+async function chargerPrestations() {
   try {
-    await http.post(`/consultations/${consultation.value.id}/valider`)
-    toastSuccess('Consultation validée.')
+    const { data } = await http.get('/prestations', {
+      params: { perPage: 0, cliniqueId: cliniqueId.value },
+    })
+    prestationsCatalogue.value = Array.isArray(data) ? data : data.data ?? []
+  } catch {
+    // catalogue optionnel
+  }
+}
+
+async function ajouterExamen() {
+  if (!nouvelExamenId.value || !consultation.value) return
+  ajoutExamenEnCours.value = true
+  try {
+    await http.post(`/consultations/${consultation.value.id}/examens/ajouter`, {
+      prestationId: nouvelExamenId.value,
+    })
+    toastSuccess('Examen ajouté à la prescription — payable à la caisse.')
+    nouvelExamenId.value = null
     await chargerDetail()
   } catch (e) {
-    toastError(e.response?.data?.message || 'Erreur lors de la validation.')
+    toastError(e.response?.data?.message || "Impossible d'ajouter l'examen.")
+  } finally {
+    ajoutExamenEnCours.value = false
+  }
+}
+
+// Saisie libre : examen non réalisé dans la clinique (non facturable)
+const nouvelExamenLibre = ref('')
+
+async function ajouterExamenLibre() {
+  const libelle = nouvelExamenLibre.value.trim()
+  if (!libelle || !consultation.value) return
+  ajoutExamenEnCours.value = true
+  try {
+    await http.post(`/consultations/${consultation.value.id}/examens/ajouter`, {
+      libelle,
+    })
+    toastSuccess('Examen externe ajouté à la prescription (non facturable).')
+    nouvelExamenLibre.value = ''
+    await chargerDetail()
+  } catch (e) {
+    toastError(e.response?.data?.message || "Impossible d'ajouter l'examen.")
+  } finally {
+    ajoutExamenEnCours.value = false
   }
 }
 
@@ -741,6 +1541,7 @@ function formatDateHeure(d) {
 }
 
 onMounted(async () => {
+  chargerPrestations()
   try {
     const { data } = await http.get('/cliniques')
     cliniqueAdresse.value =
@@ -766,7 +1567,7 @@ onUnmounted(() => clearTimeout(rechercheTimer))
   box-shadow: 0 6px 24px rgba(13, 71, 67, 0.28);
 }
 .header-inner {
-  max-width: 1400px;
+  max-width: none;
   margin: 0 auto;
   padding: 12px 24px;
   display: flex;
@@ -829,7 +1630,7 @@ onUnmounted(() => clearTimeout(rechercheTimer))
 .consultation-content {
   flex: 1;
   width: 100%;
-  max-width: 1400px;
+  max-width: none;
   margin: 0 auto;
   padding: 20px 24px;
 }
@@ -902,6 +1703,39 @@ onUnmounted(() => clearTimeout(rechercheTimer))
   width: fit-content;
 }
 
+.consultation-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tabs-nav {
+  display: flex;
+  gap: 6px;
+  border-bottom: 2px solid #d5eee9;
+  flex-wrap: wrap;
+}
+.tab-btn {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #5f857f;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover {
+  color: #0f766e;
+}
+.tab-btn.active {
+  color: #0f766e;
+  border-bottom-color: #0d9488;
+}
+
+/* Ancien layout deux colonnes (conservé, non utilisé) */
 .consultation-grid {
   display: grid;
   grid-template-columns: 1.4fr 1fr;
@@ -930,6 +1764,85 @@ onUnmounted(() => clearTimeout(rechercheTimer))
   border-radius: 10px;
   padding: 6px 14px 10px;
   margin-bottom: 8px;
+}
+
+/* Ajout d'un examen depuis le catalogue */
+.ajout-examen {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.ajout-examen-select {
+  flex: 1;
+  min-width: 280px;
+}
+
+/* Cases à cocher façon fiche papier */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  background: #fbfefd;
+  border: 1.5px solid #c9ece5;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  user-select: none;
+}
+.chip:hover {
+  border-color: #8bc34a;
+}
+.chip.actif {
+  background: #d9f2e8;
+  border-color: #0f766e;
+  color: #0f5f59;
+}
+.chip input {
+  display: none;
+}
+.mt-6 {
+  margin-top: 6px;
+}
+.fiche-constantes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px 12px;
+  background: #f8fdfb;
+  border: 1px solid #d5eee9;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.constante-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.constante-item input {
+  padding: 7px 10px;
+  border: 1px solid #d7e9e6;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-family: inherit;
+  background: #fff;
+}
+.constante-item input:focus {
+  outline: none;
+  border-color: #8bc34a;
+  box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.15);
 }
 .constantes-grid {
   display: flex;
@@ -1002,6 +1915,155 @@ onUnmounted(() => clearTimeout(rechercheTimer))
 .historique-meds {
   color: #475569;
   font-size: 12.5px;
+}
+
+/* ---------- Fiche de consultation imprimable (format papier) ---------- */
+@media screen {
+  #fiche-print {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+  }
+  /* Aperçu avant impression : la fiche flotte au-dessus de la page */
+  #fiche-print.apercu-flottant {
+    left: 50% !important;
+    transform: translateX(-50%);
+    top: 62px;
+    z-index: 150;
+    max-height: calc(100vh - 82px);
+    overflow-y: auto;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+  }
+}
+.apercu-voile {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  z-index: 140;
+}
+.apercu-barre {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 160;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #134e4a;
+  color: #ecfdf5;
+  font-size: 13.5px;
+  flex-wrap: wrap;
+}
+.apercu-barre-actions {
+  display: flex;
+  gap: 8px;
+}
+.apercu-barre .btn-back {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.apercu-barre .btn-back:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.fiche-a4 {
+  width: 210mm;
+  max-width: 100%;
+  margin: 0 auto;
+  background: #fff;
+  padding: 8mm 10mm;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #111;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.fiche-a4-head {
+  text-align: center;
+  margin-bottom: 4px;
+}
+.fiche-a4-head h1 {
+  font-size: 15px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+.fiche-a4-head p {
+  font-size: 10.5px;
+  margin: 1px 0 0;
+  color: #333;
+}
+.fiche-a4-titre {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0 0 6px;
+  text-decoration: underline;
+}
+.fiche-a4-section {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #111;
+  margin: 7px 0 3px;
+  padding-bottom: 1px;
+}
+.fiche-a4-ligne {
+  margin: 1.5px 0;
+}
+.fiche-a4-texte {
+  margin: 2px 0;
+  white-space: pre-wrap;
+  min-height: 12px;
+}
+.fiche-a4-sign {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+}
+.fiche-a4-sign-date {
+  font-size: 11px;
+  align-self: center;
+}
+.fiche-a4-sign-doc {
+  text-align: center;
+  font-size: 11px;
+}
+.fiche-a4-sign-doc p {
+  margin: 0 0 2px;
+  font-weight: 600;
+}
+.fiche-a4-cachet {
+  border: 1px solid #111;
+  border-radius: 6px;
+  width: 160px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #555;
+  font-style: italic;
+}
+@media print {
+  .fiche-a4 {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  .fiche-a4-titre,
+  .fiche-a4-section,
+  .fiche-a4-ligne,
+  .fiche-a4-sign {
+    page-break-inside: avoid;
+  }
 }
 
 /* ---------- Ordonnance format A4 ---------- */

@@ -331,7 +331,15 @@ tbody tr:hover {
   #recu-print,
   #recu-print *,
   #ordo-print,
-  #ordo-print * {
+  #ordo-print *,
+  #fiche-print,
+  #fiche-print *,
+  #labo-print,
+  #labo-print *,
+  #ima-print,
+  #ima-print *,
+  #stat-print,
+  #stat-print * {
     visibility: visible;
     height: auto !important;
     min-height: 0 !important;
@@ -339,7 +347,11 @@ tbody tr:hover {
   }
   #ticket-print,
   #recu-print,
-  #ordo-print {
+  #ordo-print,
+  #fiche-print,
+  #labo-print,
+  #ima-print,
+  #stat-print {
     position: absolute;
     left: 0;
     top: 0;

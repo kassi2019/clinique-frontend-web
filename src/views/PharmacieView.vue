@@ -803,7 +803,7 @@ onUnmounted(() => {
   box-shadow: 0 6px 24px rgba(13, 71, 67, 0.28);
 }
 .header-inner {
-  max-width: 1400px;
+  max-width: none;
   margin: 0 auto;
   padding: 12px 24px;
   display: flex;
@@ -866,7 +866,7 @@ onUnmounted(() => {
 .pharmacie-content {
   flex: 1;
   width: 100%;
-  max-width: 1400px;
+  max-width: none;
   margin: 0 auto;
   padding: 20px 24px;
 }

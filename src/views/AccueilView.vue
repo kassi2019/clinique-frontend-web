@@ -398,6 +398,22 @@
                 placeholder="— Choisir un service —"
               />
             </div>
+            <div v-if="consultationsDuService.length > 1" class="field">
+              <label>Type de consultation *</label>
+              <select v-model="form.consultationPrestationId" required>
+                <option :value="null" disabled>— Choisir —</option>
+                <option v-for="c in consultationsDuService" :key="c.id" :value="c.id">
+                  {{ c.libelle }} — {{ Number(c.montant).toLocaleString('fr-FR') }} F
+                </option>
+              </select>
+            </div>
+            <div v-else-if="consultationsDuService.length === 1" class="field">
+              <label>Consultation</label>
+              <span class="consultation-seule-info">
+                {{ consultationsDuService[0].libelle }} —
+                {{ Number(consultationsDuService[0].montant).toLocaleString('fr-FR') }} F
+              </span>
+            </div>
             <div class="field">
               <label>Type de patient</label>
               <select v-model="form.typePatient">
@@ -619,7 +635,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import http from '../api/http'
@@ -649,12 +665,20 @@ function basculerPoste() {
 }
 
 const services = ref([])
+const prestationsList = ref([])
 const passages = ref([])
 const loading = ref(false)
 const error = ref('')
 
 const optionsServices = computed(() =>
   services.value.map((s) => ({ value: s.id, label: s.nom })),
+)
+
+/** Consultations actives du service choisi : une seule est payable par passage. */
+const consultationsDuService = computed(() =>
+  prestationsList.value.filter(
+    (p) => p.actif && p.type === 'CONSULTATION' && p.serviceId === form.serviceId,
+  ),
 )
 
 // Onglet actif par défaut : le premier de la barre selon le poste
@@ -745,7 +769,7 @@ function resetForm() {
   Object.assign(form, {
     nom: '', prenom: '', age: '', sexe: '', ville: '', quartier: '',
     profession: '', telephone: '', serviceId: null, typePatient: 'INTERNE',
-    motif: '', referent: '', prestationDemandee: '',
+    motif: '', referent: '', prestationDemandee: '', consultationPrestationId: null,
   })
 }
 
@@ -865,6 +889,7 @@ async function enregistrer() {
       motif: form.motif || undefined,
       referent: form.referent || undefined,
       prestationDemandee: form.prestationDemandee || undefined,
+      consultationPrestationId: form.consultationPrestationId || undefined,
     }
     if (patientExistant.value) {
       payload.patientId = patientChoisi.value.id
@@ -1058,16 +1083,28 @@ onMounted(async () => {
     }
   }, 15000)
   try {
-    const [s, c] = await Promise.all([
+    const [s, c, p] = await Promise.all([
       http.get('/services', { params: { perPage: 0 } }),
       http.get('/cliniques'),
+      http.get('/prestations', { params: { perPage: 0 } }),
     ])
     services.value = s.data.data
+    prestationsList.value = p.data.data
     cliniqueAdresse.value = c.data.find((x) => x.id === cliniqueId.value)?.adresse ?? ''
   } catch {
     // listes vides si l'API ne répond pas
   }
 })
+
+// Service choisi : si une seule consultation, elle est retenue automatiquement ;
+// si plusieurs, l'agent doit choisir le type de consultation.
+watch(
+  () => form.serviceId,
+  () => {
+    const cs = consultationsDuService.value
+    form.consultationPrestationId = cs.length === 1 ? cs[0].id : null
+  },
+)
 
 onUnmounted(() => {
   clearInterval(refreshTimer)
@@ -1091,7 +1128,7 @@ onUnmounted(() => {
   box-shadow: 0 6px 24px rgba(13, 71, 67, 0.28);
 }
 .header-inner {
-  max-width: 1240px;
+  max-width: none;
   margin: 0 auto;
   padding: 12px 24px;
   display: flex;
@@ -1442,5 +1479,16 @@ onUnmounted(() => {
   font-size: 14px;
   font-weight: 700;
   color: #134e4a;
+}
+
+/* Consultation unique du service : affichée en info */
+.consultation-seule-info {
+  padding: 8px 12px;
+  background: #f0fdfa;
+  border: 1px solid #c9ece5;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #0f766e;
+  font-weight: 600;
 }
 </style>

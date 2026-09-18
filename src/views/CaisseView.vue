@@ -98,7 +98,7 @@
                   :key="l.id"
                   :class="{
                     'ligne-payee': l.statut === 'PAYEE' || l.statut === 'ANNULEE',
-                    'ligne-non-prescrite': l.statut === 'NON_PRESCRITE',
+                    'ligne-non-prescrite': l.statut === 'NON_PRESCRITE' || l.statut === 'EXTERNE',
                   }"
                 >
                   <td>
@@ -111,7 +111,7 @@
                   </td>
                   <td>{{ l.libelle }}</td>
                   <td>{{ l.service?.nom || '—' }}</td>
-                  <td>{{ l.montant.toLocaleString('fr-FR') }}</td>
+                  <td>{{ l.statut === 'EXTERNE' ? '—' : l.montant.toLocaleString('fr-FR') }}</td>
                   <td>
                     <span
                       v-if="l.statut === 'NON_PRESCRITE'"
@@ -119,6 +119,13 @@
                       title="Cette prestation doit d'abord être prescrite par le médecin"
                     >
                       Pas encore prescrite
+                    </span>
+                    <span
+                      v-else-if="l.statut === 'EXTERNE'"
+                      class="badge badge-muted"
+                      title="Examen réalisé hors clinique — non facturable"
+                    >
+                      Externe (non facturable)
                     </span>
                     <span
                       v-else
@@ -619,7 +626,7 @@ onUnmounted(() => {
   box-shadow: 0 6px 24px rgba(13, 71, 67, 0.28);
 }
 .header-inner {
-  max-width: 1400px;
+  max-width: none;
   margin: 0 auto;
   padding: 12px 24px;
   display: flex;
@@ -683,7 +690,7 @@ onUnmounted(() => {
 .caisse-content {
   flex: 1;
   width: 100%;
-  max-width: 1400px;
+  max-width: none;
   margin: 0 auto;
   padding: 20px 24px;
 }

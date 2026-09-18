@@ -41,6 +41,34 @@ const routes = [
     component: () => import('../views/PharmacieView.vue'),
     meta: { module: 'PHARMACIE' },
   },
+  // Module Laboratoire
+  {
+    path: '/laboratoire',
+    name: 'laboratoire',
+    component: () => import('../views/LaboratoireView.vue'),
+    meta: { module: 'LABORATOIRE' },
+  },
+  // Module Imagerie
+  {
+    path: '/imagerie',
+    name: 'imagerie',
+    component: () => import('../views/ImagerieView.vue'),
+    meta: { module: 'IMAGERIE' },
+  },
+  // Module Hospitalisation
+  {
+    path: '/hospitalisation',
+    name: 'hospitalisation',
+    component: () => import('../views/HospitalisationView.vue'),
+    meta: { module: 'HOSPITALISATION' },
+  },
+  // Module Statistiques
+  {
+    path: '/statistiques',
+    name: 'statistiques',
+    component: () => import('../views/StatistiquesView.vue'),
+    meta: { module: 'STATISTIQUES' },
+  },
   // Module Paramétrage (Administration)
   {
     path: '/parametrage',
@@ -87,6 +115,11 @@ const routes = [
         path: 'medicaments',
         name: 'admin-medicaments',
         component: () => import('../views/admin/MedicamentsView.vue'),
+      },
+      {
+        path: 'chambres',
+        name: 'admin-chambres',
+        component: () => import('../views/admin/ChambresView.vue'),
       },
     ],
   },

@@ -78,12 +78,12 @@ const MODULES = [
   { code: 'CAISSE', label: 'Caisse', icon: '💰', description: 'Paiements, reçus et activation des actes', route: '/caisse' },
   { code: 'CONSULTATION', label: 'Consultation', icon: '🩺', description: 'Dossiers médicaux, diagnostics et prescriptions', route: '/consultation' },
   { code: 'PHARMACIE', label: 'Pharmacie', icon: '💊', description: 'Ordonnances, stocks et consommables', route: '/pharmacie' },
-  { code: 'LABORATOIRE', label: 'Laboratoire', icon: '🧪', description: 'Examens, prélèvements et résultats', route: null },
-  { code: 'IMAGERIE', label: 'Imagerie', icon: '🩻', description: 'Échographies et comptes rendus', route: null },
+  { code: 'LABORATOIRE', label: 'Laboratoire', icon: '🧪', description: 'Examens, prélèvements et résultats', route: '/laboratoire' },
+  { code: 'IMAGERIE', label: 'Imagerie', icon: '🩻', description: 'Échographies et comptes rendus', route: '/imagerie' },
   { code: 'MATERNITE', label: 'Maternité', icon: '🤰', description: 'CPN, accouchements et suivi', route: null },
-  { code: 'HOSPITALISATION', label: 'Hospitalisation', icon: '🛏️', description: 'Chambres, lits et séjours', route: null },
+  { code: 'HOSPITALISATION', label: 'Hospitalisation', icon: '🛏️', description: 'Chambres, lits et séjours', route: '/hospitalisation' },
   { code: 'SOINS', label: 'Soins', icon: '💉', description: 'Prescriptions et réalisation des soins', route: null },
-  { code: 'STATISTIQUES', label: 'Statistiques', icon: '📊', description: 'Tableaux de bord et rapports', route: null },
+  { code: 'STATISTIQUES', label: 'Statistiques', icon: '📊', description: 'Tableaux de bord et rapports', route: '/statistiques' },
   { code: 'PARAMETRAGE', label: 'Paramétrage', icon: '⚙️', description: 'Personnel, utilisateurs, rôles et référentiels', route: '/parametrage' },
 ]
 
