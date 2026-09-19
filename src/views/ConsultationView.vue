@@ -477,6 +477,62 @@
               </div>
             </div>
 
+            <!-- ══ Hospitalisation (§13) : prescription + chambre + facturation à l'entrée ══ -->
+            <div class="form-row">
+              <div class="field">
+                <label>Hospitaliser le patient ?</label>
+                <div class="chips">
+                  <label class="chip" :class="{ actif: formConsult.hospitalisation === true }">
+                    <input v-model="formConsult.hospitalisation" type="radio" :value="true" hidden /> Oui
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.hospitalisation === false }">
+                    <input v-model="formConsult.hospitalisation" type="radio" :value="false" hidden /> Non
+                  </label>
+                </div>
+              </div>
+            </div>
+            <template v-if="formConsult.hospitalisation">
+              <div class="form-row">
+                <div class="field">
+                  <label>Type d'hospitalisation</label>
+                  <div class="chips">
+                    <label class="chip" :class="{ actif: formConsult.typeHospitalisation === 'MISE_EN_OBSERVATION' }">
+                      <input v-model="formConsult.typeHospitalisation" type="radio" value="MISE_EN_OBSERVATION" hidden /> Mise en observation (0-3 j)
+                    </label>
+                    <label class="chip" :class="{ actif: formConsult.typeHospitalisation === 'MOYENNE' }">
+                      <input v-model="formConsult.typeHospitalisation" type="radio" value="MOYENNE" hidden /> Moyenne (3-10 j)
+                    </label>
+                    <label class="chip" :class="{ actif: formConsult.typeHospitalisation === 'LONGUE' }">
+                      <input v-model="formConsult.typeHospitalisation" type="radio" value="LONGUE" hidden /> Longue (&gt; 10 j)
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label>Durée prévue</label>
+                  <input v-model.trim="formConsult.hospitalisationDuree" placeholder="Ex : 3 jours" />
+                </div>
+                <div class="field">
+                  <label>Nombre de jours (facturation) *</label>
+                  <input v-model.number="formConsult.hospitalisationDureeJours" type="number" min="1" />
+                </div>
+                <div class="field">
+                  <label>Chambre / lit *</label>
+                  <SelectSearch
+                    v-model="formConsult.litId"
+                    :options="optionsLitsLibres"
+                    placeholder="— Choisir un lit libre —"
+                  />
+                </div>
+              </div>
+              <p class="small-note text-muted">
+                💡 La facture (jours × tarif de la chambre) part à la caisse dès
+                l'enregistrement de la fiche — le patient peut la régler à
+                l'entrée ou à la sortie.
+              </p>
+            </template>
+
             <div class="form-actions">
               <button
                 class="btn btn-outline"
@@ -560,7 +616,16 @@
 
         <!-- ══ Onglet 3 : Examens (laboratoire / imagerie) ══ -->
         <section v-else-if="onglet === 'examens'" class="card">
-          <div class="card-header"><h2>Examens (laboratoire / imagerie)</h2></div>
+          <div class="card-header">
+            <h2>Examens (laboratoire / imagerie)</h2>
+            <button
+              v-if="consultation && examensPrescrits.length > 0"
+              class="btn btn-outline btn-sm"
+              @click="apercuExamensVisible = true"
+            >
+              🖨️ Ordonnance d'examens
+            </button>
+          </div>
           <div v-if="!consultation" class="text-muted small-note">
             Enregistrez la fiche de consultation pour prescrire des examens.
           </div>
@@ -604,7 +669,6 @@
                 <tr>
                   <th>Examen</th>
                   <th>Service</th>
-                  <th>Montant</th>
                   <th>État</th>
                   <th></th>
                 </tr>
@@ -613,7 +677,6 @@
                 <tr v-for="l in detail.passage.prestations" :key="l.id">
                   <td>{{ l.libelle }}</td>
                   <td>{{ l.service?.nom || '—' }}</td>
-                  <td>{{ l.statut === 'EXTERNE' ? '—' : l.montant.toLocaleString('fr-FR') }}</td>
                   <td>
                     <span v-if="l.statut === 'NON_PRESCRITE'" class="badge badge-muted">Pas prescrit</span>
                     <span v-else-if="l.statut === 'EN_ATTENTE'" class="badge badge-warning">Prescrit — à payer</span>
@@ -648,12 +711,23 @@
 
         <!-- ══ Onglet 4 : Historique médical ══ -->
         <section v-else class="card">
-          <div class="card-header"><h2>Historique médical</h2></div>
-          <div v-if="!detail || detail.historique.length === 0" class="empty-state">
-            Aucune consultation antérieure.
+          <div class="card-header">
+            <h2>Historique médical</h2>
+            <div class="toolbar" style="margin-bottom: 0">
+              <input
+                v-model="filtreHistoriqueDate"
+                type="date"
+                class="search-input"
+                style="max-width: 170px; flex: none"
+                title="Vide = tout l'historique"
+              />
+            </div>
+          </div>
+          <div v-if="!detail || historiqueFiltre.length === 0" class="empty-state">
+            Aucune consultation {{ filtreHistoriqueDate ? 'ce jour' : 'antérieure' }}.
           </div>
           <div v-else class="historique-list">
-            <div v-for="h in detail.historique" :key="h.id" class="historique-item">
+            <div v-for="h in historiqueFiltre" :key="h.id" class="historique-item">
               <div class="historique-head">
                 <strong>{{ h.passage?.numeroOrdre }}</strong>
                 <span>{{ formatDate(h.createdAt) }} · {{ h.medecin?.personnel?.nom || '—' }}</span>
@@ -785,13 +859,19 @@
       </div>
     </div>
 
-    <!-- Aperçu de la fiche avant impression (la fiche flotte au-dessus de la page) -->
-    <div v-if="apercuFicheVisible" class="apercu-voile"></div>
-    <div v-if="apercuFicheVisible" class="apercu-barre">
-      <span>👁️ Aperçu de la fiche — vérifiez avant d'imprimer</span>
+    <!-- Aperçu flottant avant impression (fiche ou ordonnance d'examens) -->
+    <div v-if="apercuFicheVisible || apercuExamensVisible" class="apercu-voile"></div>
+    <div v-if="apercuFicheVisible || apercuExamensVisible" class="apercu-barre">
+      <span>
+        👁️ {{ apercuFicheVisible ? 'Aperçu de la fiche' : 'Aperçu de l\'ordonnance d\'examens' }} — vérifiez avant
+        d'imprimer
+      </span>
       <div class="apercu-barre-actions">
         <button class="btn btn-primary btn-sm" @click="imprimerFiche">🖨️ Imprimer</button>
-        <button class="btn btn-outline btn-sm btn-back" @click="apercuFicheVisible = false">
+        <button
+          class="btn btn-outline btn-sm btn-back"
+          @click="apercuFicheVisible = false; apercuExamensVisible = false"
+        >
           Fermer
         </button>
       </div>
@@ -801,7 +881,7 @@
     <div
       v-if="passageCourant"
       id="fiche-print"
-      :class="{ 'apercu-flottant': apercuFicheVisible }"
+      :class="{ 'apercu-flottant': apercuFicheVisible, 'masque-impression': apercuExamensVisible }"
     >
       <div class="fiche-a4">
         <div class="fiche-a4-head">
@@ -956,6 +1036,67 @@
       </div>
     </div>
 
+    <!-- Ordonnance d'examens imprimable (A4, navigateur) -->
+    <div v-if="apercuExamensVisible && detail" id="ordo-examens-print" class="apercu-flottant">
+      <div class="ordo-ex-a4">
+        <div class="fiche-a4-head">
+          <h1>{{ cliniqueNom }}</h1>
+          <p v-if="cliniqueAdresse">{{ cliniqueAdresse }}</p>
+        </div>
+        <div class="fiche-a4-titre">Ordonnance d'examens</div>
+
+        <div class="ordo-ex-infos">
+          <div class="fiche-a4-ligne">
+            <span class="ordo-ex-label">Patient</span>
+            <span>
+              <strong>{{ detail.passage.patient.nom }} {{ detail.passage.patient.prenom }}</strong>
+              ({{ detail.passage.patient.age ?? '—' }} ans, {{ detail.passage.patient.sexe ?? '—' }})
+            </span>
+          </div>
+          <div class="fiche-a4-ligne">
+            <span class="ordo-ex-label">Code patient</span>
+            <span>{{ detail.passage.patient.code }}</span>
+          </div>
+          <div class="fiche-a4-ligne">
+            <span class="ordo-ex-label">N° d'ordre</span>
+            <span>{{ detail.passage.numeroOrdre }}</span>
+          </div>
+          <div class="fiche-a4-ligne">
+            <span class="ordo-ex-label">Médecin</span>
+            <span>Dr {{ auth.user?.personnel?.nom }} {{ auth.user?.personnel?.prenom }}</span>
+          </div>
+        </div>
+
+        <table class="ordo-ex-table">
+          <thead>
+            <tr>
+              <th>Examen</th>
+              <th>Service</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="l in examensPrescrits" :key="l.id">
+              <td>{{ l.libelle }}</td>
+              <td>{{ l.service?.nom || '—' }}</td>
+              <td>
+                <span v-if="estFait(l)" class="ordo-ex-fait">✓ Déjà fait</span>
+                <span v-else class="ordo-ex-reste">● Reste à faire</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="ordo-ex-sign">
+          <div class="ordo-ex-sign-date">Fait le {{ formatDate(new Date()) }}</div>
+          <div class="ordo-ex-sign-doc">
+            <p>Le médecin : Dr {{ auth.user?.personnel?.nom }} {{ auth.user?.personnel?.prenom }}</p>
+            <div class="fiche-a4-cachet">Signature et cachet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Ordonnance imprimable (A4, navigateur) -->
     <div v-if="ordonnance" id="ordo-print">
       <div class="ordo-a4">
@@ -1089,6 +1230,35 @@ function imprimerFiche() {
 // Aperçu de la fiche (flottant) avant impression
 const apercuFicheVisible = ref(false)
 
+// Aperçu de l'ordonnance d'examens (A4 flottant)
+const apercuExamensVisible = ref(false)
+
+/** Examens prescrits (ordonnance d'examens) : tout sauf « pas prescrit »/annulée. */
+const examensPrescrits = computed(() =>
+  (detail.value?.passage.prestations ?? []).filter(
+    (l) => l.statut !== 'NON_PRESCRITE' && l.statut !== 'ANNULEE',
+  ),
+)
+
+// Historique médical : données du jour par défaut (vide = tout l'historique)
+const filtreHistoriqueDate = ref(new Date().toISOString().slice(0, 10))
+const historiqueFiltre = computed(() => {
+  const tout = detail.value?.historique ?? []
+  if (!filtreHistoriqueDate.value) return tout
+  return tout.filter((h) => new Date(h.createdAt).toISOString().slice(0, 10) === filtreHistoriqueDate.value)
+})
+
+/** Un examen est « déjà fait » si le service concerné l'a validé (labo ou imagerie). */
+function estFait(l) {
+  const labo = (detail.value?.passage.examensLabo ?? []).find(
+    (e) => e.passagePrestationId === l.id,
+  )
+  const imagerie = (detail.value?.passage.examensImagerie ?? []).find(
+    (e) => e.passagePrestationId === l.id,
+  )
+  return labo?.statut === 'VALIDE' || imagerie?.statut === 'VALIDE'
+}
+
 /** Bouton Enregistrer : enregistre la fiche et valide la consultation (sans aperçu). */
 async function validerEtEnregistrer() {
   if (!passageCourant.value) return
@@ -1179,6 +1349,9 @@ async function chargerDetail() {
       diagnostic: c.diagnostic ?? '',
       hospitalisation: c.hospitalisation ?? false,
       hospitalisationDuree: c.hospitalisationDuree ?? '',
+      typeHospitalisation: c.typeHospitalisation ?? '',
+      hospitalisationDureeJours: c.hospitalisationDureeJours ?? null,
+      litId: c.litId ?? null,
       modeEntree: c.modeEntree ?? '',
       modeEntreeAutre: c.modeEntreeAutre ?? '',
       traitementAnterieur: c.traitementAnterieur ?? '',
@@ -1253,6 +1426,9 @@ async function sauvegarderFiche() {
       diagnostic: vider(f.diagnostic),
       hospitalisation: f.hospitalisation,
       hospitalisationDuree: vider(f.hospitalisationDuree),
+      typeHospitalisation: vider(f.typeHospitalisation),
+      hospitalisationDureeJours: f.hospitalisationDureeJours ?? undefined,
+      litId: f.litId ?? undefined,
       modeEntree: vider(f.modeEntree),
       modeEntreeAutre: vider(f.modeEntreeAutre),
       traitementAnterieur: vider(f.traitementAnterieur),
@@ -1431,6 +1607,26 @@ const nouvelExamenId = ref(null)
 const ajoutExamenEnCours = ref(false)
 const prestationsCatalogue = ref([])
 
+// ── Lits libres (prescription d'hospitalisation, §13) ──
+const litsLibres = ref([])
+const optionsLitsLibres = computed(() =>
+  litsLibres.value.map((l) => ({
+    value: l.id,
+    label: l.label,
+  })),
+)
+
+async function chargerLits() {
+  try {
+    const { data } = await http.get('/hospitalisation/lits', {
+      params: { cliniqueId: cliniqueId.value },
+    })
+    litsLibres.value = (Array.isArray(data) ? data : []).filter((l) => l.actif && !l.occupe)
+  } catch {
+    litsLibres.value = []
+  }
+}
+
 /** Examens du catalogue proposés au médecin : actifs, hors consultation, pas déjà sur le passage. */
 const optionsExamensCatalogue = computed(() => {
   const deja = new Set(
@@ -1440,7 +1636,7 @@ const optionsExamensCatalogue = computed(() => {
   )
   return prestationsCatalogue.value
     .filter((p) => p.actif && p.type !== 'CONSULTATION' && !deja.has(p.id))
-    .map((p) => ({ value: p.id, label: `${p.libelle} — ${Number(p.montant).toLocaleString('fr-FR')} F` }))
+    .map((p) => ({ value: p.id, label: p.libelle }))
 })
 
 async function chargerPrestations() {
@@ -1542,6 +1738,7 @@ function formatDateHeure(d) {
 
 onMounted(async () => {
   chargerPrestations()
+  chargerLits()
   try {
     const { data } = await http.get('/cliniques')
     cliniqueAdresse.value =
@@ -1934,6 +2131,23 @@ onUnmounted(() => clearTimeout(rechercheTimer))
     overflow-y: auto;
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
   }
+  /* Ordonnance d'examens : flottante quand son aperçu est ouvert */
+  #ordo-examens-print {
+    position: fixed;
+    left: 50% !important;
+    transform: translateX(-50%);
+    top: 62px;
+    z-index: 150;
+    max-height: calc(100vh - 82px);
+    overflow-y: auto;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+  }
+}
+/* Pendant l'aperçu de l'ordonnance d'examens, la fiche ne doit pas s'imprimer */
+@media print {
+  .masque-impression {
+    display: none !important;
+  }
 }
 .apercu-voile {
   position: fixed;
@@ -1967,6 +2181,104 @@ onUnmounted(() => clearTimeout(rechercheTimer))
 }
 .apercu-barre .btn-back:hover {
   background: rgba(255, 255, 255, 0.16);
+}
+
+/* ---------- Ordonnance d'examens (A4) ---------- */
+.ordo-ex-a4 {
+  width: 210mm;
+  max-width: 100%;
+  margin: 0 auto;
+  background: #fff;
+  padding: 10mm 12mm;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #111;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ordo-ex-infos {
+  margin-bottom: 8px;
+}
+.ordo-ex-infos .fiche-a4-ligne {
+  display: flex;
+  gap: 10px;
+  margin: 3px 0;
+}
+.ordo-ex-label {
+  font-weight: 700;
+  min-width: 110px;
+  flex-shrink: 0;
+}
+.ordo-ex-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0;
+}
+.ordo-ex-table th,
+.ordo-ex-table td {
+  border: 1px solid #111;
+  padding: 5px 8px;
+  text-align: left;
+}
+.ordo-ex-table th {
+  background: #f1f5f9;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ordo-ex-fait {
+  display: inline-block;
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-weight: 700;
+  font-size: 11px;
+}
+.ordo-ex-reste {
+  display: inline-block;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-weight: 700;
+  font-size: 11px;
+}
+.ordo-ex-sign {
+  margin-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+}
+.ordo-ex-sign-date {
+  font-size: 11.5px;
+  align-self: center;
+}
+.ordo-ex-sign-doc {
+  text-align: center;
+  font-size: 11.5px;
+}
+.ordo-ex-sign-doc p {
+  margin: 0 0 2px;
+  font-weight: 600;
+}
+@media print {
+  .ordo-ex-a4 {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  .ordo-ex-a4 * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .ordo-ex-infos,
+  .ordo-ex-table,
+  .ordo-ex-sign {
+    page-break-inside: avoid;
+  }
 }
 .fiche-a4 {
   width: 210mm;
@@ -2015,6 +2327,9 @@ onUnmounted(() => clearTimeout(rechercheTimer))
 }
 .fiche-a4-ligne {
   margin: 1.5px 0;
+}
+.fiche-a4-ligne strong {
+  margin-right: 2px;
 }
 .fiche-a4-texte {
   margin: 2px 0;

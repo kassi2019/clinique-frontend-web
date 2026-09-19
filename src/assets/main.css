@@ -339,7 +339,9 @@ tbody tr:hover {
   #ima-print,
   #ima-print *,
   #stat-print,
-  #stat-print * {
+  #stat-print *,
+  #ordo-examens-print,
+  #ordo-examens-print * {
     visibility: visible;
     height: auto !important;
     min-height: 0 !important;
@@ -351,7 +353,8 @@ tbody tr:hover {
   #fiche-print,
   #labo-print,
   #ima-print,
-  #stat-print {
+  #stat-print,
+  #ordo-examens-print {
     position: absolute;
     left: 0;
     top: 0;

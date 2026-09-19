@@ -124,7 +124,8 @@
               </button>
             </div>
             <p class="small-note text-muted">
-              Le paiement du séjour se fera à la sortie (tarif journalier × jours réels).
+              💡 La facturation se fait à l'entrée (jours prévus × tarif de la chambre) :
+              le patient peut la régler à la caisse à l'entrée ou à la sortie.
             </p>
           </template>
 
@@ -177,9 +178,6 @@
             <div class="chambre-titre">
               Chambre {{ c.numero }}
               <span v-if="c.typeChambre?.libelle" class="text-muted">({{ c.typeChambre.libelle }})</span>
-              <span v-if="c.tarifJournalier" class="chambre-tarif">
-                {{ Number(c.tarifJournalier).toLocaleString('fr-FR') }} F/nuit
-              </span>
             </div>
             <div class="lits-grid">
               <div
@@ -339,7 +337,7 @@
         <h2>🚪 Sortie — {{ sortieSejour.patient.nom }} {{ sortieSejour.patient.prenom }}</h2>
         <p class="text-muted">
           Entré le {{ formatDateHeure(sortieSejour.dateEntree) }} · {{ joursDepuis(sortieSejour.dateEntree) }} jour(s) de séjour.
-          La facture sera créée à la caisse (tarif journalier × jours réels).
+          Le lit sera libéré — la facturation a déjà été faite à l'entrée.
         </p>
         <div class="form-row">
           <div class="field">
@@ -587,7 +585,7 @@ async function confirmerSortie() {
   const s = sortieSejour.value
   const conf = await Swal.fire({
     title: 'Confirmer la sortie ?',
-    html: `La facture du séjour de <strong>${s.patient.nom} ${s.patient.prenom}</strong> sera créée à la caisse (tarif journalier × jours réels). Le lit sera libéré.`,
+    html: `<strong>${s.patient.nom} ${s.patient.prenom}</strong> quittera son lit (${s.lit?.chambre?.numero}-${s.lit?.numero}).`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonText: 'Oui, sortir le patient',
@@ -603,7 +601,7 @@ async function confirmerSortie() {
       sortieMotif: sortieForm.sortieMotif,
     })
     toastSuccess(
-      `Sortie enregistrée : facture de ${data.nbJoursFactures} jour(s) créée à la caisse.`,
+      `Sortie enregistrée : ${data.nbJoursFactures} jour(s) de séjour, lit libéré.`,
     )
     sortieSejour.value = null
     await chargerLits()

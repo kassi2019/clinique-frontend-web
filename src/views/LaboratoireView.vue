@@ -110,7 +110,6 @@
               <thead>
                 <tr>
                   <th>Examen</th>
-                  <th>Montant</th>
                   <th>Statut</th>
                   <th>Actions</th>
                 </tr>
@@ -118,7 +117,6 @@
               <tbody>
                 <tr v-for="l in lignesLab" :key="l.id">
                   <td><strong>{{ l.libelle }}</strong></td>
-                  <td>{{ l.montant.toLocaleString('fr-FR') }} F</td>
                   <td>
                     <span class="badge" :class="badgeExamen(l.examen)">
                       {{ statutExamenLabel(l.examen) }}
@@ -1100,17 +1098,19 @@ onUnmounted(() => {
   text-decoration: underline;
 }
 .labo-a4-info {
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 .labo-a4-ligne {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   font-size: 11px;
-  margin: 1.5px 0;
+  margin: 3px 0;
+  line-height: 1.45;
 }
 .labo-a4-label {
   font-weight: 700;
-  min-width: 95px;
+  min-width: 110px;
+  flex-shrink: 0;
 }
 .labo-a4-section {
   font-size: 10.5px;

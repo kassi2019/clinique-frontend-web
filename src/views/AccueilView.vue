@@ -403,15 +403,14 @@
               <select v-model="form.consultationPrestationId" required>
                 <option :value="null" disabled>— Choisir —</option>
                 <option v-for="c in consultationsDuService" :key="c.id" :value="c.id">
-                  {{ c.libelle }} — {{ Number(c.montant).toLocaleString('fr-FR') }} F
+                  {{ c.libelle }}
                 </option>
               </select>
             </div>
             <div v-else-if="consultationsDuService.length === 1" class="field">
               <label>Consultation</label>
               <span class="consultation-seule-info">
-                {{ consultationsDuService[0].libelle }} —
-                {{ Number(consultationsDuService[0].montant).toLocaleString('fr-FR') }} F
+                {{ consultationsDuService[0].libelle }}
               </span>
             </div>
             <div class="field">
@@ -431,9 +430,17 @@
               <label>Structure / professionnel référent</label>
               <input v-model.trim="form.referent" placeholder="Ex : CS de Yopougon, Dr Kouamé" />
             </div>
+            <div v-if="actesDuService.length > 0" class="field">
+              <label>Acte à payer (l'examen prescrit)</label>
+              <SelectSearch
+                v-model="form.actePrestationId"
+                :options="optionsActes"
+                placeholder="— Choisir l'examen de l'ordonnance —"
+              />
+            </div>
             <div class="field">
-              <label>Prestation demandée</label>
-              <input v-model.trim="form.prestationDemandee" placeholder="Ex : échographie obstétricale" />
+              <label>Précision sur la prestation (facultatif)</label>
+              <input v-model.trim="form.prestationDemandee" placeholder="Ex : contrôle, suivi…" />
             </div>
           </div>
 
@@ -590,7 +597,7 @@
               <input v-model.trim="formEdit.referent" />
             </div>
             <div class="field">
-              <label>Prestation demandée</label>
+              <label>Précision sur la prestation (facultatif)</label>
               <input v-model.trim="formEdit.prestationDemandee" />
             </div>
           </div>
@@ -679,6 +686,20 @@ const consultationsDuService = computed(() =>
   prestationsList.value.filter(
     (p) => p.actif && p.type === 'CONSULTATION' && p.serviceId === form.serviceId,
   ),
+)
+
+/** Actes du service (échographies, examens…) : l'agent peut en choisir un à payer. */
+const actesDuService = computed(() =>
+  prestationsList.value.filter(
+    (p) => p.actif && p.type !== 'CONSULTATION' && p.serviceId === form.serviceId,
+  ),
+)
+
+const optionsActes = computed(() =>
+  actesDuService.value.map((p) => ({
+    value: p.id,
+    label: p.libelle,
+  })),
 )
 
 // Onglet actif par défaut : le premier de la barre selon le poste
@@ -770,6 +791,7 @@ function resetForm() {
     nom: '', prenom: '', age: '', sexe: '', ville: '', quartier: '',
     profession: '', telephone: '', serviceId: null, typePatient: 'INTERNE',
     motif: '', referent: '', prestationDemandee: '', consultationPrestationId: null,
+    actePrestationId: null,
   })
 }
 
@@ -890,6 +912,7 @@ async function enregistrer() {
       referent: form.referent || undefined,
       prestationDemandee: form.prestationDemandee || undefined,
       consultationPrestationId: form.consultationPrestationId || undefined,
+      actePrestationId: form.actePrestationId || undefined,
     }
     if (patientExistant.value) {
       payload.patientId = patientChoisi.value.id
