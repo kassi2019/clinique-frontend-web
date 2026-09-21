@@ -45,13 +45,73 @@
             @input="onRecherche"
           />
         </div>
+
+        <!-- Liste des ordonnances en attente (sans recherche) -->
+        <div v-if="!recherche.trim() && !ordonnance" class="ordo-attente">
+          <div class="toolbar">
+            <select v-model="filtreStatutOrdo" class="search-input" style="max-width: 170px; flex: none" @change="chargerOrdonnancesAttente">
+              <option value="EN_ATTENTE">En attente</option>
+              <option value="TRAITEE">Traitées</option>
+            </select>
+            <input
+              v-model="filtreDateOrdo"
+              type="date"
+              class="search-input"
+              style="max-width: 170px; flex: none"
+              title="Vide = aujourd'hui"
+              @change="chargerOrdonnancesAttente"
+            />
+            <button class="btn btn-outline btn-sm" @click="chargerOrdonnancesAttente">Actualiser</button>
+          </div>
+          <div v-if="ordonnancesAttente.length === 0" class="empty-state">
+            Aucune ordonnance en attente.
+          </div>
+          <div v-else class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>N° ordonnance</th>
+                  <th>Patient</th>
+                  <th>Médecin</th>
+                  <th>Date / heure</th>
+                  <th>Médicaments</th>
+                  <th>Statut</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="o in ordonnancesAttente" :key="o.id">
+                  <td><strong>{{ o.numeroOrdonnance }}</strong></td>
+                  <td>
+                    <strong>{{ o.patient.nom }} {{ o.patient.prenom }}</strong>
+                    <span class="text-muted"> ({{ o.patient.code }})</span>
+                  </td>
+                  <td>Dr {{ o.medecin?.personnel?.nom || '—' }}</td>
+                  <td>{{ formatDateHeure(o.createdAt) }}</td>
+                  <td>{{ o.nbMedicaments }}</td>
+                  <td>
+                    <span class="badge" :class="o.ordonnanceStatut === 'TRAITEE' ? 'badge-success' : 'badge-warning'">
+                      {{ o.ordonnanceStatut === 'TRAITEE' ? 'Traitée' : 'En attente' }}
+                    </span>
+                  </td>
+                  <td>
+                    <button class="btn btn-primary btn-sm" @click="ouvrirOrdonnanceListe(o)">
+                      {{ o.ordonnanceStatut === 'TRAITEE' ? '👁️ Voir' : '💊 Traiter' }}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <ul v-if="resultats.length && !ordonnance" class="resultats">
           <li v-for="p in resultats" :key="p.id">
             <strong>{{ p.patient.nom }} {{ p.patient.prenom }}</strong>
             <span>{{ p.numeroOrdre }} · code {{ p.patient.code }}</span>
             <div v-for="c in p.consultations" :key="c.id" class="ordo-line" @click="choisirOrdonnance(c, p)">
-              💊 Ordonnance du {{ formatDate(c.valideeLe || p.createdAt) }}
-              ({{ c.medicaments.length }} médicament(s)) — {{ c.statut === 'VALIDEE' ? 'validée' : 'en cours' }}
+              💊 Ordonnance {{ c.numeroOrdonnance ? `n° ${c.numeroOrdonnance} — ` : '' }}du {{ formatDate(c.valideeLe || p.createdAt) }}
+              ({{ c.medicaments.length }} médicament(s)) — {{ c.ordonnanceStatut === 'TRAITEE' ? 'traitée' : 'en attente' }}
             </div>
           </li>
         </ul>
@@ -560,6 +620,31 @@ async function choisirOrdonnance(c) {
   }
 }
 
+// ── Liste des ordonnances en attente (nouveau cahier des charges) ──
+const ordonnancesAttente = ref([])
+const filtreStatutOrdo = ref('EN_ATTENTE')
+const filtreDateOrdo = ref('')
+
+async function chargerOrdonnancesAttente() {
+  try {
+    const { data } = await http.get('/pharmacie/ordonnances', {
+      params: {
+        cliniqueId: cliniqueId.value,
+        statut: filtreStatutOrdo.value,
+        debut: filtreDateOrdo.value || undefined,
+        fin: filtreDateOrdo.value || undefined,
+      },
+    })
+    ordonnancesAttente.value = data.liste ? data.ordonnances ?? [] : []
+  } catch {
+    ordonnancesAttente.value = []
+  }
+}
+
+async function ouvrirOrdonnanceListe(o) {
+  await choisirOrdonnance({ id: o.id })
+}
+
 async function dispenser() {
   if (!ordonnance.value) return
   const lignes = ordonnance.value.prescriptions
@@ -584,6 +669,7 @@ async function dispenser() {
     if (paiement.impression?.ok) {
       toastSuccess(`Reçu imprimé : ${paiement.impression.message}`)
     }
+    chargerOrdonnancesAttente()
     await choisirOrdonnance(ordonnance.value.consultation)
   } catch (e) {
     toastError(e.response?.data?.message || 'Erreur lors de la dispensation.')
@@ -783,6 +869,7 @@ onMounted(() => {
   chargerStocks()
   chargerConsommables()
   chargerAlertes()
+  chargerOrdonnancesAttente()
 })
 onUnmounted(() => {
   clearTimeout(rechercheTimer)

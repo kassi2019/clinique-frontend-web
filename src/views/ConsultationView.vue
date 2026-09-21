@@ -11,6 +11,14 @@
           </div>
         </div>
         <div class="header-actions">
+          <button
+            v-if="estMedecin"
+            class="btn btn-sm dispo-btn"
+            :class="disponibilite === 'DISPONIBLE' ? 'dispo-on' : 'dispo-off'"
+            @click="basculerDisponibilite"
+          >
+            {{ disponibilite === 'DISPONIBLE' ? '🟢 Disponible' : '🔴 Indisponible' }}
+          </button>
           <span class="date-pill">{{ todayLabel }}</span>
           <button class="btn btn-outline btn-sm btn-back" @click="router.push({ name: 'home' })">
             ← Modules
@@ -20,8 +28,91 @@
     </header>
 
     <main class="consultation-content">
+      <!-- Médecin : file d'attente / terminées / recherche -->
+      <nav v-if="estMedecin && !passageCourant" class="tabs-nav">
+        <button class="tab-btn" :class="{ active: vueFile === 'attente' }" @click="vueFile = 'attente'">
+          📋 File d'attente
+          <span class="tab-count" :class="{ 'tab-count-actif': vueFile === 'attente' }">{{ file.enAttente.length }}</span>
+        </button>
+        <button class="tab-btn" :class="{ active: vueFile === 'terminees' }" @click="vueFile = 'terminees'; chargerFile()">
+          ✅ Terminées
+        </button>
+        <button class="tab-btn" :class="{ active: vueFile === 'recherche' }" @click="vueFile = 'recherche'">
+          🔍 Recherche par code
+        </button>
+      </nav>
+
+      <!-- File d'attente du médecin -->
+      <section v-if="estMedecin && !passageCourant && vueFile === 'attente'" class="card">
+        <div class="card-header"><h2>Patients affectés (file d'attente)</h2></div>
+        <div v-if="file.enAttente.length === 0" class="empty-state">
+          Aucun patient en attente.
+          <template v-if="disponibilite !== 'DISPONIBLE'">
+            <br />Passez en <strong>Disponible</strong> pour recevoir des patients.
+          </template>
+        </div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Patient</th>
+                <th>N° d'ordre</th>
+                <th>Heure d'arrivée</th>
+                <th>Statut</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(a, i) in file.enAttente" :key="a.id">
+                <td>{{ i + 1 }}</td>
+                <td><strong>{{ a.passage.patient.nom }} {{ a.passage.patient.prenom }}</strong></td>
+                <td>{{ a.passage.numeroOrdre }}</td>
+                <td>{{ formatDateHeure(a.dateAffectation) }}</td>
+                <td>
+                  <span class="badge" :class="a.statut === 'EN_CONSULTATION' ? 'badge-warning' : 'badge-muted'">
+                    {{ a.statut === 'EN_CONSULTATION' ? 'En consultation' : 'En attente' }}
+                  </span>
+                </td>
+                <td>
+                  <button class="btn btn-primary btn-sm" @click="consulterAffectation(a)">🩺 Consulter</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Consultations terminées du jour -->
+      <section v-else-if="estMedecin && !passageCourant && vueFile === 'terminees'" class="card">
+        <div class="card-header"><h2>Consultations terminées (aujourd'hui)</h2></div>
+        <div v-if="file.terminees.length === 0" class="empty-state">Aucune consultation terminée aujourd'hui.</div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>N° d'ordre</th>
+                <th>Validée le</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="a in file.terminees" :key="a.id">
+                <td><strong>{{ a.passage.patient.nom }} {{ a.passage.patient.prenom }}</strong></td>
+                <td>{{ a.passage.numeroOrdre }}</td>
+                <td>{{ formatDateHeure(a.updatedAt) }}</td>
+                <td>
+                  <button class="btn btn-outline btn-sm" @click="ouvrirTerminee(a)">👁️ Ouvrir le dossier</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- Recherche par code (§7) -->
-      <section class="card search-card">
+      <section v-if="!estMedecin || vueFile === 'recherche'" class="card search-card" :class="{ 'search-only': !estMedecin }">
         <div class="toolbar">
           <input
             v-model="recherche"
@@ -85,7 +176,7 @@
         </div>
       </section>
 
-      <!-- Contenu consultation : 4 onglets -->
+      <!-- Contenu consultation : 3 onglets -->
       <div v-if="passageCourant && passageCourant.consultable" class="consultation-tabs">
         <nav class="tabs-nav">
           <button class="tab-btn" :class="{ active: onglet === 'fiche' }" @click="onglet = 'fiche'">
@@ -96,9 +187,6 @@
           </button>
           <button class="tab-btn" :class="{ active: onglet === 'examens' }" @click="onglet = 'examens'">
             🔬 Examens (labo / imagerie)
-          </button>
-          <button class="tab-btn" :class="{ active: onglet === 'historique' }" @click="onglet = 'historique'">
-            📂 Historique médical
           </button>
         </nav>
 
@@ -708,42 +796,6 @@
           </div>
 
         </section>
-
-        <!-- ══ Onglet 4 : Historique médical ══ -->
-        <section v-else class="card">
-          <div class="card-header">
-            <h2>Historique médical</h2>
-            <div class="toolbar" style="margin-bottom: 0">
-              <input
-                v-model="filtreHistoriqueDate"
-                type="date"
-                class="search-input"
-                style="max-width: 170px; flex: none"
-                title="Vide = tout l'historique"
-              />
-            </div>
-          </div>
-          <div v-if="!detail || historiqueFiltre.length === 0" class="empty-state">
-            Aucune consultation {{ filtreHistoriqueDate ? 'ce jour' : 'antérieure' }}.
-          </div>
-          <div v-else class="historique-list">
-            <div v-for="h in historiqueFiltre" :key="h.id" class="historique-item">
-              <div class="historique-head">
-                <strong>{{ h.passage?.numeroOrdre }}</strong>
-                <span>{{ formatDate(h.createdAt) }} · {{ h.medecin?.personnel?.nom || '—' }}</span>
-              </div>
-              <div v-if="h.diagnostic" class="historique-diag">
-                Diagnostic : {{ h.diagnostic }}
-              </div>
-              <div v-if="h.medicaments.length" class="historique-meds">
-                💊 {{ h.medicaments.map((m) => m.medicamentNom).join(', ') }}
-              </div>
-              <span class="badge" :class="h.statut === 'VALIDEE' ? 'badge-success' : 'badge-warning'">
-                {{ h.statut === 'VALIDEE' ? 'Validée' : 'En cours' }}
-              </span>
-            </div>
-          </div>
-        </section>
       </div>
     </main>
 
@@ -1186,8 +1238,73 @@ const detail = ref(null)
 const consultation = ref(null)
 let rechercheTimer = null
 
+// ── File d'attente des médecins (affectation automatique) ──
+const estMedecin = computed(() => auth.user?.role?.code === 'MEDECIN')
+const disponibilite = ref('INDISPONIBLE')
+const file = ref({ enAttente: [], terminees: [] })
+const vueFile = ref('attente')
+let affectationOuverteId = ref(null)
+let pingTimer = null
+
+async function chargerFile() {
+  if (!estMedecin.value) return
+  try {
+    const { data } = await http.get('/consultations/moi')
+    disponibilite.value = data.disponibilite
+    file.value = { enAttente: data.enAttente ?? [], terminees: data.terminees ?? [] }
+  } catch {
+    /* file vide */
+  }
+}
+
+async function basculerDisponibilite() {
+  const cible = disponibilite.value === 'DISPONIBLE' ? 'INDISPONIBLE' : 'DISPONIBLE'
+  try {
+    const { data } = await http.put('/consultations/disponibilite', { disponibilite: cible })
+    disponibilite.value = data.disponibilite
+    toastSuccess(cible === 'DISPONIBLE' ? 'Vous êtes disponible — les patients non affectés vous sont redistribués.' : 'Vous êtes indisponible.')
+    await chargerFile()
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Changement de disponibilité impossible.')
+  }
+}
+
+async function consulterAffectation(a) {
+  try {
+    await http.post(`/consultations/affectations/${a.id}/ouvrir`)
+    affectationOuverteId.value = a.id
+  } catch {
+    /* l'ouverture est tolérante */
+  }
+  passageCourant.value = {
+    id: a.passage.id,
+    numeroOrdre: a.passage.numeroOrdre,
+    statut: a.passage.statut,
+    patient: a.passage.patient,
+    service: a.passage.service,
+    consultable: true,
+  }
+  resultats.value = []
+  await chargerDetail()
+}
+
+/** Rouvre le dossier d'une consultation terminée (prescriptions encore possibles). */
+async function ouvrirTerminee(a) {
+  affectationOuverteId.value = null // déjà TERMINE : rien à refermer
+  passageCourant.value = {
+    id: a.passage.id,
+    numeroOrdre: a.passage.numeroOrdre,
+    statut: 'ACTIF',
+    patient: a.passage.patient,
+    service: a.passage.service,
+    consultable: true,
+  }
+  resultats.value = []
+  await chargerDetail()
+}
+
 // Onglets de la consultation
-const onglet = ref('fiche') // fiche | medicaments | examens | historique
+const onglet = ref('fiche') // fiche | medicaments | examens
 
 // Formulaire consultation (fiche curative)
 const formConsult = reactive({})
@@ -1240,14 +1357,6 @@ const examensPrescrits = computed(() =>
   ),
 )
 
-// Historique médical : données du jour par défaut (vide = tout l'historique)
-const filtreHistoriqueDate = ref(new Date().toISOString().slice(0, 10))
-const historiqueFiltre = computed(() => {
-  const tout = detail.value?.historique ?? []
-  if (!filtreHistoriqueDate.value) return tout
-  return tout.filter((h) => new Date(h.createdAt).toISOString().slice(0, 10) === filtreHistoriqueDate.value)
-})
-
 /** Un examen est « déjà fait » si le service concerné l'a validé (labo ou imagerie). */
 function estFait(l) {
   const labo = (detail.value?.passage.examensLabo ?? []).find(
@@ -1270,7 +1379,9 @@ async function validerEtEnregistrer() {
     try {
       await http.post(`/consultations/${consultation.value.id}/valider`)
       toastSuccess('Consultation validée.')
+      affectationOuverteId.value = null // l'affectation passe TERMINE
       await chargerDetail()
+      chargerFile()
     } catch (e) {
       toastError(e.response?.data?.message || 'Erreur lors de la validation.')
     }
@@ -1319,17 +1430,26 @@ async function choisirPassage(p) {
   passageCourant.value = p
   resultats.value = []
   recherche.value = ''
+  affectationOuverteId.value = null
   onglet.value = 'fiche'
   await chargerDetail()
 }
 
 function quitterPatient() {
+  // Refermer l'affectation si le dossier est quitté sans validation
+  if (affectationOuverteId.value) {
+    http
+      .post(`/consultations/affectations/${affectationOuverteId.value}/fermer`)
+      .catch(() => {})
+    affectationOuverteId.value = null
+  }
   passageCourant.value = null
   detail.value = null
   consultation.value = null
   ordonnance.value = null
   apercuFicheVisible.value = false
   Object.keys(formConsult).forEach((k) => delete formConsult[k])
+  chargerFile()
 }
 
 async function chargerDetail() {
@@ -1739,6 +1859,15 @@ function formatDateHeure(d) {
 onMounted(async () => {
   chargerPrestations()
   chargerLits()
+  chargerFile()
+  // Signal de vie du poste : un médecin DISPONIBLE sans heartbeat est considéré
+  // « poste éteint » et ne reçoit plus de patients (seuil : 2 minutes).
+  if (estMedecin.value) {
+    pingTimer = setInterval(() => {
+      http.post('/consultations/ping').catch(() => {})
+    }, 60000)
+    http.post('/consultations/ping').catch(() => {})
+  }
   try {
     const { data } = await http.get('/cliniques')
     cliniqueAdresse.value =
@@ -1747,7 +1876,10 @@ onMounted(async () => {
     // adresse vide si l'API ne répond pas
   }
 })
-onUnmounted(() => clearTimeout(rechercheTimer))
+onUnmounted(() => {
+  clearTimeout(rechercheTimer)
+  clearInterval(pingTimer)
+})
 </script>
 
 <style scoped>
@@ -1930,6 +2062,44 @@ onUnmounted(() => clearTimeout(rechercheTimer))
 .tab-btn.active {
   color: #0f766e;
   border-bottom-color: #0d9488;
+}
+
+/* Bascule disponibilité du médecin */
+.dispo-btn {
+  border-radius: 999px;
+  font-weight: 800;
+  padding: 8px 16px;
+  border: 1.5px solid;
+}
+.dispo-on {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+.dispo-off {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+/* Badge compteur de la file d'attente */
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+}
+.tab-count-actif {
+  background: #0d9488;
+  color: #ffffff;
 }
 
 /* Ancien layout deux colonnes (conservé, non utilisé) */

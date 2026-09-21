@@ -20,8 +20,90 @@
     </header>
 
     <main class="caisse-content">
+      <!-- File de la caisse : en attente de paiement / payés du jour / recherche -->
+      <nav v-if="!passageCourant" class="tabs-nav">
+        <button class="tab-btn" :class="{ active: vueFile === 'attente' }" @click="vueFile = 'attente'; chargerFile()">
+          💰 En attente de paiement
+          <span class="tab-count" :class="{ 'tab-count-actif': vueFile === 'attente' }">{{ file.attente.length }}</span>
+        </button>
+        <button class="tab-btn" :class="{ active: vueFile === 'payes' }" @click="vueFile = 'payes'; chargerPayes()">
+          ✅ Payés du jour
+        </button>
+        <button class="tab-btn" :class="{ active: vueFile === 'recherche' }" @click="vueFile = 'recherche'">
+          🔍 Recherche par code
+        </button>
+      </nav>
+
+      <!-- Patients en attente de paiement -->
+      <section v-if="!passageCourant && vueFile === 'attente'" class="card">
+        <div class="card-header"><h2>Patients à encaisser (par ordre d'arrivée)</h2></div>
+        <div v-if="file.attente.length === 0" class="empty-state">Aucun patient en attente de paiement.</div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Patient</th>
+                <th>N° d'ordre</th>
+                <th>Service</th>
+                <th>À payer</th>
+                <th>Prestations</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(p, i) in file.attente" :key="p.id">
+                <td>{{ i + 1 }}</td>
+                <td><strong>{{ p.patient.nom }} {{ p.patient.prenom }}</strong></td>
+                <td>{{ p.numeroOrdre }}</td>
+                <td>{{ p.service?.nom || '—' }}</td>
+                <td><strong>{{ p.totalAPayer.toLocaleString('fr-FR') }} F</strong></td>
+                <td>{{ p.nbLignes }}</td>
+                <td>
+                  <button class="btn btn-primary btn-sm" @click="choisirPassageFile(p)">💰 Encaisser</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Payés du jour -->
+      <section v-else-if="!passageCourant && vueFile === 'payes'" class="card">
+        <div class="card-header"><h2>Paiements du jour</h2></div>
+        <div v-if="file.payes.length === 0" class="empty-state">Aucun paiement aujourd'hui.</div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Heure</th>
+                <th>Patient</th>
+                <th>N° d'ordre</th>
+                <th>Reçu</th>
+                <th>Mode</th>
+                <th>Montant</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="p in file.payes" :key="p.id">
+                <td>{{ formatHeure(p.createdAt) }}</td>
+                <td><strong>{{ p.patient.nom }} {{ p.patient.prenom }}</strong></td>
+                <td>{{ p.numeroOrdre }}</td>
+                <td>{{ p.numeroRecu }}</td>
+                <td>{{ p.modePaiement }}</td>
+                <td><strong>{{ p.montant.toLocaleString('fr-FR') }} F</strong></td>
+                <td>
+                  <button class="btn btn-outline btn-sm" @click="imprimerRecu(p.id)">🖨️ Reçu</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- Recherche unique (§6.1) -->
-      <section class="card search-card">
+      <section v-if="!passageCourant && vueFile === 'recherche'" class="card search-card">
         <div class="toolbar">
           <input
             v-model="recherche"
@@ -63,7 +145,10 @@
             <span class="badge" :class="badgeStatut(passageCourant.statut)">{{ labelStatut(passageCourant.statut) }}</span>
           </div>
         </div>
-        <button class="btn btn-outline btn-sm" @click="passageCourant = null; resultats = []; recherche = ''">
+        <button
+          class="btn btn-outline btn-sm"
+          @click="passageCourant = null; resultats = []; recherche = ''; chargerFile(); chargerPayes()"
+        >
           ✕ Changer de patient
         </button>
       </section>
@@ -371,6 +456,51 @@ const resultats = ref([])
 const passageCourant = ref(null)
 let rechercheTimer = null
 
+// ── File de la caisse (même logique que la consultation) ──
+const vueFile = ref('attente')
+const file = ref({ attente: [], payes: [] })
+
+async function chargerFile() {
+  try {
+    const { data } = await http.get('/caisse/file-attente', {
+      params: { cliniqueId: cliniqueId.value, perPage: 100 },
+    })
+    file.value = { ...file.value, attente: data.data ?? [] }
+  } catch {
+    /* file vide */
+  }
+}
+
+async function chargerPayes() {
+  try {
+    const { data } = await http.get('/caisse/payes', {
+      params: { cliniqueId: cliniqueId.value, perPage: 100 },
+    })
+    file.value = { ...file.value, payes: data.data ?? [] }
+  } catch {
+    /* liste vide */
+  }
+}
+
+async function choisirPassageFile(p) {
+  await choisirPassage(p)
+}
+
+async function imprimerRecu(paiementId) {
+  try {
+    const { data } = await http.post(`/impression/paiements/${paiementId}`)
+    if (data.ok) toastSuccess(data.message)
+    else toastError(data.message)
+  } catch (e) {
+    toastError(`Erreur d'impression : ${e.response?.data?.message || e.message}`)
+  }
+}
+
+function formatHeure(d) {
+  if (!d) return '—'
+  return new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
+
 // Détail du passage
 const detail = ref(null)
 const detailLoading = ref(false)
@@ -545,24 +675,13 @@ async function encaisser() {
     if (data.impression?.ok) {
       toastSuccess(`Reçu imprimé : ${data.impression.message}`)
     }
+    chargerFile()
+    chargerPayes()
     await chargerDetail()
   } catch (e) {
     toastError(e.response?.data?.message || 'Erreur lors de l\'encaissement.')
   } finally {
     encaissementEnCours.value = false
-  }
-}
-
-async function imprimerRecu(paiementId) {
-  try {
-    const { data } = await http.post(`/impression/paiements/${paiementId}`)
-    if (data.ok) {
-      toastSuccess(data.message)
-    } else {
-      toastError(data.message)
-    }
-  } catch (e) {
-    toastError(`Erreur d'impression : ${e.response?.data?.message || e.message}`)
   }
 }
 
@@ -598,6 +717,8 @@ function formatDateHeure(d) {
 }
 
 onMounted(async () => {
+  chargerFile()
+  chargerPayes()
   try {
     const { data } = await http.get('/services', { params: { perPage: 0 } })
     services.value = data.data
@@ -612,6 +733,53 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* File de la caisse (même logique que la consultation) */
+.tabs-nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #d5eee9;
+  flex-wrap: wrap;
+}
+.tab-btn {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #5f857f;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover {
+  color: #0f766e;
+}
+.tab-btn.active {
+  color: #0f766e;
+  border-bottom-color: #0d9488;
+}
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+}
+.tab-count-actif {
+  background: #0d9488;
+  color: #ffffff;
+}
+
 .caisse-page {
   min-height: 100vh;
   background: linear-gradient(170deg, #ffffff 0%, #eef9f7 55%, #e3f4f0 100%);

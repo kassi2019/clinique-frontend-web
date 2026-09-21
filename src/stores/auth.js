@@ -35,7 +35,16 @@ export const useAuthStore = defineStore('auth', {
         // token invalide : l'intercepteur redirige vers la connexion
       }
     },
-    logout() {
+    async logout() {
+      // Un médecin qui se déconnecte devient indisponible (sinon le heartbeat
+      // mettrait 2 minutes à le retirer de la liste des médecins éligibles).
+      if (this.user?.role?.code === 'MEDECIN') {
+        try {
+          await http.put('/consultations/disponibilite', { disponibilite: 'INDISPONIBLE' })
+        } catch {
+          // la déconnexion continue même si l'API ne répond pas
+        }
+      }
       this.token = null
       this.user = null
       localStorage.removeItem('token')
