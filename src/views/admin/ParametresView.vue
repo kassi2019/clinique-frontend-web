@@ -70,15 +70,24 @@
       </div>
     </div>
 
-    <!-- ============ Imprimante de tickets ============ -->
+    <!-- ============ Imprimantes par poste ============ -->
     <div class="card imprimante-card">
       <div class="card-header">
-        <h2>🖨️ Imprimante de tickets</h2>
+        <h2>🖨️ Imprimantes par poste</h2>
         <div class="actions">
           <button class="btn btn-outline btn-sm" :disabled="testEnCours" @click="testerImprimante">
-            {{ testEnCours ? 'Test en cours…' : 'Tester l\'imprimante' }}
+            {{ testEnCours ? 'Test en cours…' : 'Tester cette imprimante' }}
           </button>
         </div>
+      </div>
+
+      <div class="field">
+        <label>Imprimante à paramétrer</label>
+        <SelectSearch
+          v-model="posteActif"
+          :options="optionsPostes"
+          placeholder="— Choisir un poste —"
+        />
       </div>
 
       <p v-if="imprimanteMsg" class="alert" :class="imprimanteOk ? 'alert-success' : 'alert-error'">
@@ -108,12 +117,8 @@
           <input v-model.trim="configImp.nom" placeholder="POS-80C (copy 2)" />
         </div>
         <div v-if="configImp.type === 'WINDOWS'" class="field">
-          <label>Nom du partage</label>
+          <label>Nom du partage (impression brute fidèle)</label>
           <input v-model.trim="configImp.partage" placeholder="RECU" />
-        </div>
-        <div v-if="configImp.type === 'BLUETOOTH'" class="field">
-          <label>Appareil Bluetooth</label>
-          <input v-model.trim="configImp.bluetooth" placeholder="YHD-8390_BLE" />
         </div>
         <div class="field">
           <label>Largeur papier (caractères)</label>
@@ -126,7 +131,7 @@
         <div class="field">
           <label>Impression automatique</label>
           <select v-model="configImp.autoPrint">
-            <option :value="true">Oui (après chaque passage/paiement)</option>
+            <option :value="true">Oui (après chaque document)</option>
             <option :value="false">Non (impression manuelle)</option>
           </select>
         </div>
@@ -149,7 +154,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import http from '../../api/http'
 import { optimiserImage } from '../../utils/image'
 import { toastError, toastSuccess } from '../../utils/notifications'
@@ -163,7 +168,9 @@ const saving = ref(false)
 const message = ref('')
 const messageOk = ref(true)
 
-// Imprimante de tickets
+// Imprimantes par poste (tickets, reçus caisse, reçus pharmacie, ordonnances)
+const configsImprimantes = ref([])
+const posteActif = ref('TICKET')
 const configImp = reactive({})
 const imprimanteMsg = ref('')
 const imprimanteOk = ref(true)
@@ -171,10 +178,24 @@ const testEnCours = ref(false)
 const savingConfig = ref(false)
 const imprimantesWindows = ref([])
 
+const optionsPostes = computed(() =>
+  configsImprimantes.value.map((p) => ({ value: p.poste, label: p.libelle })),
+)
+
+function appliquerConfigPoste() {
+  const ligne = configsImprimantes.value.find((p) => p.poste === posteActif.value)
+  Object.keys(configImp).forEach((k) => delete configImp[k])
+  Object.assign(configImp, ligne?.config ?? { type: 'WINDOWS', nom: '', partage: '', ip: '', port: 9100, largeur: 42, autoPrint: true })
+  imprimanteMsg.value = ''
+}
+
 async function chargerConfigImprimante() {
   try {
-    const { data } = await http.get('/impression/config')
-    Object.assign(configImp, data)
+    const { data } = await http.get('/impression/config', {
+      params: { cliniqueId: cliniqueId.value },
+    })
+    configsImprimantes.value = data.printers ?? []
+    appliquerConfigPoste()
   } catch {
     // config par défaut côté serveur
   }
@@ -182,15 +203,17 @@ async function chargerConfigImprimante() {
 
 async function testerImprimante() {
   testEnCours.value = true
+  imprimanteMsg.value = ''
   try {
-    const { data } = await http.post('/impression/test')
-    if (data.ok) {
-      toastSuccess(data.message)
-    } else {
-      toastError(data.message + (data.debug ? ' — ' + data.debug : ''))
-    }
+    const { data } = await http.post('/impression/test', {
+      cliniqueId: cliniqueId.value,
+      poste: posteActif.value,
+    })
+    imprimanteOk.value = data.ok
+    imprimanteMsg.value = data.message + (data.debug ? ' — ' + data.debug : '')
   } catch (e) {
-    toastError(`Erreur lors du test : ${e.response?.data?.message || e.message}`)
+    imprimanteOk.value = false
+    imprimanteMsg.value = `Erreur lors du test : ${e.response?.data?.message || e.message}`
   } finally {
     testEnCours.value = false
   }
@@ -199,9 +222,13 @@ async function testerImprimante() {
 async function sauvegarderConfig() {
   savingConfig.value = true
   try {
-    const { data } = await http.post('/impression/config', { ...configImp })
-    Object.assign(configImp, data.config)
-    toastSuccess(data.message)
+    await http.put('/impression/config', {
+      cliniqueId: cliniqueId.value,
+      poste: posteActif.value,
+      ...configImp,
+    })
+    toastSuccess('Configuration enregistrée — appliquée immédiatement.')
+    await chargerConfigImprimante()
   } catch (e) {
     toastError(e.response?.data?.message || e.message)
   } finally {
@@ -224,6 +251,7 @@ async function loadCliniques() {
     cliniqueId.value = data[0].id
     await loadParametre()
   }
+  await chargerConfigImprimante()
 }
 
 async function loadParametre() {
@@ -291,12 +319,14 @@ async function resetImage() {
 
 onMounted(() => {
   loadCliniques()
-  chargerConfigImprimante()
   http
     .get('/impression/printers')
     .then(({ data }) => (imprimantesWindows.value = data.printers))
     .catch(() => {})
 })
+
+// Changer de poste recharge sa configuration dans le formulaire
+watch(posteActif, appliquerConfigPoste)
 </script>
 
 <style scoped>

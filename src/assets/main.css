@@ -13,6 +13,7 @@
   --text: #1e293b;
   --text-muted: #64748b;
   --border: #e2e8f0;
+  --border-champ: #94a3b8; /* bordure des champs de saisie, bien visible */
   --success: #16a34a;
   --warning: #d97706;
   --danger: #dc2626;
@@ -96,7 +97,7 @@ body {
 .field select,
 .field textarea {
   padding: 8px 12px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border-champ);
   border-radius: var(--radius);
   font-size: 14px;
   font-family: inherit;
@@ -247,7 +248,7 @@ tbody tr:hover {
   flex: 1;
   min-width: 220px;
   padding: 8px 12px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border-champ);
   border-radius: var(--radius);
   font-size: 14px;
   font-family: inherit;
@@ -258,7 +259,7 @@ tbody tr:hover {
 }
 .toolbar select {
   padding: 8px 12px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border-champ);
   border-radius: var(--radius);
   font-size: 14px;
   font-family: inherit;

@@ -437,7 +437,7 @@ onMounted(charger)
 .type-input {
   width: 170px;
   padding: 6px 10px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border-champ);
   border-radius: 8px;
   font-size: 13px;
   font-family: inherit;

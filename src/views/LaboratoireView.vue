@@ -1016,7 +1016,7 @@ onUnmounted(() => {
 .modal-input {
   width: 100%;
   padding: 7px 9px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border-champ);
   border-radius: 8px;
   font-size: 13.5px;
   font-family: inherit;

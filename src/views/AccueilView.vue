@@ -45,6 +45,7 @@
           @click="changerOnglet('attente')"
         >
           En attente de constante
+          <span class="tab-count" :class="{ 'tab-count-actif': onglet === 'attente' }">{{ compteurs.attente }}</span>
         </button>
         <button
           class="tab-btn"
@@ -52,6 +53,7 @@
           @click="changerOnglet('terminee')"
         >
           Constante terminée
+          <span class="tab-count" :class="{ 'tab-count-actif': onglet === 'terminee' }">{{ compteurs.terminee }}</span>
         </button>
         <button
           class="tab-btn"
@@ -59,6 +61,7 @@
           @click="changerOnglet('historique')"
         >
           Historique
+          <span class="tab-count" :class="{ 'tab-count-actif': onglet === 'historique' }">{{ compteurs.historique }}</span>
         </button>
       </nav>
 
@@ -349,11 +352,11 @@
           <div v-else>
             <h3 class="section-title">Identification</h3>
             <div class="form-row">
-              <div class="field">
+              <div class="field champ-large">
                 <label>Nom *</label>
                 <input v-model.trim="form.nom" required />
               </div>
-              <div class="field">
+              <div class="field champ-large">
                 <label>Prénom *</label>
                 <input v-model.trim="form.prenom" required />
               </div>
@@ -377,11 +380,11 @@
                 <label>Quartier</label>
                 <input v-model.trim="form.quartier" />
               </div>
-              <div class="field">
+              <div class="field champ-large">
                 <label>Profession</label>
                 <input v-model.trim="form.profession" />
               </div>
-              <div class="field">
+              <div class="field champ-large">
                 <label>Téléphone</label>
                 <input v-model.trim="form.telephone" />
               </div>
@@ -390,28 +393,13 @@
 
           <h3 class="section-title">Passage</h3>
           <div class="form-row">
-            <div class="field">
+            <div class="field champ-large">
               <label>Service à consulter *</label>
               <SelectSearch
                 v-model="form.serviceId"
                 :options="optionsServices"
                 placeholder="— Choisir un service —"
               />
-            </div>
-            <div v-if="consultationsDuService.length > 1" class="field">
-              <label>Type de consultation *</label>
-              <select v-model="form.consultationPrestationId" required>
-                <option :value="null" disabled>— Choisir —</option>
-                <option v-for="c in consultationsDuService" :key="c.id" :value="c.id">
-                  {{ c.libelle }}
-                </option>
-              </select>
-            </div>
-            <div v-else-if="consultationsDuService.length === 1" class="field">
-              <label>Consultation</label>
-              <span class="consultation-seule-info">
-                {{ consultationsDuService[0].libelle }}
-              </span>
             </div>
             <div class="field">
               <label>Type de patient</label>
@@ -423,6 +411,23 @@
             <div class="field">
               <label>Motif</label>
               <input v-model.trim="form.motif" placeholder="Ex : fièvre, suivi grossesse…" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div v-if="consultationsDuService.length > 1" class="field champ-large">
+              <label>Type de consultation *</label>
+              <select v-model="form.consultationPrestationId" required>
+                <option :value="null" disabled>— Choisir —</option>
+                <option v-for="c in consultationsDuService" :key="c.id" :value="c.id">
+                  {{ c.libelle }}
+                </option>
+              </select>
+            </div>
+            <div v-else-if="consultationsDuService.length === 1" class="field champ-large">
+              <label>Consultation</label>
+              <span class="consultation-seule-info">
+                {{ consultationsDuService[0].libelle }}
+              </span>
             </div>
           </div>
           <div v-if="form.typePatient === 'EXTERNE'" class="form-row">
@@ -677,6 +682,9 @@ const passages = ref([])
 const loading = ref(false)
 const error = ref('')
 
+// Compteurs des onglets (badges)
+const compteurs = reactive({ attente: 0, terminee: 0, historique: 0 })
+
 const optionsServices = computed(() =>
   services.value.map((s) => ({ value: s.id, label: s.nom })),
 )
@@ -824,10 +832,38 @@ async function chargerListe() {
     passages.value = data.data
     total.value = data.total
     totalPages.value = data.totalPages
+    chargerCompteurs()
   } catch (e) {
     error.value = 'Impossible de charger les passages.'
   } finally {
     loading.value = false
+  }
+}
+
+/** Nombre d'éléments de chaque onglet (badges). */
+async function chargerCompteurs() {
+  try {
+    const [a, t, h] = await Promise.all([
+      http.get('/accueil/passages', {
+        params: { cliniqueId: cliniqueId.value, constantes: 'NON', perPage: 1 },
+      }),
+      http.get('/accueil/passages', {
+        params: { cliniqueId: cliniqueId.value, constantes: 'OUI', perPage: 1 },
+      }),
+      http.get('/accueil/passages', {
+        params: {
+          cliniqueId: cliniqueId.value,
+          debut: filtreDebut.value || undefined,
+          fin: filtreFin.value || undefined,
+          perPage: 1,
+        },
+      }),
+    ])
+    compteurs.attente = a.data.total
+    compteurs.terminee = t.data.total
+    compteurs.historique = h.data.total
+  } catch {
+    /* compteurs inchangés */
   }
 }
 
@@ -1257,6 +1293,26 @@ onUnmounted(() => {
   border-bottom-color: #0d9488;
 }
 
+/* Badge compteur des onglets */
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+}
+.tab-count-actif {
+  background: #0d9488;
+  color: #ffffff;
+}
+
 .count-pill {
   padding: 3px 12px;
   font-size: 12.5px;
@@ -1513,5 +1569,10 @@ onUnmounted(() => {
   font-size: 13.5px;
   color: #0f766e;
   font-weight: 600;
+}
+
+/* Champs larges du formulaire de passage (occupent 2 colonnes) */
+.champ-large {
+  grid-column: span 2;
 }
 </style>

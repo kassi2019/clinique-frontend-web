@@ -969,7 +969,7 @@ onUnmounted(() => {
 .qte-input {
   width: 80px;
   padding: 6px 8px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border-champ);
   border-radius: 8px;
   font-size: 13.5px;
   font-family: inherit;
