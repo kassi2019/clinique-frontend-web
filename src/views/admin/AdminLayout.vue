@@ -68,6 +68,7 @@ const navItems = [
   { to: 'admin-prestations', label: 'Prestations & tarifs', icon: '💲' },
   { to: 'admin-medicaments', label: 'Médicaments', icon: '💊' },
   { to: 'admin-chambres', label: 'Chambres & lits', icon: '🛏️' },
+  { to: 'admin-assurances', label: 'Assurances', icon: '🛡️' },
   { to: 'admin-parametres', label: 'Paramètres', icon: '🎨' },
 ]
 

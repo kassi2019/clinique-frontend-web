@@ -121,6 +121,11 @@ const routes = [
         name: 'admin-chambres',
         component: () => import('../views/admin/ChambresView.vue'),
       },
+      {
+        path: 'assurances',
+        name: 'admin-assurances',
+        component: () => import('../views/admin/AssurancesView.vue'),
+      },
     ],
   },
 ]

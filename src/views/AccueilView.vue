@@ -345,6 +345,9 @@
               ✓ {{ patientChoisi.nom }} {{ patientChoisi.prenom }}
               ({{ patientChoisi.numeroDossier }})
               <button type="button" class="btn btn-outline btn-sm" @click="patientChoisi = null">Changer</button>
+              <button type="button" class="btn btn-outline btn-sm" @click="ouvrirAssurancePatient(patientChoisi.id)">
+                🛡️ Assurance
+              </button>
             </div>
           </div>
 
@@ -461,6 +464,101 @@
       </section>
     </main>
 
+    <!-- ============ Modale : assurance du patient ============ -->
+    <div v-if="modaleAssurance" class="modal-backdrop">
+      <div class="modal">
+        <h2>🛡️ Assurance du patient</h2>
+        <div class="field">
+          <label>Assurance *</label>
+          <SelectSearch
+            v-model="formPatientAssurance.assuranceId"
+            :options="optionsAssurances"
+            placeholder="— Choisir une assurance —"
+          />
+        </div>
+        <div class="field">
+          <label>Formule *</label>
+          <SelectSearch
+            v-model="formPatientAssurance.formuleId"
+            :options="optionsFormulesAssurance"
+            placeholder="— Choisir une formule —"
+          />
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>N° d'assuré</label>
+            <input v-model.trim="formPatientAssurance.numeroAssure" />
+          </div>
+          <div class="field">
+            <label>N° de carte</label>
+            <input v-model.trim="formPatientAssurance.numeroCarte" />
+          </div>
+          <div class="field">
+            <label>Assuré principal</label>
+            <input v-model.trim="formPatientAssurance.nomAssurePrincipal" />
+          </div>
+          <div class="field">
+            <label>Type de bénéficiaire</label>
+            <select v-model="formPatientAssurance.typeBeneficiaire">
+              <option value="">—</option>
+              <option value="ASSURE">Assuré</option>
+              <option value="CONJOINT">Conjoint</option>
+              <option value="ENFANT">Enfant</option>
+              <option value="AUTRE">Autre</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Début de couverture</label>
+            <input v-model="formPatientAssurance.dateDebut" type="date" />
+          </div>
+          <div class="field">
+            <label>Fin de couverture</label>
+            <input v-model="formPatientAssurance.dateFin" type="date" />
+          </div>
+        </div>
+
+        <h3 class="section-title">Rattachements existants</h3>
+        <div v-if="rattachementsPatient.length === 0" class="small-note text-muted">
+          Aucun rattachement.
+        </div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Assurance</th>
+                <th>Formule</th>
+                <th>N° assuré</th>
+                <th>Statut</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in rattachementsPatient" :key="r.id">
+                <td>{{ r.assurance?.libelle }}</td>
+                <td>{{ r.formule?.libelle }}</td>
+                <td>{{ r.numeroAssure || '—' }}</td>
+                <td>
+                  <span class="badge" :class="r.statut === 'ACTIF' ? 'badge-success' : 'badge-muted'">
+                    {{ r.statut === 'ACTIF' ? 'Actif' : 'Inactif' }}
+                  </span>
+                </td>
+                <td>
+                  <button class="btn btn-outline btn-sm" @click="basculerRattachement(r)">
+                    {{ r.statut === 'ACTIF' ? 'Désactiver' : 'Réactiver' }}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="modaleAssurance = false">Fermer</button>
+          <button class="btn btn-primary" @click="enregistrerPatientAssurance">💾 Rattacher</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ============ Modale : saisie des constantes (poste constantes) ============ -->
     <div v-if="passageConstante" class="modal-backdrop">
       <div class="modal modal-lg">
@@ -534,6 +632,15 @@
         <h2>✏️ Modifier le passage — {{ editCible?.numeroOrdre }}</h2>
         <p v-if="editError" class="alert alert-error">{{ editError }}</p>
         <form @submit.prevent="enregistrerModification">
+          <div class="edit-assurance">
+            <button
+              type="button"
+              class="btn btn-outline btn-sm"
+              @click="ouvrirAssurancePatient(editCible?.patient?.id)"
+            >
+              🛡️ Assurance du patient
+            </button>
+          </div>
           <h3 class="section-title">Patient</h3>
           <div class="form-row">
             <div class="field">
@@ -737,6 +844,74 @@ const recherchePatient = ref('')
 const resultatsPatients = ref([])
 const patientChoisi = ref(null)
 let rechercheTimer = null
+
+// Assurance du patient (rattachement à une assurance et une formule)
+const modaleAssurance = ref(false)
+const patientAssuranceCible = ref(null)
+const assurancesListe = ref([])
+const rattachementsPatient = ref([])
+const formPatientAssurance = reactive({
+  assuranceId: null, formuleId: null, numeroAssure: '', numeroCarte: '',
+  nomAssurePrincipal: '', typeBeneficiaire: '', dateDebut: '', dateFin: '',
+})
+
+const optionsAssurances = computed(() =>
+  assurancesListe.value
+    .filter((a) => a.statut === 'ACTIF')
+    .map((a) => ({ value: a.id, label: a.libelle })),
+)
+const optionsFormulesAssurance = computed(() => {
+  const a = assurancesListe.value.find((x) => x.id === formPatientAssurance.assuranceId)
+  return (a?.formules ?? [])
+    .filter((f) => f.statut === 'ACTIF')
+    .map((f) => ({ value: f.id, label: f.libelle }))
+})
+
+async function ouvrirAssurancePatient(patientId) {
+  patientAssuranceCible.value = patientId
+  Object.assign(formPatientAssurance, {
+    assuranceId: null, formuleId: null, numeroAssure: '', numeroCarte: '',
+    nomAssurePrincipal: '', typeBeneficiaire: '', dateDebut: '', dateFin: '',
+  })
+  try {
+    const [a, r] = await Promise.all([
+      http.get('/assurances', { params: { cliniqueId: cliniqueId.value } }),
+      http.get(`/assurances/patients/${patientId}`),
+    ])
+    assurancesListe.value = a.data
+    rattachementsPatient.value = r.data
+  } catch {
+    assurancesListe.value = []
+    rattachementsPatient.value = []
+  }
+  modaleAssurance.value = true
+}
+
+async function enregistrerPatientAssurance() {
+  if (!formPatientAssurance.assuranceId || !formPatientAssurance.formuleId) {
+    toastError('Choisissez l\'assurance et la formule.')
+    return
+  }
+  try {
+    await http.post(`/assurances/patients/${patientAssuranceCible.value}`, {
+      ...formPatientAssurance,
+    })
+    toastSuccess('Patient rattaché à l\'assurance.')
+    await ouvrirAssurancePatient(patientAssuranceCible.value)
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Rattachement impossible.')
+  }
+}
+
+async function basculerRattachement(r) {
+  try {
+    await http.delete(`/assurances/patients/rattachements/${r.id}`)
+    toastSuccess('Statut mis à jour.')
+    await ouvrirAssurancePatient(patientAssuranceCible.value)
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Opération impossible.')
+  }
+}
 
 // Constantes (poste dédié)
 const rechercheCode = ref('')
@@ -1574,5 +1749,8 @@ onUnmounted(() => {
 /* Champs larges du formulaire de passage (occupent 2 colonnes) */
 .champ-large {
   grid-column: span 2;
+}
+.edit-assurance {
+  margin-bottom: 10px;
 }
 </style>

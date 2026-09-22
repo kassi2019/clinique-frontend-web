@@ -36,7 +36,17 @@
 
       <!-- Patients en attente de paiement -->
       <section v-if="!passageCourant && vueFile === 'attente'" class="card">
-        <div class="card-header"><h2>Patients à encaisser (par ordre d'arrivée)</h2></div>
+        <div class="card-header">
+          <h2>Patients à encaisser (par ordre d'arrivée)</h2>
+          <input
+            v-model="filtreJourFile"
+            type="date"
+            class="search-input"
+            style="max-width: 160px"
+            title="Vide = tous les jours"
+            @change="chargerFile"
+          />
+        </div>
         <div v-if="file.attente.length === 0" class="empty-state">Aucun patient en attente de paiement.</div>
         <div v-else class="table-wrap">
           <table>
@@ -123,6 +133,16 @@
 
       <!-- Fiche patient courante -->
       <section v-if="passageCourant" class="card fiche-card">
+        <div v-if="detail?.assurancePatient" class="assurance-banniere">
+          🛡️ <strong>{{ detail.assurancePatient.assurance.libelle }}</strong>
+          — {{ detail.assurancePatient.formule.libelle }}
+          <span v-if="detail.assurancePatient.numeroAssure">
+            · N° assuré {{ detail.assurancePatient.numeroAssure }}
+          </span>
+          <span v-if="detail.assurancePatient.typeBeneficiaire" class="text-muted">
+            · {{ labelBeneficiaire(detail.assurancePatient.typeBeneficiaire) }}
+          </span>
+        </div>
         <div class="fiche-info">
           <div class="fiche-ligne">
             <span class="fiche-label">Patient</span>
@@ -196,7 +216,14 @@
                   </td>
                   <td>{{ l.libelle }}</td>
                   <td>{{ l.service?.nom || '—' }}</td>
-                  <td>{{ l.statut === 'EXTERNE' ? '—' : l.montant.toLocaleString('fr-FR') }}</td>
+                  <td>
+                    {{ l.statut === 'EXTERNE' ? '—' : l.montant.toLocaleString('fr-FR') }}
+                    <div v-if="l.couverture" class="partage-assurance">
+                      <span class="part-assurance">Assurance {{ l.couverture.partAssurance.toLocaleString('fr-FR') }} F</span>
+                      <span class="part-patient">Patient {{ l.couverture.partPatient.toLocaleString('fr-FR') }} F</span>
+                      <span class="part-taux">({{ l.couverture.taux }} %)</span>
+                    </div>
+                  </td>
                   <td>
                     <span
                       v-if="l.statut === 'NON_PRESCRITE'"
@@ -242,10 +269,34 @@
                 <span>Sous-total</span>
                 <strong>{{ sousTotal.toLocaleString('fr-FR') }} FCFA</strong>
               </div>
-              <div class="recap-item recap-total">
-                <span>Total à payer</span>
-                <strong>{{ sousTotal.toLocaleString('fr-FR') }} FCFA</strong>
+              <div v-if="partAssuranceTotale > 0" class="recap-item">
+                <span>Part assurance</span>
+                <strong class="part-assurance">{{ partAssuranceTotale.toLocaleString('fr-FR') }} FCFA</strong>
               </div>
+              <div v-if="partAssuranceTotale > 0" class="recap-item">
+                <span>Part patient</span>
+                <strong class="part-patient">{{ partPatientTotale.toLocaleString('fr-FR') }} FCFA</strong>
+              </div>
+              <div class="recap-item recap-total">
+                <span>Total à payer par le patient</span>
+                <strong>{{ partPatientTotale.toLocaleString('fr-FR') }} FCFA</strong>
+              </div>
+            </div>
+            <div v-if="partAssuranceTotale > 0" class="taux-exceptionnel">
+              <label>Taux exceptionnel (optionnel) :</label>
+              <input
+                v-model.number="tauxExceptionnel"
+                type="number"
+                min="0"
+                max="100"
+                class="taux-input"
+                placeholder="Auto"
+              />
+              <input
+                v-model.trim="motifTaux"
+                class="motif-input"
+                placeholder="Motif si taux modifié…"
+              />
             </div>
             <div class="encaissement">
               <select v-model="modePaiement" class="mode-select">
@@ -401,6 +452,10 @@
         </table>
         <div class="recu-sep"></div>
         <div class="recu-total">TOTAL : {{ recuVisuel.montantTotal.toLocaleString('fr-FR') }} FCFA</div>
+        <div v-if="recuVisuel.partAssurance != null" class="recu-infos">
+          <div class="part-assurance">Part assurance : {{ recuVisuel.partAssurance.toLocaleString('fr-FR') }} FCFA</div>
+          <div class="part-patient">Part patient : {{ (recuVisuel.partPatient ?? 0).toLocaleString('fr-FR') }} FCFA</div>
+        </div>
         <div class="recu-infos">
           <div>Mode : {{ labelMode(recuVisuel.modePaiement) }}</div>
           <div>{{ formatDateHeure(recuVisuel.createdAt) }}</div>
@@ -459,11 +514,16 @@ let rechercheTimer = null
 // ── File de la caisse (même logique que la consultation) ──
 const vueFile = ref('attente')
 const file = ref({ attente: [], payes: [] })
+const filtreJourFile = ref(new Date().toISOString().slice(0, 10))
 
 async function chargerFile() {
   try {
     const { data } = await http.get('/caisse/file-attente', {
-      params: { cliniqueId: cliniqueId.value, perPage: 100 },
+      params: {
+        cliniqueId: cliniqueId.value,
+        jour: filtreJourFile.value || undefined,
+        perPage: 100,
+      },
     })
     file.value = { ...file.value, attente: data.data ?? [] }
   } catch {
@@ -501,6 +561,13 @@ function formatHeure(d) {
   return new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 }
 
+function labelBeneficiaire(t) {
+  if (t === 'ASSURE') return 'Assuré'
+  if (t === 'CONJOINT') return 'Conjoint'
+  if (t === 'ENFANT') return 'Enfant'
+  return 'Autre bénéficiaire'
+}
+
 // Détail du passage
 const detail = ref(null)
 const detailLoading = ref(false)
@@ -527,6 +594,17 @@ const sousTotal = computed(() => {
     .filter((l) => l.statut === 'EN_ATTENTE' && lignesCochees.value.has(l.id))
     .reduce((s, l) => s + l.montant, 0)
 })
+
+// Assurance : parts calculées sur les lignes cochées couvertes
+const partAssuranceTotale = computed(() => {
+  if (!detail.value) return 0
+  return detail.value.prestations
+    .filter((l) => l.statut === 'EN_ATTENTE' && lignesCochees.value.has(l.id) && l.couverture)
+    .reduce((s, l) => s + l.couverture.partAssurance, 0)
+})
+const partPatientTotale = computed(() => Math.max(0, sousTotal.value - partAssuranceTotale.value))
+const tauxExceptionnel = ref(null)
+const motifTaux = ref('')
 
 const prestationsFiltrees = computed(() => {
   if (!ajoutFiltreService.value) return prestations.value
@@ -663,6 +741,8 @@ async function encaisser() {
       {
         lignesIds: [...lignesCochees.value],
         modePaiement: modePaiement.value,
+        tauxApplique: tauxExceptionnel.value ?? undefined,
+        motifTaux: motifTaux.value || undefined,
       },
     )
     paiementEffectue.value = data
@@ -672,6 +752,8 @@ async function encaisser() {
       patient: data.patient,
       passage: data.passage,
     }
+    tauxExceptionnel.value = null
+    motifTaux.value = ''
     if (data.impression?.ok) {
       toastSuccess(`Reçu imprimé : ${data.impression.message}`)
     }
@@ -966,6 +1048,60 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
+}
+
+/* Assurance : partage des montants */
+.assurance-banniere {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  padding: 9px 14px;
+  margin-bottom: 12px;
+  font-size: 13.5px;
+  color: #134e4a;
+}
+.partage-assurance {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 3px;
+  font-size: 12px;
+}
+.part-assurance {
+  color: #166534;
+  font-weight: 700;
+}
+.part-patient {
+  color: #991b1b;
+  font-weight: 700;
+}
+.part-taux {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.taux-exceptionnel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.taux-input {
+  width: 80px;
+  padding: 6px 8px;
+  border: 1.5px solid var(--border-champ);
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+.motif-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 6px 10px;
+  border: 1.5px solid var(--border-champ);
+  border-radius: 8px;
+  font-size: 13.5px;
 }
 .recap-item {
   display: flex;
