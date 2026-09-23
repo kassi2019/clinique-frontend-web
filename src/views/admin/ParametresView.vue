@@ -100,6 +100,7 @@
           <select v-model="configImp.type">
             <option value="WINDOWS">WINDOWS (USB partagée)</option>
             <option value="NETWORK">NETWORK (Ethernet/WiFi)</option>
+            <option value="AGENT">AGENT (site en ligne — agent local à la clinique)</option>
             <option value="BLUETOOTH">BLUETOOTH (via navigateur)</option>
             <option value="NONE">NONE (pas d'imprimante)</option>
           </select>
@@ -112,11 +113,11 @@
           <label>Port</label>
           <input v-model.number="configImp.port" type="number" placeholder="9100" />
         </div>
-        <div v-if="configImp.type === 'WINDOWS'" class="field">
+        <div v-if="configImp.type === 'WINDOWS' || configImp.type === 'AGENT'" class="field">
           <label>Nom de l'imprimante (Windows)</label>
           <input v-model.trim="configImp.nom" placeholder="POS-80C (copy 2)" />
         </div>
-        <div v-if="configImp.type === 'WINDOWS'" class="field">
+        <div v-if="configImp.type === 'WINDOWS' || configImp.type === 'AGENT'" class="field">
           <label>Nom du partage (impression brute fidèle)</label>
           <input v-model.trim="configImp.partage" placeholder="RECU" />
         </div>

@@ -84,6 +84,10 @@
           <button class="btn-login" type="submit" :disabled="loading">
             {{ loading ? 'Connexion…' : 'Se connecter' }}
           </button>
+
+          <button type="button" class="btn-forgot" @click="motDePasseOublie">
+            Mot de passe oublié ?
+          </button>
         </form>
       </div>
 
@@ -98,6 +102,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import http from '../api/http'
 import logoClinique from '../assets/logoclinique.jpeg'
+import { toastInfo } from '../utils/notifications'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -132,6 +137,14 @@ async function onSubmit() {
   } finally {
     loading.value = false
   }
+}
+
+// Aucun envoi d'e-mail n'est configuré : le mot de passe est réinitialisé
+// par un administrateur depuis le module Paramétrage.
+function motDePasseOublie() {
+  toastInfo(
+    "Mot de passe oublié ? Contactez un administrateur : il réinitialise votre mot de passe depuis Paramétrage → Utilisateurs → « Réinitialiser le mot de passe ».",
+  )
 }
 
 onMounted(async () => {
@@ -312,6 +325,25 @@ onMounted(async () => {
   font-family: inherit;
   cursor: pointer;
   transition: filter 0.15s, box-shadow 0.15s;
+}
+
+/* Lien « Mot de passe oublié » */
+.btn-forgot {
+  display: block;
+  margin: 12px auto 0;
+  background: none;
+  border: none;
+  color: #5f857f;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.15s;
+}
+
+.btn-forgot:hover {
+  color: #0f766e;
 }
 .btn-login:hover:not(:disabled) {
   filter: brightness(1.04);

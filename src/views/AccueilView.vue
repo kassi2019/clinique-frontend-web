@@ -266,7 +266,7 @@
               <tr>
                 <th>Date</th>
                 <th>N° ordre</th>
-                <th>Code</th>
+                <th>Code du patient</th>
                 <th>Patient</th>
                 <th>Service</th>
                 <th>Constantes</th>
@@ -1316,18 +1316,18 @@ onMounted(async () => {
       chargerListe()
     }
   }, 15000)
-  try {
-    const [s, c, p] = await Promise.all([
-      http.get('/services', { params: { perPage: 0 } }),
-      http.get('/cliniques'),
-      http.get('/prestations', { params: { perPage: 0 } }),
-    ])
-    services.value = s.data.data
-    prestationsList.value = p.data.data
-    cliniqueAdresse.value = c.data.find((x) => x.id === cliniqueId.value)?.adresse ?? ''
-  } catch {
-    // listes vides si l'API ne répond pas
-  }
+  // Chaque liste est chargée indépendamment : une erreur sur l'une
+  // (droits, réseau) ne doit pas vider les autres — en particulier la
+  // liste déroulante des services.
+  const [s, c, p] = await Promise.allSettled([
+    http.get('/services', { params: { perPage: 0 } }),
+    http.get('/cliniques'),
+    http.get('/prestations', { params: { perPage: 0 } }),
+  ])
+  if (s.status === 'fulfilled') services.value = s.value.data.data
+  if (p.status === 'fulfilled') prestationsList.value = p.value.data.data
+  if (c.status === 'fulfilled')
+    cliniqueAdresse.value = c.value.data.find((x) => x.id === cliniqueId.value)?.adresse ?? ''
 })
 
 // Service choisi : si une seule consultation, elle est retenue automatiquement ;

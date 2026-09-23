@@ -21,6 +21,9 @@
             <span class="role-pill">{{ auth.user?.role?.nom || 'Rôle non défini' }}</span>
           </div>
           <div class="user-divider"></div>
+          <button class="btn-logout" @click="ouvrirChangement = true">
+            <span>🔑 Mot de passe</span>
+          </button>
           <button class="btn-logout" @click="onLogout">
             <span>Déconnexion</span>
           </button>
@@ -54,13 +57,42 @@
         © {{ year }} — {{ auth.user?.clinique?.nom || 'Gestion Clinique' }}
       </footer>
     </div>
+
+    <!-- Modale : changer son mot de passe -->
+    <div v-if="ouvrirChangement" class="modal-overlay" @click.self="ouvrirChangement = false">
+      <div class="modal">
+        <h2>🔑 Changer le mot de passe</h2>
+        <form @submit.prevent="changerMotDePasse">
+          <div class="field">
+            <label>Mot de passe actuel *</label>
+            <input v-model="mdp.actuel" type="password" required autocomplete="current-password" />
+          </div>
+          <div class="field">
+            <label>Nouveau mot de passe * (6 caractères minimum)</label>
+            <input v-model="mdp.nouveau" type="password" minlength="6" required autocomplete="new-password" />
+          </div>
+          <div class="field">
+            <label>Confirmer le nouveau mot de passe *</label>
+            <input v-model="mdp.confirmation" type="password" required autocomplete="new-password" />
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" @click="ouvrirChangement = false">Annuler</button>
+            <button type="submit" class="btn btn-primary" :disabled="enCours">
+              {{ enCours ? 'Enregistrement…' : 'Changer le mot de passe' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import http from '../api/http'
+import { toastError, toastSuccess } from '../utils/notifications'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -68,6 +100,39 @@ const router = useRouter()
 const year = new Date().getFullYear()
 
 const photo = computed(() => auth.user?.personnel?.photo ?? null)
+
+// ── Changement de mot de passe ──
+const ouvrirChangement = ref(false)
+const enCours = ref(false)
+const mdp = reactive({ actuel: '', nouveau: '', confirmation: '' })
+
+async function changerMotDePasse() {
+  if (mdp.nouveau.length < 6) {
+    toastError('Le nouveau mot de passe doit contenir au moins 6 caractères.')
+    return
+  }
+  if (mdp.nouveau !== mdp.confirmation) {
+    toastError('La confirmation ne correspond pas au nouveau mot de passe.')
+    return
+  }
+  enCours.value = true
+  try {
+    await http.post('/auth/changer-mot-de-passe', {
+      motDePasseActuel: mdp.actuel,
+      nouveauMotDePasse: mdp.nouveau,
+    })
+    toastSuccess('Mot de passe modifié avec succès.')
+    ouvrirChangement.value = false
+    mdp.actuel = ''
+    mdp.nouveau = ''
+    mdp.confirmation = ''
+  } catch (e) {
+    const msg = e.response?.data?.message
+    toastError(Array.isArray(msg) ? msg.join('\n') : msg ?? 'Changement impossible.')
+  } finally {
+    enCours.value = false
+  }
+}
 
 // Rafraîchit le profil (photo mise à jour par l'administrateur, etc.)
 onMounted(() => auth.refreshMe())
