@@ -66,7 +66,7 @@
               </td>
               <td>
                 <div class="actions">
-                  <button class="btn btn-outline btn-sm" @click="openForm(p)">Modifier</button>
+                  <button class="btn btn-outline btn-sm" @click="openForm(p)">✏️ Modifier</button>
                   <button
                     v-if="p.statut === 'ACTIF'"
                     class="btn btn-danger btn-sm"
@@ -76,7 +76,7 @@
                   </button>
                   <button
                     v-else
-                    class="btn btn-outline btn-sm reactiver-btn"
+                    class="btn btn-success btn-sm reactiver-btn"
                     @click="reactiver(p)"
                   >
                     ↻ Réactiver
@@ -144,8 +144,11 @@
               />
             </div>
             <div class="field">
-              <label>Matricule *</label>
-              <input v-model.trim="form.matricule" required placeholder="Ex : M001" />
+              <label>Matricule (auto si vide)</label>
+              <input v-model.trim="form.matricule" placeholder="Ex : MED0001" />
+              <p class="text-muted" style="font-size: 11px; margin-top: 3px">
+                Laissez vide : généré automatiquement — 3 lettres du service + numéro (MED0001, MED0002…).
+              </p>
             </div>
             <div class="field">
               <label>Nom *</label>
@@ -165,7 +168,18 @@
             </div>
             <div class="field">
               <label>Fonction *</label>
-              <input v-model.trim="form.fonction" required placeholder="Médecin, agent d'accueil…" />
+              <input
+                v-model.trim="form.fonction"
+                list="liste-fonctions"
+                required
+                placeholder="Médecin, agent d'accueil…"
+              />
+              <datalist id="liste-fonctions">
+                <option v-for="f in fonctions" :key="f.id" :value="f.libelle" />
+              </datalist>
+              <p class="text-muted" style="font-size: 11px; margin-top: 3px">
+                Nouvelle fonction ? Saisissez-la : elle sera ajoutée automatiquement à la liste.
+              </p>
             </div>
             <div class="field">
               <label>Service de rattachement</label>
@@ -196,7 +210,7 @@
             </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="formVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="formVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">
               {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
             </button>
@@ -219,6 +233,7 @@ import { toastError, toastSuccess } from '../../utils/notifications'
 const liste = ref([])
 const cliniques = ref([])
 const services = ref([])
+const fonctions = ref([])
 const loading = ref(false)
 const error = ref('')
 const search = ref('')
@@ -347,6 +362,9 @@ async function save() {
   try {
     const payload = { ...form }
     delete payload.id
+    // À la création, un matricule vide est omis : le backend le génère
+    // automatiquement (3 lettres du service + numéro d'ordre).
+    if (!payload.matricule?.trim()) delete payload.matricule
     // À la création, une photo absente est simplement omise ;
     // en modification, photo: null retire la photo existante.
     if (!form.id && !payload.photo) delete payload.photo
@@ -354,6 +372,18 @@ async function save() {
       await http.patch(`/personnel/${form.id}`, payload)
     } else {
       await http.post('/personnel', payload)
+    }
+    // Saisie libre auto-alimentée : la fonction est ajoutée à la liste
+    // paramétrée si elle n'existe pas encore.
+    if (payload.fonction?.trim()) {
+      try {
+        await http.post('/fonctions', {
+          cliniqueId: payload.cliniqueId,
+          libelle: payload.fonction.trim(),
+        })
+      } catch {
+        /* facultatif */
+      }
     }
     formVisible.value = false
     toastSuccess(form.id ? 'Personnel modifié.' : 'Personnel créé.')
@@ -410,12 +440,16 @@ onMounted(async () => {
   load()
   try {
     // perPage 0 = liste complète (pour les sélecteurs du formulaire)
-    const [c, s] = await Promise.all([
+    const [c, s, f] = await Promise.all([
       http.get('/cliniques'),
       http.get('/services', { params: { perPage: 0 } }),
+      http.get('/fonctions', {
+        params: { cliniqueId: form.cliniqueId ?? cliniques.value[0]?.id ?? 1 },
+      }),
     ])
     cliniques.value = c.data
     services.value = s.data.data
+    fonctions.value = f.data
   } catch {
     // les listes restent vides si l'API ne répond pas
   }
@@ -496,12 +530,5 @@ onMounted(async () => {
   margin-top: 8px;
   color: var(--warning);
   font-size: 12.5px;
-}
-.reactiver-btn {
-  color: #16a34a;
-  border-color: #bbf7d0;
-}
-.reactiver-btn:hover {
-  background: #f0fdf4;
 }
 </style>

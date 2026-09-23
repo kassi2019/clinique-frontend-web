@@ -24,7 +24,7 @@
           <option :value="null">Toutes les assurances</option>
           <option v-for="a in assurances" :key="a.id" :value="a.id">{{ a.libelle }}</option>
         </select>
-        <button class="btn btn-outline btn-sm" @click="chargerFacturation">Actualiser</button>
+        <button class="btn btn-outline btn-sm" @click="chargerFacturation">🔄 Actualiser</button>
       </div>
 
       <div v-if="facturation.parAssurance.length === 0" class="empty-state">
@@ -113,7 +113,7 @@
               {{ a.statut === 'ACTIF' ? 'Active' : 'Inactive' }}
             </span>
             <button class="btn btn-outline btn-sm" @click.stop="ouvrirAjoutFormule(a)">＋ Formule</button>
-            <button class="btn btn-outline btn-sm" @click.stop="basculerAssurance(a)">
+            <button class="btn btn-sm" :class="a.statut === 'ACTIF' ? 'btn-danger' : 'btn-success'" @click.stop="basculerAssurance(a)">
               {{ a.statut === 'ACTIF' ? 'Désactiver' : 'Réactiver' }}
             </button>
           </div>
@@ -134,7 +134,7 @@
                 {{ f.statut === 'ACTIF' ? 'Active' : 'Inactive' }}
               </span>
               <button class="btn btn-outline btn-sm" @click="ouvrirAjoutCouverture(f)">＋ Couverture</button>
-              <button class="btn btn-outline btn-sm" @click="basculerFormule(f)">
+              <button class="btn btn-sm" :class="f.statut === 'ACTIF' ? 'btn-danger' : 'btn-success'" @click="basculerFormule(f)">
                 {{ f.statut === 'ACTIF' ? 'Désactiver' : 'Réactiver' }}
               </button>
             </div>
@@ -171,7 +171,7 @@
                   <td>
                     <div class="actions">
                       <button class="btn btn-outline btn-sm" @click="ouvrirModifCouverture(c)">✏️</button>
-                      <button class="btn btn-outline btn-sm" @click="basculerCouverture(c)">
+                      <button class="btn btn-sm" :class="c.statut === 'ACTIF' ? 'btn-danger' : 'btn-success'" @click="basculerCouverture(c)">
                         {{ c.statut === 'ACTIF' ? 'Désactiver' : 'Réactiver' }}
                       </button>
                     </div>
@@ -217,7 +217,7 @@
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="modaleAssurance = false">Annuler</button>
+          <button class="btn btn-outline" @click="modaleAssurance = false">✖ Annuler</button>
           <button class="btn btn-primary" @click="enregistrerAssurance">💾 Enregistrer</button>
         </div>
       </div>
@@ -250,7 +250,7 @@
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="modaleFormule = false">Annuler</button>
+          <button class="btn btn-outline" @click="modaleFormule = false">✖ Annuler</button>
           <button class="btn btn-primary" @click="enregistrerFormule">💾 Enregistrer</button>
         </div>
       </div>
@@ -287,7 +287,7 @@
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="modaleCouverture = false">Annuler</button>
+          <button class="btn btn-outline" @click="modaleCouverture = false">✖ Annuler</button>
           <button class="btn btn-primary" @click="enregistrerCouverture">💾 Enregistrer</button>
         </div>
       </div>

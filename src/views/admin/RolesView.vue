@@ -38,8 +38,8 @@
               </td>
               <td>
                 <div class="actions">
-                  <button class="btn btn-outline btn-sm" @click="openForm(r)">Modifier</button>
-                  <button class="btn btn-danger btn-sm" @click="supprimer(r)">Supprimer</button>
+                  <button class="btn btn-outline btn-sm" @click="openForm(r)">✏️ Modifier</button>
+                  <button class="btn btn-danger btn-sm" @click="supprimer(r)">🗑️ Supprimer</button>
                 </div>
               </td>
             </tr>
@@ -121,7 +121,7 @@
           </div>
 
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="formVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="formVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">
               {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
             </button>

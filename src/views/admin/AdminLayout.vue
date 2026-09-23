@@ -10,15 +10,28 @@
       </div>
 
       <nav class="sidebar-nav">
-        <router-link
-          v-for="item in navItems"
-          :key="item.to"
-          :to="{ name: item.to }"
-          class="nav-link"
-          active-class="active"
-        >
-          <span class="nav-icon">{{ item.icon }}</span> {{ item.label }}
-        </router-link>
+        <div v-for="item in navItems" :key="item.label">
+          <!-- Élément parent avec enfants (menu dépliable) -->
+          <button
+            class="nav-link nav-parent"
+            :class="{ 'nav-parent-ouvert': ouvert(item.label) }"
+            @click="basculer(item.label)"
+          >
+            <span class="nav-icon">{{ item.icon }}</span> {{ item.label }}
+            <span class="nav-fleche">{{ ouvert(item.label) ? '▾' : '▸' }}</span>
+          </button>
+          <div v-if="ouvert(item.label)">
+            <router-link
+              v-for="enfant in item.children"
+              :key="enfant.label"
+              :to="enfant.to"
+              class="nav-link nav-enfant"
+              active-class="active"
+            >
+              <span class="nav-icon">{{ enfant.icon }}</span> {{ enfant.label }}
+            </router-link>
+          </div>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -46,12 +59,23 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
+
+/** Groupes dépliables : TOUT PLIÉ au démarrage — c'est l'utilisateur qui déplie. */
+const groupesOuverts = ref({})
+
+function ouvert(label) {
+  return groupesOuverts.value[label] === true
+}
+
+function basculer(label) {
+  groupesOuverts.value = { ...groupesOuverts.value, [label]: !ouvert(label) }
+}
 
 const initiales = computed(() => {
   const p = auth.user?.personnel
@@ -60,16 +84,51 @@ const initiales = computed(() => {
 })
 
 const navItems = [
-  { to: 'admin-clinique', label: 'Clinique', icon: '🏥' },
-  { to: 'admin-personnel', label: 'Personnel', icon: '👤' },
-  { to: 'admin-utilisateurs', label: 'Utilisateurs', icon: '🔐' },
-  { to: 'admin-roles', label: 'Rôles & habilitations', icon: '🛡️' },
-  { to: 'admin-services', label: 'Services', icon: '🏥' },
-  { to: 'admin-prestations', label: 'Prestations & tarifs', icon: '💲' },
-  { to: 'admin-medicaments', label: 'Médicaments', icon: '💊' },
-  { to: 'admin-chambres', label: 'Chambres & lits', icon: '🛏️' },
-  { to: 'admin-assurances', label: 'Assurances', icon: '🛡️' },
-  { to: 'admin-parametres', label: 'Paramètres', icon: '🎨' },
+  {
+    label: 'Établissement',
+    icon: '🏥',
+    children: [
+      { to: { name: 'admin-clinique' }, label: 'Clinique', icon: '🏥' },
+      { to: { name: 'admin-services' }, label: 'Services', icon: '🏥' },
+      { to: { name: 'admin-chambres' }, label: 'Chambres & lits', icon: '🛏️' },
+    ],
+  },
+  {
+    label: 'Personnel & accès',
+    icon: '👥',
+    children: [
+      { to: { name: 'admin-listes', params: { code: 'fonctions' } }, label: 'Fonctions', icon: '👔' },
+      { to: { name: 'admin-personnel' }, label: 'Personnel', icon: '👤' },
+      { to: { name: 'admin-roles' }, label: 'Rôles & habilitations', icon: '🛡️' },
+      { to: { name: 'admin-utilisateurs' }, label: 'Utilisateurs', icon: '🔐' },
+    ],
+  },
+  {
+    label: 'Actes & produits',
+    icon: '💉',
+    children: [
+      { to: { name: 'admin-prestations' }, label: 'Prestations & tarifs', icon: '💲' },
+      { to: { name: 'admin-medicaments' }, label: 'Médicaments', icon: '💊' },
+      { to: { name: 'admin-listes', params: { code: 'posologies' } }, label: 'Posologies', icon: '💊' },
+      { to: { name: 'admin-listes', params: { code: 'diagnostics' } }, label: 'Diagnostics retenus', icon: '🩺' },
+      { to: { name: 'admin-listes', params: { code: 'pathologies' } }, label: 'Pathologies associées', icon: '🦠' },
+    ],
+  },
+  {
+    label: 'Assurances & tiers',
+    icon: '🛡️',
+    children: [
+      { to: { name: 'admin-assurances' }, label: 'Assurances', icon: '🛡️' },
+      { to: { name: 'admin-listes', params: { code: 'fournisseurs' } }, label: 'Fournisseurs', icon: '🚚' },
+      { to: { name: 'admin-listes', params: { code: 'nationalites' } }, label: 'Nationalités', icon: '🌍' },
+      { to: { name: 'admin-listes', params: { code: 'residences' } }, label: 'Résidences', icon: '🏠' },
+    ],
+  },
+  {
+    label: 'Apparence',
+    icon: '🎨',
+    children: [{ to: { name: 'admin-parametres' }, label: 'Paramètres', icon: '🎨' }],
+  },
 ]
 
 function onLogout() {
@@ -131,6 +190,27 @@ function onLogout() {
 .nav-link:hover {
   background: #1e293b;
   color: #fff;
+}
+
+/* Menu parent dépliable */
+.nav-link.nav-parent {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  justify-content: space-between;
+}
+
+.nav-parent .nav-fleche {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* Enfants indentés */
+.nav-link.nav-enfant {
+  padding: 8px 12px 8px 40px;
+  font-size: 13px;
 }
 .nav-link.active {
   background: var(--primary);

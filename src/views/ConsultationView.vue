@@ -268,7 +268,10 @@
               </div>
               <div class="field">
                 <label>Nationalité</label>
-                <input v-model.trim="formConsult.nationalite" />
+                <input v-model.trim="formConsult.nationalite" list="liste-nationalite" />
+                <datalist id="liste-nationalite">
+                  <option v-for="l in listesParams.NATIONALITE" :key="l.id" :value="l.libelle" />
+                </datalist>
               </div>
               <div class="field">
                 <label>Contacts téléphoniques</label>
@@ -283,7 +286,10 @@
               </div>
               <div class="field">
                 <label>Résidence actuelle</label>
-                <input v-model.trim="formConsult.residenceActuelle" />
+                <input v-model.trim="formConsult.residenceActuelle" list="liste-residence" />
+                <datalist id="liste-residence">
+                  <option v-for="l in listesParams.RESIDENCE" :key="l.id" :value="l.libelle" />
+                </datalist>
               </div>
             </div>
 
@@ -392,7 +398,7 @@
               </div>
               <div class="field">
                 <label>DDR</label>
-                <input v-model.trim="formConsult.ddr" placeholder="Date des dernières règles" />
+                <input v-model.trim="formConsult.ddr" type="date" />
               </div>
               <div class="field">
                 <label>Grossesse en cours</label>
@@ -416,7 +422,15 @@
             <div class="constantes-grid fiche-constantes">
               <label class="constante-item">Poids (kg) <input v-model.trim="formConsult.poids" /></label>
               <label class="constante-item">Taille (m) <input v-model.trim="formConsult.taille" /></label>
-              <label class="constante-item">IMC (kg/m²) <input v-model.trim="formConsult.imc" /></label>
+              <label class="constante-item">
+                IMC (kg/m²)
+                <input
+                  :value="imcCalcule"
+                  readonly
+                  class="champ-grise"
+                  title="Calculé automatiquement à partir du poids et de la taille"
+                />
+              </label>
               <label class="constante-item">Z-score <input v-model.trim="formConsult.zscore" /></label>
               <label class="constante-item">Température (°C) <input v-model.trim="formConsult.temperature" /></label>
               <label class="constante-item">Fréq. resp. (c/min) <input v-model.trim="formConsult.frequenceRespiratoire" /></label>
@@ -440,11 +454,17 @@
             <div class="form-row">
               <div class="field">
                 <label>Diagnostic retenu</label>
-                <input v-model.trim="formConsult.diagnostic" placeholder="Ex : Paludisme simple" />
+                <input v-model.trim="formConsult.diagnostic" list="liste-diagnostic" placeholder="Ex : Paludisme simple" />
+                <datalist id="liste-diagnostic">
+                  <option v-for="l in listesParams.DIAGNOSTIC" :key="l.id" :value="l.libelle" />
+                </datalist>
               </div>
               <div class="field">
                 <label>Autres pathologies associées</label>
-                <input v-model.trim="formConsult.pathologiesAssociees" />
+                <input v-model.trim="formConsult.pathologiesAssociees" list="liste-pathologie" />
+                <datalist id="liste-pathologie">
+                  <option v-for="l in listesParams.PATHOLOGIE" :key="l.id" :value="l.libelle" />
+                </datalist>
               </div>
             </div>
 
@@ -526,11 +546,78 @@
               <textarea v-model.trim="formConsult.autresExamens" rows="2"></textarea>
             </div>
 
-            <!-- ══ 4. Conduite à tenir ══ -->
-            <h3 class="section-title">Conduite à tenir — traitement</h3>
+            <!-- ══ 4. Prescription de médicaments (intégrée à la fiche) ══ -->
+            <h3 class="section-title">Prescription de médicaments</h3>
             <div class="field">
-              <label>Médicaments, posologie, voie d'administration, durée ; conseils hygiéno-diététiques</label>
-              <textarea v-model.trim="formConsult.conduiteTenir" rows="3"></textarea>
+              <div v-if="consultation" class="prescriptions-fiche">
+                <table v-if="(consultation.medicaments ?? []).length > 0" class="prescriptions-fiche-table">
+                  <tbody>
+                    <tr v-for="p in consultation.medicaments" :key="p.id">
+                      <td>
+                        <strong>{{ p.medicamentNom }}</strong>
+                        <span class="text-muted" v-if="p.forme"> ({{ p.forme }})</span>
+                        <div class="text-muted small-note">
+                          {{ [p.posologie, p.quantite, p.duree].filter(Boolean).join(' · ') || '—' }}
+                        </div>
+                      </td>
+                      <td style="width: 40px">
+                        <button class="btn btn-danger btn-sm" title="Retirer" @click="retirerMedicament(p)">✕</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p v-else class="text-muted small-note">Aucun médicament prescrit.</p>
+
+                <!-- Formulaire de prescription intégré à la fiche -->
+                <p v-if="ficheMedError" class="alert alert-error">{{ ficheMedError }}</p>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Médicament (catalogue ou saisie libre)</label>
+                    <SelectSearch
+                      v-model="ficheMedId"
+                      :options="optionsMedicaments"
+                      placeholder="— Choisir —"
+                    />
+                    <input
+                      v-model.trim="ficheMedNom"
+                      class="search-input"
+                      style="margin-top: 6px"
+                      placeholder="Ou saisir librement le nom…"
+                    />
+                  </div>
+                  <div class="field">
+                    <label>Posologie</label>
+                    <input v-model.trim="ficheMedPoso" list="liste-posologie" placeholder="Ex : 1 comprimé 3x/j" />
+                    <datalist id="liste-posologie">
+                      <option v-for="l in listesParams.POSOLOGIE" :key="l.id" :value="l.libelle" />
+                    </datalist>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Quantité</label>
+                    <input v-model.trim="ficheMedQte" placeholder="Ex : 2 boîtes" />
+                  </div>
+                  <div class="field">
+                    <label>Durée</label>
+                    <input v-model.trim="ficheMedDuree" placeholder="Ex : 5 jours" />
+                  </div>
+                  <div class="field">
+                    <label>&nbsp;</label>
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm"
+                      :disabled="ficheMedEnCours"
+                      @click="ajouterMedicamentFiche"
+                    >
+                      ＋ Ajouter
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="text-muted small-note">
+                Enregistrez la fiche pour pouvoir prescrire des médicaments.
+              </p>
             </div>
 
             <!-- ══ 5. Issue de la consultation ══ -->
@@ -785,6 +872,14 @@
                   </td>
                   <td>
                     <button
+                      v-if="resultatExamen(l)"
+                      class="btn btn-outline btn-sm"
+                      title="Voir le résultat de l'examen"
+                      @click="ouvrirResultat(l)"
+                    >
+                      📋 Résultat
+                    </button>
+                    <button
                       v-if="l.statut === 'NON_PRESCRITE' && consultation"
                       class="btn btn-outline btn-sm"
                       @click="prescrireExamen(l)"
@@ -808,6 +903,51 @@
         </section>
       </div>
     </main>
+
+    <!-- Modale : résultat d'examen (labo / imagerie) -->
+    <div v-if="resultatVisible" class="modal-backdrop">
+      <div class="modal">
+        <h2>📋 Résultat d'examen — {{ resultatCourant?.exam.libelle }}</h2>
+        <template v-if="resultatCourant?.type === 'LABO'">
+          <table class="resultat-table">
+            <thead>
+              <tr>
+                <th>Paramètre</th>
+                <th>Résultat</th>
+                <th>Unité</th>
+                <th>Normes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(lg, i) in resultatCourant.exam.lignes" :key="i">
+                <td>{{ lg.parametre || '—' }}</td>
+                <td><strong>{{ lg.valeur || '—' }}</strong></td>
+                <td>{{ lg.unite || '—' }}</td>
+                <td>{{ lg.normes || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="resultat-conclusion">
+            <strong>Conclusion :</strong> {{ resultatCourant.exam.conclusion || '—' }}
+          </p>
+        </template>
+        <template v-else-if="resultatCourant?.type === 'IMAGERIE'">
+          <p><strong>Indication :</strong> {{ resultatCourant.exam.indication || '—' }}</p>
+          <p><strong>Technique :</strong> {{ resultatCourant.exam.technique || '—' }}</p>
+          <p><strong>Résultat :</strong> {{ resultatCourant.exam.resultat || '—' }}</p>
+          <p class="resultat-conclusion">
+            <strong>Conclusion :</strong> {{ resultatCourant.exam.conclusion || '—' }}
+          </p>
+        </template>
+        <p v-if="resultatCourant?.exam.valideLe" class="text-muted small-note">
+          Validé le {{ new Date(resultatCourant.exam.valideLe).toLocaleString('fr-FR') }}
+          <template v-if="auteurExamen(resultatCourant.exam)"> par {{ auteurExamen(resultatCourant.exam) }}</template>
+        </p>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="resultatVisible = false">✖ Fermer</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Modale : ajout médicament -->
     <div v-if="ajoutVisible" class="modal-backdrop">
@@ -834,7 +974,10 @@
           <div class="form-row">
             <div class="field">
               <label>Posologie</label>
-              <input v-model.trim="ajoutPosologie" placeholder="Ex : 1 comprimé 3x/j" />
+              <input v-model.trim="ajoutPosologie" list="liste-posologie" placeholder="Ex : 1 comprimé 3x/j" />
+              <datalist id="liste-posologie">
+                <option v-for="l in listesParams.POSOLOGIE" :key="l.id" :value="l.libelle" />
+              </datalist>
             </div>
             <div class="field">
               <label>Quantité</label>
@@ -846,7 +989,7 @@
             </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="ajoutVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="ajoutVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="ajoutEnCours">
               {{ ajoutEnCours ? 'Ajout…' : 'Ajouter' }}
             </button>
@@ -915,7 +1058,7 @@
           <div class="ordo-a4-cut" aria-hidden="true">✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ✂</div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="apercuVisible = false">Fermer</button>
+          <button class="btn btn-outline" @click="apercuVisible = false">✖ Fermer</button>
           <button class="btn btn-primary" @click="imprimerNavigateur">🖨️ Imprimer (A4)</button>
         </div>
       </div>
@@ -1064,7 +1207,7 @@
         <!-- Conduite à tenir -->
         <h2 class="fiche-a4-section">CONDUITE À TENIR — TRAITEMENT</h2>
         <p class="fiche-a4-ligne">Médicaments, posologie, voie d'administration, durée ; conseils hygiéno-diététiques :</p>
-        <p class="fiche-a4-texte">{{ formConsult.conduiteTenir }}</p>
+        <p class="fiche-a4-texte">{{ textePrescriptions || '—' }}</p>
 
         <!-- Issue -->
         <h2 class="fiche-a4-section">Issue de la consultation</h2>
@@ -1336,6 +1479,110 @@ const ISSUES_SORTIE = [
 
 const TRANCHES_AGE = ['0–4 ans', '5–9 ans', '10–14 ans', '15–19 ans', '20–24 ans', '25–49 ans', '50 ans et plus']
 
+/** IMC calculé automatiquement (poids / taille²) — champ grisé de la fiche. */
+const imcCalcule = computed(() => {
+  const poids = Number(formConsult.poids)
+  const taille = Number(formConsult.taille)
+  if (!poids || !taille) return ''
+  return (poids / (taille * taille)).toFixed(1)
+})
+
+/** Texte des prescriptions pour l'impression de la fiche (conduite à tenir). */
+const textePrescriptions = computed(() =>
+  (consultation.value?.medicaments ?? [])
+    .map((m) => `${m.medicamentNom} — ${[m.posologie, m.quantite, m.duree].filter(Boolean).join(' · ') || '—'}`)
+    .join(' ; '),
+)
+
+// ── Prescription intégrée à la fiche (en plus de l'onglet Médicaments) ──
+const ficheMedId = ref(null)
+const ficheMedNom = ref('')
+const ficheMedPoso = ref('')
+const ficheMedQte = ref('')
+const ficheMedDuree = ref('')
+const ficheMedEnCours = ref(false)
+const ficheMedError = ref('')
+
+async function ajouterMedicamentFiche() {
+  if (!consultation.value) return
+  if (!ficheMedId.value && !ficheMedNom.value.trim()) {
+    ficheMedError.value = 'Choisissez un médicament du catalogue ou saisissez un nom.'
+    return
+  }
+  ficheMedEnCours.value = true
+  ficheMedError.value = ''
+  try {
+    await http.post(`/consultations/${consultation.value.id}/medicaments`, {
+      medicamentId: ficheMedId.value ?? undefined,
+      nom: ficheMedNom.value.trim() || undefined,
+      posologie: ficheMedPoso.value || undefined,
+      quantite: ficheMedQte.value || undefined,
+      duree: ficheMedDuree.value || undefined,
+    })
+    alimenterListe('POSOLOGIE', ficheMedPoso.value)
+    ficheMedId.value = null
+    ficheMedNom.value = ''
+    ficheMedPoso.value = ''
+    ficheMedQte.value = ''
+    ficheMedDuree.value = ''
+    toastSuccess('Médicament ajouté à la prescription.')
+    await chargerDetail()
+  } catch (e) {
+    ficheMedError.value = e.response?.data?.message || 'Ajout impossible.'
+  } finally {
+    ficheMedEnCours.value = false
+  }
+}
+
+// ── Listes paramétrées (datalists + saisie libre auto-alimentée) ──
+// Chaque liste a sa table dédiée et son endpoint dédié.
+const ROUTES_LISTES = {
+  NATIONALITE: '/nationalites',
+  RESIDENCE: '/residences',
+  DIAGNOSTIC: '/diagnostics',
+  PATHOLOGIE: '/pathologies',
+  POSOLOGIE: '/posologies',
+}
+
+const listesParams = reactive({
+  NATIONALITE: [],
+  RESIDENCE: [],
+  DIAGNOSTIC: [],
+  PATHOLOGIE: [],
+  POSOLOGIE: [],
+})
+
+async function chargerListesParams(cliniqueId) {
+  if (!cliniqueId) return
+  try {
+    const codes = Object.keys(listesParams)
+    const reponses = await Promise.all(
+      codes.map((code) =>
+        http.get(ROUTES_LISTES[code], { params: { cliniqueId } }),
+      ),
+    )
+    codes.forEach((code, i) => {
+      listesParams[code] = reponses[i].data ?? []
+    })
+  } catch {
+    /* listes vides */
+  }
+}
+
+/** Ajoute silencieusement une valeur saisie librement à sa liste dédiée. */
+async function alimenterListe(code, libelle) {
+  if (!libelle?.trim() || !auth.user?.clinique?.id || !ROUTES_LISTES[code]) return
+  try {
+    await http.post(ROUTES_LISTES[code], {
+      cliniqueId: auth.user.clinique.id,
+      libelle: libelle.trim(),
+    })
+    await chargerListesParams(auth.user.clinique.id)
+  } catch {
+    /* facultatif */
+  }
+}
+
 const trancheAge = computed(() => {
   const age = Number(passageCourant.value?.patient?.age)
   if (!age) return '—'
@@ -1379,6 +1626,38 @@ function estFait(l) {
     (e) => e.passagePrestationId === l.id,
   )
   return labo?.statut === 'VALIDE' || imagerie?.statut === 'VALIDE'
+}
+
+// ── Résultats des examens (visibles par le médecin) ──
+const resultatVisible = ref(false)
+const resultatCourant = ref(null) // { type: 'LABO' | 'IMAGERIE', exam }
+
+/** Retourne l'examen réalisé (avec résultats) pour une ligne de prestation. */
+function resultatExamen(l) {
+  const labo = (detail.value?.passage.examensLabo ?? []).find(
+    (e) => e.passagePrestationId === l.id,
+  )
+  if (labo && (labo.statut === 'VALIDE' || labo.statut === 'RESULTATS')) {
+    return { type: 'LABO', exam: labo }
+  }
+  const imagerie = (detail.value?.passage.examensImagerie ?? []).find(
+    (e) => e.passagePrestationId === l.id,
+  )
+  if (imagerie && (imagerie.statut === 'VALIDE' || imagerie.statut === 'RESULTATS')) {
+    return { type: 'IMAGERIE', exam: imagerie }
+  }
+  return null
+}
+
+function ouvrirResultat(l) {
+  resultatCourant.value = resultatExamen(l)
+  if (resultatCourant.value) resultatVisible.value = true
+}
+
+function auteurExamen(exam) {
+  const v = exam.validePar
+  if (!v) return ''
+  return `${v.personnel?.prenom ?? ''} ${v.personnel?.nom ?? ''}`.trim()
 }
 
 /** Bouton Enregistrer : enregistre la fiche et valide la consultation (sans aperçu). */
@@ -1473,6 +1752,8 @@ async function chargerDetail() {
     consultation.value = data.passage.consultation
     const c = data.passage.consultation ?? {}
     const pat = data.passage.patient ?? {}
+    // Listes paramétrées pour les datalists (diagnostic, pathologies, posologie…)
+    chargerListesParams(auth.user?.clinique?.id)
     const cons = data.passage.constantes ?? {}
     Object.keys(formConsult).forEach((k) => delete formConsult[k])
     Object.assign(formConsult, {
@@ -1575,7 +1856,7 @@ async function sauvegarderFiche() {
       alcool: f.alcool,
       typeSuivi: vider(f.typeSuivi),
       consultantType: vider(f.consultantType),
-      imc: vider(f.imc),
+      imc: imcCalcule.value || undefined,
       zscore: vider(f.zscore),
       frequenceRespiratoire: vider(f.frequenceRespiratoire),
       perimetreBrachial: vider(f.perimetreBrachial),
@@ -1592,7 +1873,7 @@ async function sauvegarderFiche() {
       glycemieAjeun: vider(f.glycemieAjeun),
       glycemieNonAjeun: vider(f.glycemieNonAjeun),
       autresExamens: vider(f.autresExamens),
-      conduiteTenir: vider(f.conduiteTenir),
+      conduiteTenir: vider(f.conduiteTenir) || textePrescriptions.value || undefined,
       issueSortie: vider(f.issueSortie),
       casPresumeTB: vider(f.casPresumeTB),
       moDureeHeures: f.moDureeHeures,
@@ -1615,6 +1896,11 @@ async function sauvegarderFiche() {
     const { data } = await http.post(`/consultations/passages/${passageCourant.value.id}`, payload)
     consultation.value = data
     toastSuccess('Fiche de consultation enregistrée.')
+    // Saisie libre auto-alimentée : les nouvelles valeurs enrichissent les listes paramétrées
+    alimenterListe('DIAGNOSTIC', f.diagnostic)
+    alimenterListe('PATHOLOGIE', f.pathologiesAssociees)
+    alimenterListe('NATIONALITE', f.nationalite)
+    alimenterListe('RESIDENCE', f.residenceActuelle)
     await chargerDetail()
   } catch (e) {
     toastError(e.response?.data?.message || 'Erreur lors de l\'enregistrement.')
@@ -1685,6 +1971,8 @@ async function confirmerAjoutMedicament() {
       quantite: ajoutQuantite.value || undefined,
       duree: ajoutDuree.value || undefined,
     })
+    // Posologie saisie librement : ajoutée automatiquement à la liste paramétrée
+    alimenterListe('POSOLOGIE', ajoutPosologie.value)
     // La modale reste ouverte pour enchaîner les prescriptions ;
     // seuls les champs sont réinitialisés.
     ajoutMedicamentId.value = null

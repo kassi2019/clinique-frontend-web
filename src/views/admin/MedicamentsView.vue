@@ -7,10 +7,29 @@
           Catalogue utilisé par les médecins pour les ordonnances (module Consultation).
         </p>
       </div>
-      <button class="btn btn-primary" @click="openForm()">+ Nouveau médicament</button>
+      <div class="header-actions">
+        <button class="btn btn-outline" @click="telechargerModele">📄 Modèle Excel</button>
+        <label class="btn btn-outline" style="cursor: pointer">
+          📥 Charger (Excel)
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            style="display: none"
+            @change="importerExcel"
+          />
+        </label>
+        <button class="btn btn-primary" @click="openForm()">+ Nouveau médicament</button>
+      </div>
     </div>
 
     <div class="card">
+      <div class="alert" style="background: #ecfdf5; border: 1px solid #bbf7d0; color: #166534">
+        <strong>📄 Canevas du fichier Excel :</strong> colonnes
+        <strong>Nom · Forme · Dosage · Prix · Seuil · Unité · Consommable · Stock</strong>
+        (un médicament par ligne, en-têtes en ligne 1). « Unité » : BOITE ou PLAQUE.
+        « Consommable » : Oui ou Non (Non si vide). Téléchargez le
+        <strong>Modèle Excel</strong> pour partir du bon format.
+      </div>
       <div class="toolbar">
         <input
           v-model="search"
@@ -61,9 +80,9 @@
               </td>
               <td>
                 <div class="actions">
-                  <button class="btn btn-outline btn-sm" @click="openForm(m)">Modifier</button>
-                  <button v-if="m.actif" class="btn btn-danger btn-sm" @click="desactiver(m)">Désactiver</button>
-                  <button v-else class="btn btn-outline btn-sm reactiver-btn" @click="reactiver(m)">↻ Réactiver</button>
+                  <button class="btn btn-outline btn-sm" @click="openForm(m)">✏️ Modifier</button>
+                  <button v-if="m.actif" class="btn btn-danger btn-sm" @click="desactiver(m)">⛔ Désactiver</button>
+                  <button v-else class="btn btn-success btn-sm reactiver-btn" @click="reactiver(m)">↻ Réactiver</button>
                 </div>
               </td>
             </tr>
@@ -112,9 +131,19 @@
               <label>Seuil d'alerte</label>
               <input v-model.number="form.seuilAlerte" type="number" min="0" placeholder="Ex : 10" />
             </div>
+            <div class="field">
+              <label>Consommable</label>
+              <select v-model="form.consommable">
+                <option :value="false">Non</option>
+                <option :value="true">Oui</option>
+              </select>
+              <small class="text-muted">
+                Un consommable (coton, alcool…) n'est pas facturé en caisse pharmacie (montant = 0).
+              </small>
+            </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="formVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="formVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">
               {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
             </button>
@@ -128,6 +157,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import Swal from 'sweetalert2'
+import * as XLSX from 'xlsx'
 import { useAuthStore } from '../../stores/auth'
 import http from '../../api/http'
 import { toastError, toastSuccess } from '../../utils/notifications'
@@ -145,6 +175,56 @@ const formVisible = ref(false)
 const form = reactive({})
 const formError = ref('')
 const saving = ref(false)
+
+/** Télécharge le modèle Excel d'import des médicaments. */
+function telechargerModele() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Nom', 'Forme', 'Dosage', 'Prix', 'Seuil', 'Unité', 'Consommable', 'Stock'],
+    ['Paracétamol', 'Comprimé', '500 mg', 1500, 10, 'BOITE', 'Non', 50],
+    ['Coton hydrophile', 'Rouleau', '', 0, 5, 'BOITE', 'Oui', 20],
+  ])
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Medicaments')
+  XLSX.writeFile(wb, 'modele_medicaments.xlsx')
+}
+
+/** Import Excel : colonnes nom, forme, dosage, prixVente, seuilAlerte, uniteVente, consommable. */
+async function importerExcel(event) {
+  const fichier = event.target.files?.[0]
+  event.target.value = ''
+  if (!fichier) return
+  try {
+    const buffer = await fichier.arrayBuffer()
+    const classeur = XLSX.read(buffer, { type: 'array' })
+    const premiere = classeur.SheetNames[0]
+    if (!premiere) {
+      toastError('Fichier vide.')
+      return
+    }
+    const lignes = XLSX.utils.sheet_to_json(classeur.Sheets[premiere])
+    if (lignes.length === 0) {
+      toastError('Aucune ligne trouvée.')
+      return
+    }
+    const { data } = await http.post('/medicaments/import', {
+      cliniqueId,
+      lignes: lignes.map((l) => ({
+        nom: l.nom ?? l['Nom'],
+        forme: l.forme ?? l['Forme'],
+        dosage: l.dosage ?? l['Dosage'],
+        prixVente: l.prixVente ?? l['Prix'],
+        seuilAlerte: l.seuilAlerte ?? l['Seuil'],
+        uniteVente: l.uniteVente ?? l['Unite'],
+        stock: l.stock ?? l['Stock'],
+        consommable: l.consommable ?? l['Consommable'],
+      })),
+    })
+    toastSuccess(`${data.ajoutes} médicament(s) ajouté(s) (${data.total} ligne(s) lue(s)).`)
+    await load()
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Import impossible.')
+  }
+}
 
 async function load() {
   loading.value = true
@@ -179,6 +259,7 @@ function openForm(m) {
       uniteVente: m.uniteVente ?? 'BOITE',
       stock: m.stock ?? 0,
       seuilAlerte: m.seuilAlerte ?? 0,
+      consommable: m.consommable ?? false,
     })
   } else {
     Object.assign(form, {
@@ -189,6 +270,7 @@ function openForm(m) {
       uniteVente: 'BOITE',
       stock: 0,
       seuilAlerte: 0,
+      consommable: false,
     })
   }
   formVisible.value = true
@@ -207,6 +289,7 @@ async function save() {
       uniteVente: form.uniteVente ?? 'BOITE',
       stock: form.stock ?? 0,
       seuilAlerte: form.seuilAlerte ?? 0,
+      consommable: form.consommable ?? false,
     }
     if (form.id) {
       await http.patch(`/medicaments/${form.id}`, payload)
@@ -267,13 +350,6 @@ onMounted(load)
 </script>
 
 <style scoped>
-.reactiver-btn {
-  color: #16a34a;
-  border-color: #bbf7d0;
-}
-.reactiver-btn:hover {
-  background: #f0fdf4;
-}
 .prix {
   font-weight: 700;
   color: #134e4a;

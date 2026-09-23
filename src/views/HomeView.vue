@@ -59,24 +59,33 @@
     </div>
 
     <!-- Modale : changer son mot de passe -->
-    <div v-if="ouvrirChangement" class="modal-overlay" @click.self="ouvrirChangement = false">
+    <div v-if="ouvrirChangement" class="modal-backdrop" @click.self="ouvrirChangement = false">
       <div class="modal">
         <h2>🔑 Changer le mot de passe</h2>
         <form @submit.prevent="changerMotDePasse">
           <div class="field">
             <label>Mot de passe actuel *</label>
-            <input v-model="mdp.actuel" type="password" required autocomplete="current-password" />
+            <div class="input-oeil">
+              <input v-model="mdp.actuel" :type="voirMdp ? 'text' : 'password'" required autocomplete="current-password" />
+              <button type="button" class="btn-oeil" @click="voirMdp = !voirMdp">{{ voirMdp ? '🙈' : '👁️' }}</button>
+            </div>
           </div>
           <div class="field">
             <label>Nouveau mot de passe * (6 caractères minimum)</label>
-            <input v-model="mdp.nouveau" type="password" minlength="6" required autocomplete="new-password" />
+            <div class="input-oeil">
+              <input v-model="mdp.nouveau" :type="voirMdp ? 'text' : 'password'" minlength="6" required autocomplete="new-password" />
+              <button type="button" class="btn-oeil" @click="voirMdp = !voirMdp">{{ voirMdp ? '🙈' : '👁️' }}</button>
+            </div>
           </div>
           <div class="field">
             <label>Confirmer le nouveau mot de passe *</label>
-            <input v-model="mdp.confirmation" type="password" required autocomplete="new-password" />
+            <div class="input-oeil">
+              <input v-model="mdp.confirmation" :type="voirMdp ? 'text' : 'password'" required autocomplete="new-password" />
+              <button type="button" class="btn-oeil" @click="voirMdp = !voirMdp">{{ voirMdp ? '🙈' : '👁️' }}</button>
+            </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="ouvrirChangement = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="ouvrirChangement = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="enCours">
               {{ enCours ? 'Enregistrement…' : 'Changer le mot de passe' }}
             </button>
@@ -104,6 +113,7 @@ const photo = computed(() => auth.user?.personnel?.photo ?? null)
 // ── Changement de mot de passe ──
 const ouvrirChangement = ref(false)
 const enCours = ref(false)
+const voirMdp = ref(false)
 const mdp = reactive({ actuel: '', nouveau: '', confirmation: '' })
 
 async function changerMotDePasse() {

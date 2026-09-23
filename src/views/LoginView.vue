@@ -69,14 +69,19 @@
           </div>
           <div class="field">
             <label for="motDePasse">Mot de passe</label>
-            <input
-              id="motDePasse"
-              v-model="motDePasse"
-              type="password"
-              autocomplete="current-password"
-              placeholder="••••••••"
-              required
-            />
+            <div class="input-oeil">
+              <input
+                id="motDePasse"
+                v-model="motDePasse"
+                :type="voirMdp ? 'text' : 'password'"
+                autocomplete="current-password"
+                placeholder="••••••••"
+                required
+              />
+              <button type="button" class="btn-oeil" @click="voirMdp = !voirMdp">
+                {{ voirMdp ? '🙈' : '👁️' }}
+              </button>
+            </div>
           </div>
 
           <p v-if="error" class="alert alert-error">{{ error }}</p>
@@ -112,6 +117,7 @@ const matricule = ref('')
 const motDePasse = ref('')
 const loading = ref(false)
 const error = ref('')
+const voirMdp = ref(false)
 
 // Configuration publique (nom de la clinique + image paramétrée)
 const cliniqueNom = ref('')

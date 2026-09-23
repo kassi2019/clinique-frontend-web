@@ -53,8 +53,9 @@
               </td>
               <td>
                 <div class="actions">
-                  <button class="btn btn-outline btn-sm" @click="openForm(p)">Modifier</button>
-                  <button v-if="p.actif" class="btn btn-danger btn-sm" @click="desactiver(p)">Désactiver</button>
+                  <button class="btn btn-outline btn-sm" @click="openForm(p)">✏️ Modifier</button>
+                  <button v-if="p.actif" class="btn btn-danger btn-sm" @click="desactiver(p)">⛔ Désactiver</button>
+                  <button v-else class="btn btn-success btn-sm" @click="reactiver(p)">↻ Réactiver</button>
                 </div>
               </td>
             </tr>
@@ -119,7 +120,7 @@
             <input v-model.number="form.montant" type="number" min="0" step="1" required />
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="formVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="formVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">
               {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
             </button>
@@ -288,6 +289,16 @@ async function desactiver(p) {
     toastSuccess('Prestation désactivée.')
   } catch (e) {
     toastError('Erreur lors de la désactivation.')
+  }
+}
+
+async function reactiver(p) {
+  try {
+    await http.patch(`/prestations/${p.id}`, { actif: true })
+    await load()
+    toastSuccess('Prestation réactivée.')
+  } catch (e) {
+    toastError('Erreur lors de la réactivation.')
   }
 }
 

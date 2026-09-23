@@ -20,6 +20,7 @@
           {{ t.libelle }}
           <button
             class="type-x"
+            :class="t.actif ? 'type-x-rouge' : 'type-x-vert'"
             :title="t.actif ? 'Désactiver ce type' : 'Réactiver ce type'"
             @click.stop="basculerType(t)"
           >
@@ -107,7 +108,7 @@
                 <button class="btn btn-outline btn-sm" @click="ouvrirModifChambre(c)">
                   ✏️ Modifier
                 </button>
-                <button class="btn btn-outline btn-sm" @click="basculerChambre(c)">
+                <button class="btn btn-sm" :class="c.actif ? 'btn-danger' : 'btn-success'" @click="basculerChambre(c)">
                   {{ c.actif ? 'Désactiver' : 'Réactiver' }}
                 </button>
               </div>
@@ -145,7 +146,7 @@
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="modaleChambre = false">Annuler</button>
+          <button class="btn btn-outline" @click="modaleChambre = false">✖ Annuler</button>
           <button class="btn btn-primary" :disabled="saving" @click="enregistrerChambre">
             💾 Enregistrer
           </button>
@@ -162,7 +163,7 @@
           <input v-model.trim="formLit.numero" placeholder="A" />
         </div>
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="modaleLit = false">Annuler</button>
+          <button class="btn btn-outline" @click="modaleLit = false">✖ Annuler</button>
           <button class="btn btn-primary" :disabled="saving" @click="enregistrerLit">
             💾 Ajouter
           </button>

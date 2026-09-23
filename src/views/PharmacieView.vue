@@ -28,9 +28,6 @@
         <button class="tab-btn" :class="{ active: onglet === 'stocks' }" @click="onglet = 'stocks'; chargerStocks()">
           Stocks
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'consommables' }" @click="onglet = 'consommables'; chargerConsommables()">
-          Consommables
-        </button>
       </nav>
 
       <!-- ============ ORDONNANCES ============ -->
@@ -61,7 +58,7 @@
               title="Vide = aujourd'hui"
               @change="chargerOrdonnancesAttente"
             />
-            <button class="btn btn-outline btn-sm" @click="chargerOrdonnancesAttente">Actualiser</button>
+            <button class="btn btn-outline btn-sm" @click="chargerOrdonnancesAttente">🔄 Actualiser</button>
           </div>
           <div v-if="ordonnancesAttente.length === 0" class="empty-state">
             Aucune ordonnance en attente.
@@ -178,7 +175,10 @@
                     <span v-else class="text-muted">Non délivrable</span>
                   </td>
                   <td>
-                    <strong v-if="p.medicament?.prixVente && quantites[p.id]">
+                    <strong v-if="p.medicament?.consommable && quantites[p.id]" class="text-muted">
+                      Consommable — non facturé
+                    </strong>
+                    <strong v-else-if="p.medicament?.prixVente && quantites[p.id]">
                       {{ (p.medicament.prixVente * (quantites[p.id] || 0)).toLocaleString('fr-FR') }} F
                     </strong>
                     <span v-else>—</span>
@@ -266,104 +266,211 @@
       <!-- ============ STOCKS ============ -->
       <section v-else-if="onglet === 'stocks'" class="card">
         <div class="card-header">
-          <h2>Stocks de médicaments (§9.2)</h2>
+          <h2>Stocks de médicaments</h2>
           <button class="btn btn-outline btn-sm" @click="chargerAlertes">⚠️ Alertes</button>
         </div>
 
-        <div class="toolbar">
-          <input
-            v-model="filtreStock"
-            class="search-input"
-            type="text"
-            placeholder="Rechercher un médicament…"
-            @input="onRechercheStock"
-          />
-        </div>
+        <!-- Sous-onglets : Entrée / Inventaire / Mouvements -->
+        <nav class="tabs-nav" style="margin-bottom: 12px">
+          <button
+            class="tab-btn"
+            :class="{ active: sousOnglet === 'entree' }"
+            @click="sousOnglet = 'entree'"
+          >
+            📥 Entrée
+          </button>
+          <button
+            class="tab-btn"
+            :class="{ active: sousOnglet === 'inventaire' }"
+            @click="sousOnglet = 'inventaire'; chargerInventaireLots()"
+          >
+            🔢 Inventaire
+          </button>
+          <button
+            class="tab-btn"
+            :class="{ active: sousOnglet === 'mouvement' }"
+            @click="sousOnglet = 'mouvement'; chargerMouvementsMed()"
+          >
+            📜 Mouvements
+          </button>
+        </nav>
 
         <p v-if="alertes && (alertes.stockBas.length || alertes.peremptions.length)" class="alert alert-error">
           ⚠️ {{ alertes.stockBas.length }} médicament(s) sous le seuil minimum ·
           {{ alertes.peremptions.length }} lot(s) périmé(s) ou proches de la péremption
         </p>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Médicament</th>
-                <th>Stock</th>
-                <th>Seuil</th>
-                <th>Prix vente</th>
-                <th>Lots</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="m in stocks" :key="m.id">
-                <td><strong>{{ m.nom }}</strong><span v-if="m.dosage" class="text-muted"> {{ m.dosage }}</span></td>
-                <td>
-                  <span class="badge" :class="m.alerteStock ? 'badge-danger' : m.stock > 0 ? 'badge-success' : 'badge-warning'">
-                    {{ m.stock }}
-                  </span>
-                </td>
-                <td>{{ m.seuilAlerte }}</td>
-                <td>{{ m.prixVente ? m.prixVente.toLocaleString('fr-FR') + ' F' : '—' }}</td>
-                <td>
-                  <div v-for="l in m.lots.slice(0, 3)" :key="l.id" class="lot-line">
-                    <span class="badge badge-muted">{{ l.numeroLot }}</span>
-                    <span class="text-muted" :class="{ 'perime': l.perime, 'proche': l.peremptionProche }">
-                      {{ l.quantiteRestante }} · péremption {{ formatDate(l.datePeremption) }}
-                      {{ l.perime ? ' ⚠️ PÉRIMÉ' : l.peremptionProche ? ' ⚠️ proche' : '' }}
+        <!-- ── ENTREE : le tableau actuel ── -->
+        <template v-if="sousOnglet === 'entree'">
+          <div class="toolbar">
+            <input
+              v-model="filtreStock"
+              class="search-input"
+              type="text"
+              placeholder="Rechercher un médicament…"
+              @input="onRechercheStock"
+            />
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Médicament</th>
+                  <th>Stock</th>
+                  <th>Seuil</th>
+                  <th>Prix vente</th>
+                  <th>Lots</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="m in stocks" :key="m.id">
+                  <td><strong>{{ m.nom }}</strong><span v-if="m.dosage" class="text-muted"> {{ m.dosage }}</span></td>
+                  <td>
+                    <span class="badge" :class="m.alerteStock ? 'badge-danger' : m.stock > 0 ? 'badge-success' : 'badge-warning'">
+                      {{ m.stock }}
                     </span>
-                  </div>
-                </td>
-                <td>
-                  <div class="actions">
-                    <button class="btn btn-outline btn-sm" @click="ouvrirEntree(m)">📥 Entrée</button>
-                    <button class="btn btn-outline btn-sm" @click="ouvrirInventaire(m)">🔢 Inventaire</button>
-                    <button class="btn btn-outline btn-sm" @click="ouvrirMouvements(m)">📜 Mouvements</button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+                  </td>
+                  <td>{{ m.seuilAlerte }}</td>
+                  <td>{{ m.prixVente ? m.prixVente.toLocaleString('fr-FR') + ' F' : '—' }}</td>
+                  <td>
+                    <div v-for="l in m.lots.slice(0, 3)" :key="l.id" class="lot-line">
+                      <span class="badge badge-muted">{{ l.numeroLot }}</span>
+                      <span class="text-muted" :class="{ 'perime': l.perime, 'proche': l.peremptionProche }">
+                        {{ l.quantiteRestante }} · péremption {{ formatDate(l.datePeremption) }}
+                        {{ l.perime ? ' ⚠️ PÉRIMÉ' : l.peremptionProche ? ' ⚠️ proche' : '' }}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="actions">
+                      <button class="btn btn-outline btn-sm" @click="ouvrirEntree(m)">📥 Entrée</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
 
-      <!-- ============ CONSOMMABLES ============ -->
-      <section v-else class="card">
-        <div class="card-header">
-          <h2>Consommables (§9.3)</h2>
-          <button class="btn btn-primary btn-sm" @click="ouvrirConsommable()">+ Nouveau consommable</button>
+        <!-- ── INVENTAIRE : liste des produits et de leurs lots ── -->
+        <template v-else-if="sousOnglet === 'inventaire'">
+          <div class="toolbar">
+            <input
+              v-model="filtreStock"
+              class="search-input"
+              type="text"
+              placeholder="Rechercher un médicament…"
+              @input="onRechercheStock"
+            />
+          </div>
+          <div v-if="stocks.length === 0" class="empty-state">
+            Aucun médicament en stock.
+          </div>
+          <div v-else class="inventaire-produits">
+            <div v-for="m in stocks" :key="m.id" class="inventaire-produit">
+              <div class="inventaire-produit-entete">
+                <strong>{{ m.nom }}</strong>
+                <span v-if="m.dosage" class="text-muted">{{ m.dosage }}</span>
+                <span class="badge" :class="m.stock > 0 ? 'badge-success' : 'badge-warning'">
+                  Stock total : {{ m.stock }}
+                </span>
+              </div>
+              <table class="inventaire-lots">
+                <thead>
+                  <tr>
+                    <th>Lot</th>
+                    <th>Péremption</th>
+                    <th>Stock actuel</th>
+                    <th>Stock réel (compté)</th>
+                    <th>Écart</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="l in lotsDe(m.id)" :key="l.id">
+                    <td>
+                      <span class="badge badge-muted">{{ l.numeroLot }}</span>
+                      <span v-if="l.fournisseur" class="text-muted lot-fournisseur">{{ l.fournisseur }}</span>
+                    </td>
+                    <td>{{ formatDate(l.datePeremption) }}</td>
+                    <td>{{ l.quantiteRestante }}</td>
+                    <td>
+                      <input
+                        v-model="inventaireSaisies[l.id]"
+                        type="number"
+                        min="0"
+                        class="inventaire-input"
+                        :placeholder="String(l.quantiteRestante)"
+                      />
+                    </td>
+                    <td>
+                      <span
+                        class="badge"
+                        :class="ecartLot(l) === 0 ? 'badge-success' : ecartLot(l) > 0 ? 'badge-warning' : 'badge-danger'"
+                      >
+                        {{ ecartLot(l) > 0 ? '+' : '' }}{{ ecartLot(l) }}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        class="btn btn-primary btn-sm"
+                        :disabled="inventaireSaisies[l.id] === undefined || inventaireSaisies[l.id] === ''"
+                        @click="validerInventaireLot(l)"
+                      >
+                      ✅ Valider
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Nom</th>
-                <th>Unité</th>
-                <th>Quantité</th>
-                <th>Seuil</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="c in consommables" :key="c.id">
-                <td><strong>{{ c.nom }}</strong></td>
-                <td>{{ c.unite || '—' }}</td>
-                <td>
-                  <span class="badge" :class="c.alerte ? 'badge-danger' : 'badge-success'">{{ c.quantite }}</span>
-                </td>
-                <td>{{ c.seuilAlerte }}</td>
-                <td>
-                  <div class="actions">
-                    <button class="btn btn-outline btn-sm" @click="ouvrirMouvementConsommable(c, 'ENTREE')">📥 Entrée</button>
-                    <button class="btn btn-outline btn-sm" @click="ouvrirMouvementConsommable(c, 'SORTIE')">📤 Sortie</button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        </template>
+
+        <!-- ── MOUVEMENTS : historique par médicament ── -->
+        <template v-else>
+          <div class="toolbar">
+            <SelectSearch
+              v-model="mouvementMedId"
+              :options="optionsStocks"
+              placeholder="— Choisir un médicament —"
+              @update:model-value="chargerMouvementsMed"
+            />
+          </div>
+          <div v-if="mouvements.length === 0" class="empty-state">
+            Choisissez un médicament pour voir ses mouvements.
+          </div>
+          <div v-else class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Quantité</th>
+                  <th>Lot / référence</th>
+                  <th>Commentaire</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="mv in mouvements" :key="mv.id">
+                  <td>{{ formatDate(mv.createdAt) }} {{ new Date(mv.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}</td>
+                  <td>
+                    <span
+                      class="badge"
+                      :class="mv.type === 'ENTREE' ? 'badge-success' : mv.type === 'SORTIE' ? 'badge-warning' : 'badge-muted'"
+                    >
+                      {{ mv.type }}
+                    </span>
+                  </td>
+                  <td>{{ mv.quantite > 0 ? '+' : '' }}{{ mv.quantite }}</td>
+                  <td>{{ mv.reference || mv.lot?.numeroLot || '—' }}</td>
+                  <td class="text-muted">{{ mv.commentaire || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
       </section>
     </main>
 
@@ -392,9 +499,21 @@
               <label>Prix d'achat (FCFA)</label>
               <input v-model.number="entreeForm.prixAchat" type="number" min="0" step="1" />
             </div>
+            <div class="field">
+              <label>Fournisseur</label>
+              <input
+                v-model.trim="entreeForm.fournisseur"
+                list="liste-fournisseurs"
+                placeholder="Ex : COPHARMED, Laborex…"
+              />
+              <datalist id="liste-fournisseurs">
+                <option v-for="f in fournisseurs" :key="f.id" :value="f.libelle" />
+              </datalist>
+              <small class="text-muted">Nouveau fournisseur ? Il sera ajouté automatiquement à la liste.</small>
+            </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="entreeVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="entreeVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="entreeEnCours">Enregistrer l'entrée</button>
           </div>
         </form>
@@ -416,7 +535,7 @@
             <input v-model.trim="inventaireCommentaire" placeholder="Ex : comptage mensuel" />
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="inventaireVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="inventaireVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary">Valider l'inventaire</button>
           </div>
         </form>
@@ -427,7 +546,7 @@
     <div v-if="mouvementsVisible" class="modal-backdrop">
       <div class="modal modal-lg">
         <h2>📜 Mouvements — {{ mouvementsCible?.nom }}</h2>
-        <div v-if="mouvements.length === 0" class="empty-state">Aucun mouvement.</div>
+        <div v-if="mouvementsModal.length === 0" class="empty-state">Aucun mouvement.</div>
         <div v-else class="table-wrap">
           <table>
             <thead>
@@ -440,7 +559,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="mv in mouvements" :key="mv.id">
+              <tr v-for="mv in mouvementsModal" :key="mv.id">
                 <td>{{ formatDateHeure(mv.createdAt) }}</td>
                 <td>
                   <span class="badge" :class="mv.type === 'ENTREE' ? 'badge-success' : mv.type === 'SORTIE' ? 'badge-danger' : 'badge-warning'">
@@ -455,7 +574,7 @@
           </table>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-outline" @click="mouvementsVisible = false">Fermer</button>
+          <button type="button" class="btn btn-outline" @click="mouvementsVisible = false">✖ Fermer</button>
         </div>
       </div>
     </div>
@@ -475,8 +594,8 @@
             <input v-model.trim="mouvementCommentaire" placeholder="Ex : service maternité" />
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="mouvementConsomVisible = false">Annuler</button>
-            <button type="submit" class="btn btn-primary">Valider</button>
+            <button type="button" class="btn btn-outline" @click="mouvementConsomVisible = false">✖ Annuler</button>
+            <button type="submit" class="btn btn-primary">✅ Valider</button>
           </div>
         </form>
       </div>
@@ -508,7 +627,7 @@
             </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="consomFormVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="consomFormVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary">Créer</button>
           </div>
         </form>
@@ -586,6 +705,8 @@ const totalOrdonnance = computed(() => {
   if (!ordonnance.value) return 0
   return ordonnance.value.prescriptions.reduce((somme, p) => {
     const qte = quantites[p.id] || 0
+    // Les consommables ne sont pas facturés (montant = 0, comme le backend)
+    if (p.medicament?.consommable) return somme
     return somme + (p.medicament?.prixVente || 0) * qte
   }, 0)
 })
@@ -694,6 +815,70 @@ const alertes = ref(null)
 const filtreStock = ref('')
 let stockTimer = null
 
+// ── Sous-onglets Stock : Entrée / Inventaire (par lot) / Mouvements ──
+const sousOnglet = ref('entree')
+const tousLots = ref([])
+const inventaireSaisies = ref({})
+const mouvementMedId = ref(null)
+const mouvements = ref([])
+
+const optionsStocks = computed(() =>
+  stocks.value.map((m) => ({ value: m.id, label: `${m.nom}${m.dosage ? ` (${m.dosage})` : ''}` })),
+)
+
+/** Lots du produit (liste Inventaire). */
+function lotsDe(medicamentId) {
+  return tousLots.value.filter((l) => l.medicamentId === medicamentId)
+}
+
+function ecartLot(l) {
+  const saisie = inventaireSaisies.value[l.id]
+  if (saisie === undefined || saisie === '') return 0
+  return Number(saisie) - l.quantiteRestante
+}
+
+/** Charge tous les lots de la clinique (groupés par produit). */
+async function chargerInventaireLots() {
+  tousLots.value = []
+  inventaireSaisies.value = {}
+  try {
+    const { data } = await http.get('/pharmacie/lots', {
+      params: { cliniqueId: cliniqueId.value },
+    })
+    tousLots.value = data ?? []
+  } catch {
+    tousLots.value = []
+  }
+}
+
+async function validerInventaireLot(l) {
+  const saisie = inventaireSaisies.value[l.id]
+  if (saisie === undefined || saisie === '') return
+  try {
+    await http.post(`/pharmacie/lots/${l.id}/inventaire`, {
+      quantiteReelle: Number(saisie),
+    })
+    toastSuccess(`Lot ${l.numeroLot} : stock ajusté à ${saisie}.`)
+    inventaireSaisies.value = { ...inventaireSaisies.value, [l.id]: '' }
+    await chargerInventaireLots()
+    await chargerStocks()
+    await chargerAlertes()
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Inventaire impossible.')
+  }
+}
+
+async function chargerMouvementsMed() {
+  mouvements.value = []
+  if (!mouvementMedId.value) return
+  try {
+    const { data } = await http.get(`/pharmacie/mouvements/${mouvementMedId.value}`)
+    mouvements.value = data
+  } catch {
+    mouvements.value = []
+  }
+}
+
 async function chargerStocks() {
   try {
     const { data } = await http.get('/pharmacie/stocks', {
@@ -731,8 +916,9 @@ const entreeError = ref('')
 function ouvrirEntree(m) {
   entreeCible.value = m
   Object.keys(entreeForm).forEach((k) => delete entreeForm[k])
-  Object.assign(entreeForm, { numeroLot: '', quantite: null, datePeremption: '', prixAchat: null })
+  Object.assign(entreeForm, { numeroLot: '', quantite: null, datePeremption: '', prixAchat: null, fournisseur: '' })
   entreeError.value = ''
+  chargerFournisseurs()
   entreeVisible.value = true
 }
 
@@ -744,13 +930,39 @@ async function confirmerEntree() {
       medicamentId: entreeCible.value.id,
       ...entreeForm,
     })
+    // Fournisseur saisi librement : ajouté automatiquement à la liste
+    if (entreeForm.fournisseur?.trim()) {
+      try {
+        await http.post('/fournisseurs', {
+          cliniqueId: cliniqueId.value,
+          libelle: entreeForm.fournisseur.trim(),
+        })
+      } catch {
+        /* facultatif */
+      }
+    }
     entreeVisible.value = false
     toastSuccess('Entrée de stock enregistrée.')
     await chargerStocks()
+    await chargerAlertes()
   } catch (e) {
     entreeError.value = e.response?.data?.message || 'Erreur lors de l\'entrée.'
   } finally {
     entreeEnCours.value = false
+  }
+}
+
+// Fournisseurs (datalist de l'entrée de stock)
+const fournisseurs = ref([])
+
+async function chargerFournisseurs() {
+  try {
+    const { data } = await http.get('/fournisseurs', {
+      params: { cliniqueId: cliniqueId.value },
+    })
+    fournisseurs.value = data ?? []
+  } catch {
+    fournisseurs.value = []
   }
 }
 
@@ -783,15 +995,15 @@ async function confirmerInventaire() {
 
 const mouvementsVisible = ref(false)
 const mouvementsCible = ref(null)
-const mouvements = ref([])
+const mouvementsModal = ref([])
 
 async function ouvrirMouvements(m) {
   mouvementsCible.value = m
   try {
     const { data } = await http.get(`/pharmacie/mouvements/${m.id}`)
-    mouvements.value = data
+    mouvementsModal.value = data
   } catch {
-    mouvements.value = []
+    mouvementsModal.value = []
   }
   mouvementsVisible.value = true
 }

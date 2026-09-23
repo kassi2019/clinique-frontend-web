@@ -44,7 +44,7 @@
             <input v-model="debut" type="date" class="search-input" />
             <span>→</span>
             <input v-model="fin" type="date" class="search-input" />
-            <button class="btn btn-primary btn-sm" @click="charger">Actualiser</button>
+            <button class="btn btn-primary btn-sm" @click="charger">🔄 Actualiser</button>
           </div>
           <div class="stat-actions">
             <button class="btn btn-outline btn-sm" @click="ouvrirApercu">🖨️ PDF</button>
@@ -237,7 +237,7 @@
       <span>👁️ Aperçu du rapport — vérifiez avant d'imprimer (choisir « Enregistrer en PDF »)</span>
       <div class="apercu-barre-actions">
         <button class="btn btn-primary btn-sm" @click="window.print()">🖨️ Imprimer / PDF</button>
-        <button class="btn btn-outline btn-sm btn-back" @click="apercuVisible = false">Fermer</button>
+        <button class="btn btn-outline btn-sm btn-back" @click="apercuVisible = false">✖ Fermer</button>
       </div>
     </div>
 

@@ -395,7 +395,7 @@
             />
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="ajoutVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="ajoutVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="ajoutEnCours">
               {{ ajoutEnCours ? 'Ajout…' : 'Ajouter' }}
             </button>
@@ -420,7 +420,7 @@
           Impression auto : {{ paiementEffectue.impression.message }}
         </p>
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="paiementEffectue = null">Fermer</button>
+          <button class="btn btn-outline" @click="paiementEffectue = null">✖ Fermer</button>
           <button class="btn btn-outline" @click="imprimerRecuNavigateur">🖥️ Imprimer (navigateur)</button>
           <button class="btn btn-primary" @click="imprimerRecu(paiementEffectue.paiement.id)">
             🖨️ Imprimer (imprimante)

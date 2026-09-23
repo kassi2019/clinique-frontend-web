@@ -40,11 +40,11 @@
               </td>
               <td>
                 <div class="actions">
-                  <button class="btn btn-outline btn-sm" @click="openForm(c)">Modifier</button>
+                  <button class="btn btn-outline btn-sm" @click="openForm(c)">✏️ Modifier</button>
                   <button v-if="c.statut === 'ACTIF'" class="btn btn-danger btn-sm" @click="desactiver(c)">
                     Désactiver
                   </button>
-                  <button v-else class="btn btn-outline btn-sm reactiver-btn" @click="reactiver(c)">
+                  <button v-else class="btn btn-success btn-sm reactiver-btn" @click="reactiver(c)">
                     ↻ Réactiver
                   </button>
                 </div>
@@ -80,7 +80,7 @@
             <input v-model.trim="form.telephone" placeholder="Ex : +225 27 22 00 00 00" />
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="formVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="formVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">
               {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
             </button>
@@ -208,11 +208,4 @@ onMounted(load)
 </script>
 
 <style scoped>
-.reactiver-btn {
-  color: #16a34a;
-  border-color: #bbf7d0;
-}
-.reactiver-btn:hover {
-  background: #f0fdf4;
-}
 </style>

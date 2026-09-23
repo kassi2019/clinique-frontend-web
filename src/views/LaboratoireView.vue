@@ -22,8 +22,15 @@
     <main class="laboratoire-content">
       <!-- Onglets -->
       <nav class="tabs-nav">
+        <button
+          class="tab-btn"
+          :class="{ active: onglet === 'file' }"
+          @click="onglet = 'file'; chargerFile()"
+        >
+          File d'attente
+        </button>
         <button class="tab-btn" :class="{ active: onglet === 'examens' }" @click="onglet = 'examens'">
-          Examens
+          Recherche
         </button>
         <button
           class="tab-btn"
@@ -34,8 +41,43 @@
         </button>
       </nav>
 
-      <!-- ============ EXAMENS ============ -->
-      <section v-if="onglet === 'examens'" class="card">
+      <!-- ============ FILE D'ATTENTE (par ordre d'arrivée) ============ -->
+      <section v-if="onglet === 'file'" class="card">
+        <div class="card-header">
+          <h2>Patients à examiner — par ordre d'arrivée</h2>
+          <button class="btn btn-outline btn-sm" @click="chargerFile">🔄 Actualiser</button>
+        </div>
+        <div v-if="!file.length" class="empty-state">Aucun patient en attente d'examen.</div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Patient</th>
+                <th>N° d'ordre</th>
+                <th>Heure d'arrivée</th>
+                <th>Examens</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(p, i) in file" :key="p.id">
+                <td>{{ i + 1 }}</td>
+                <td><strong>{{ p.patient.nom }} {{ p.patient.prenom }}</strong></td>
+                <td>{{ p.numeroOrdre }}</td>
+                <td>{{ new Date(p.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) }}</td>
+                <td>{{ p.nbExamens }}</td>
+                <td>
+                  <button class="btn btn-primary btn-sm" @click="choisirPassage(p)">🩺 Traitement</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ EXAMENS (recherche) ============ -->
+      <section v-else-if="onglet === 'examens'" class="card">
         <div class="card-header"><h2>Réception des examens (§11)</h2></div>
         <div class="toolbar">
           <input
@@ -200,7 +242,7 @@
       </section>
 
       <!-- ============ HISTORIQUE ============ -->
-      <section v-else class="card">
+      <section v-else-if="onglet === 'historique'" class="card">
         <div class="card-header"><h2>Historique des examens réalisés (§11)</h2></div>
         <div class="toolbar">
           <input
@@ -334,7 +376,7 @@
         </div>
 
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="modaleResultats = false">Annuler</button>
+          <button class="btn btn-outline" @click="modaleResultats = false">✖ Annuler</button>
           <button class="btn btn-primary" :disabled="resultatsEnCours" @click="enregistrerResultats">
             {{ resultatsEnCours ? 'Enregistrement…' : '💾 Enregistrer' }}
           </button>
@@ -393,7 +435,7 @@
         </p>
 
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="examenVoir = null">Fermer</button>
+          <button class="btn btn-outline" @click="examenVoir = null">✖ Fermer</button>
           <button
             v-if="examenVoir.statut === 'VALIDE'"
             class="btn btn-primary"
@@ -523,7 +565,21 @@ const peutValider = computed(() => {
   return m ? m.validation !== false : false
 })
 
-const onglet = ref('examens')
+const onglet = ref('file')
+
+// ---- File d'attente (par ordre d'arrivée) ----
+const file = ref([])
+
+async function chargerFile() {
+  try {
+    const { data } = await http.get('/laboratoire/file', {
+      params: { cliniqueId: cliniqueId.value },
+    })
+    file.value = data
+  } catch {
+    file.value = []
+  }
+}
 
 // ---- Onglet examens ----
 const recherche = ref('')
@@ -796,6 +852,8 @@ function formatDateHeure(d) {
 }
 
 onMounted(async () => {
+  // File d'attente par défaut (liste des patients à examiner)
+  chargerFile()
   // Adresse de la clinique pour l'en-tête du compte rendu
   try {
     const { data } = await http.get('/cliniques', { params: { perPage: 0 } })

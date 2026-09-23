@@ -553,7 +553,7 @@
         </div>
 
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="modaleAssurance = false">Fermer</button>
+          <button class="btn btn-outline" @click="modaleAssurance = false">✖ Fermer</button>
           <button class="btn btn-primary" @click="enregistrerPatientAssurance">💾 Rattacher</button>
         </div>
       </div>
@@ -592,9 +592,17 @@
               <label>Poids (kg)</label>
               <input v-model="formConstantes.poids" type="number" step="0.1" min="0" placeholder="ex : 62.5" />
             </div>
+            <div class="field">
+              <label>Périm. brachial (cm)</label>
+              <input v-model="formConstantes.perimetreBrachial" placeholder="ex : 28" />
+            </div>
+            <div class="field">
+              <label>Périm. crânien (cm)</label>
+              <input v-model="formConstantes.perimetreCranien" placeholder="ex : 54" />
+            </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="passageConstante = null">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="passageConstante = null">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="savingConstante">
               {{ savingConstante ? 'Enregistrement…' : 'Enregistrer les constantes' }}
             </button>
@@ -617,7 +625,7 @@
           {{ passageCree.service?.nom }}
         </p>
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="passageCree = null">Fermer</button>
+          <button class="btn btn-outline" @click="passageCree = null">✖ Fermer</button>
           <button class="btn btn-outline" @click="imprimer">🖥️ Imprimer (navigateur)</button>
           <button class="btn btn-primary" :disabled="impressionEnCours" @click="imprimerImprimante(passageCree.id)">
             🖨️ {{ impressionEnCours ? 'Impression…' : 'Imprimer (imprimante)' }}
@@ -715,7 +723,7 @@
           </div>
 
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="editVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="editVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="savingEdit">
               {{ savingEdit ? 'Enregistrement…' : 'Enregistrer' }}
             </button>
@@ -1190,6 +1198,8 @@ function ouvrirConstantes(pg) {
     tensionGauche: pg.tensionGauche ?? '',
     tensionDroite: pg.tensionDroite ?? '',
     poids: pg.poids ?? null,
+    perimetreBrachial: pg.perimetreBrachial ?? '',
+    perimetreCranien: pg.perimetreCranien ?? '',
   })
 }
 
@@ -1204,6 +1214,8 @@ async function enregistrerConstantes() {
       tensionGauche: formConstantes.tensionGauche || undefined,
       tensionDroite: formConstantes.tensionDroite || undefined,
       poids: formConstantes.poids || undefined,
+      perimetreBrachial: formConstantes.perimetreBrachial || undefined,
+      perimetreCranien: formConstantes.perimetreCranien || undefined,
     })
     toastSuccess(
       `Constantes enregistrées — ${passageConstante.value.patient.nom} ${passageConstante.value.patient.prenom} (${passageConstante.value.numeroOrdre})`,

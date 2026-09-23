@@ -364,3 +364,120 @@ tbody tr:hover {
     background: #fff;
   }
 }
+
+/* ── Œil « voir le mot de passe » (champs avec bouton intégré) ── */
+.input-oeil {
+  position: relative;
+}
+
+.input-oeil input {
+  width: 100%;
+  padding-right: 44px !important;
+}
+
+.btn-oeil {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+  padding: 4px;
+}
+
+/* ── Calibrage global : tous les formulaires en MAJUSCULES ── */
+/* (la valeur stockée est aussi mise en majuscules via le listener global de main.js ;
+   les mots de passe, e-mails, dates et nombres sont exclus) */
+input:not([type='password']):not([type='email']):not([type='date']):not([type='datetime-local']):not([type='number']):not([type='file']),
+textarea,
+select {
+  text-transform: uppercase;
+}
+
+/* Champ grisé (valeur calculée, non modifiable) */
+.champ-grise {
+  background: #e9edf1 !important;
+  color: #475569 !important;
+  cursor: not-allowed;
+}
+
+/* Prescriptions intégrées à la fiche de consultation */
+.prescriptions-fiche-table {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.prescriptions-fiche-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+/* Ligne désactivée (listes paramétrées) */
+.ligne-inactive td {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* Bouton succès (Réactiver) — vert, pendant du danger (rouge) */
+.btn-success {
+  background: #16a34a;
+  color: #fff;
+}
+.btn-success:hover:not(:disabled) {
+  background: #15803d;
+}
+
+/* Boutons ✕ / ↺ des types de chambres */
+.type-x-rouge { color: #dc2626 !important; }
+.type-x-vert { color: #16a34a !important; }
+
+/* Inventaire par lot (liste des produits) */
+.inventaire-produit {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.inventaire-produit-entete {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f1f5f9;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.inventaire-lots {
+  width: 100%;
+  border-collapse: collapse;
+}
+.inventaire-lots th {
+  background: #f8fafc;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  text-align: left;
+  padding: 6px 10px;
+}
+.inventaire-lots td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.inventaire-input {
+  width: 90px;
+  padding: 4px 8px;
+  border: 1.5px solid var(--border-champ);
+  border-radius: 6px;
+}
+
+.lot-fournisseur {
+  display: block;
+  font-size: 11px;
+  margin-top: 2px;
+}

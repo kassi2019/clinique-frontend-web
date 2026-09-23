@@ -37,9 +37,9 @@
               </td>
               <td>
                 <div class="actions">
-                  <button class="btn btn-outline btn-sm" @click="openForm(s)">Modifier</button>
-                  <button v-if="s.actif" class="btn btn-danger btn-sm" @click="desactiver(s)">Désactiver</button>
-                  <button v-else class="btn btn-outline btn-sm reactiver-btn" @click="reactiver(s)">↻ Réactiver</button>
+                  <button class="btn btn-outline btn-sm" @click="openForm(s)">✏️ Modifier</button>
+                  <button v-if="s.actif" class="btn btn-danger btn-sm" @click="desactiver(s)">⛔ Désactiver</button>
+                  <button v-else class="btn btn-success btn-sm reactiver-btn" @click="reactiver(s)">↻ Réactiver</button>
                 </div>
               </td>
             </tr>
@@ -86,7 +86,7 @@
             <input v-model.trim="form.description" />
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="formVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="formVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">
               {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
             </button>
@@ -270,12 +270,5 @@ onMounted(async () => {
   border-radius: 6px;
   padding: 2px 8px;
   font-size: 12.5px;
-}
-.reactiver-btn {
-  color: #16a34a;
-  border-color: #bbf7d0;
-}
-.reactiver-btn:hover {
-  background: #f0fdf4;
 }
 </style>

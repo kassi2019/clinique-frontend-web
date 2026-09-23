@@ -323,7 +323,7 @@
           <textarea v-model="suiviForm.observations" rows="5" placeholder="Évolution, soins administrés, consignes…"></textarea>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="suiviSejour = null">Annuler</button>
+          <button class="btn btn-outline" @click="suiviSejour = null">✖ Annuler</button>
           <button class="btn btn-primary" :disabled="saving" @click="enregistrerSuivi">
             💾 Enregistrer le suivi
           </button>
@@ -356,7 +356,7 @@
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="sortieSejour = null">Annuler</button>
+          <button class="btn btn-outline" @click="sortieSejour = null">✖ Annuler</button>
           <button
             class="btn btn-danger"
             :disabled="saving || !sortieForm.sortieMotif"

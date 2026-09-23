@@ -126,6 +126,11 @@ const routes = [
         name: 'admin-assurances',
         component: () => import('../views/admin/AssurancesView.vue'),
       },
+      {
+        path: 'listes/:code',
+        name: 'admin-listes',
+        component: () => import('../views/admin/ListesParametresView.vue'),
+      },
     ],
   },
 ]

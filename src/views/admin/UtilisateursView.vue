@@ -40,7 +40,7 @@
               </td>
               <td>
                 <div class="actions">
-                  <button class="btn btn-outline btn-sm" @click="openForm(u)">Modifier</button>
+                  <button class="btn btn-outline btn-sm" @click="openForm(u)">✏️ Modifier</button>
                   <button class="btn btn-outline btn-sm" @click="openReset(u)">Mot de passe</button>
                   <button
                     v-if="u.statut === 'ACTIF'"
@@ -51,7 +51,7 @@
                   </button>
                   <button
                     v-else
-                    class="btn btn-outline btn-sm reactiver-btn"
+                    class="btn btn-success btn-sm reactiver-btn"
                     @click="reactiver(u)"
                   >
                     ↻ Réactiver
@@ -82,15 +82,19 @@
           <div class="field">
             <label>Fiche personnel rattachée *</label>
             <SelectSearch
-              v-model="form.personnelId"
+              :model-value="form.personnelId"
               :options="optionsPersonnel"
               placeholder="— Choisir —"
+              @update:model-value="onPersonnelChange"
             />
           </div>
           <div class="form-row">
             <div class="field">
               <label>Matricule de connexion *</label>
               <input v-model.trim="form.matricule" required placeholder="Ex : koffi.a" />
+              <p class="text-muted" style="font-size: 11px; margin-top: 3px">
+                Reprend automatiquement le matricule du personnel sélectionné.
+              </p>
             </div>
             <div class="field">
               <label>Rôle *</label>
@@ -102,8 +106,18 @@
             </div>
           </div>
           <div v-if="!form.id" class="field">
-            <label>Mot de passe * (6 caractères minimum)</label>
-            <input v-model="form.motDePasse" type="password" required minlength="6" />
+            <label>Mot de passe * (défaut : 123456)</label>
+            <div class="input-oeil">
+              <input
+                v-model="form.motDePasse"
+                :type="voirMdp ? 'text' : 'password'"
+                required
+                minlength="6"
+              />
+              <button type="button" class="btn-oeil" @click="voirMdp = !voirMdp">
+                {{ voirMdp ? '🙈' : '👁️' }}
+              </button>
+            </div>
           </div>
           <div v-if="form.id" class="field">
             <label>Statut</label>
@@ -113,7 +127,7 @@
             </select>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="formVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="formVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">
               {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
             </button>
@@ -130,10 +144,20 @@
         <form @submit.prevent="doReset">
           <div class="field">
             <label>Nouveau mot de passe * (6 caractères minimum)</label>
-            <input v-model="nouveauMotDePasse" type="password" required minlength="6" />
+            <div class="input-oeil">
+              <input
+                v-model="nouveauMotDePasse"
+                :type="voirMdpReset ? 'text' : 'password'"
+                required
+                minlength="6"
+              />
+              <button type="button" class="btn-oeil" @click="voirMdpReset = !voirMdpReset">
+                {{ voirMdpReset ? '🙈' : '👁️' }}
+              </button>
+            </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-outline" @click="resetVisible = false">Annuler</button>
+            <button type="button" class="btn btn-outline" @click="resetVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">
               {{ saving ? 'Enregistrement…' : 'Valider' }}
             </button>
@@ -168,11 +192,13 @@ const formVisible = ref(false)
 const form = reactive({})
 const formError = ref('')
 const saving = ref(false)
+const voirMdp = ref(false)
 
 const resetVisible = ref(false)
 const resetTarget = ref(null)
 const resetError = ref('')
 const nouveauMotDePasse = ref('')
+const voirMdpReset = ref(false)
 
 // Personnel sans compte (ou le personnel déjà rattaché à ce compte en édition)
 const personnelDisponibles = computed(() => {
@@ -235,10 +261,19 @@ function openForm(u) {
       personnelId: personnelDisponibles.value[0]?.id ?? null,
       matricule: '',
       roleId: roles.value[0]?.id ?? null,
-      motDePasse: '',
+      motDePasse: '123456', // mot de passe par défaut (§ cahier des charges)
     })
   }
   formVisible.value = true
+}
+
+/** Au choix du personnel : préremplit le matricule de connexion avec celui du personnel. */
+function onPersonnelChange(id) {
+  form.personnelId = id
+  const p = personnelDisponibles.value.find((x) => x.id === id)
+  if (p && !form.matricule?.trim()) {
+    form.matricule = p.matricule
+  }
 }
 
 async function save() {
@@ -355,11 +390,4 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.reactiver-btn {
-  color: #16a34a;
-  border-color: #bbf7d0;
-}
-.reactiver-btn:hover {
-  background: #f0fdf4;
-}
 </style>
