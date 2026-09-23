@@ -781,7 +781,13 @@ const cliniqueAdresse = ref('')
 // Basculable temporairement pour les agents ACC/CON (sans toucher à la base).
 const serviceCode = computed(() => auth.user?.personnel?.service?.code)
 const posteConstante = ref(serviceCode.value === 'CON')
-const peutBasculer = computed(() => ['ACC', 'CON'].includes(serviceCode.value))
+// Le bouton « Basculer » est visible pour les agents Accueil/Constantes
+// ET pour l'administrateur (pour vérifier/paramétrer les deux postes).
+const peutBasculer = computed(
+  () =>
+    ['ACC', 'CON'].includes(serviceCode.value) ||
+    auth.user?.role?.code === 'ADMINISTRATEUR',
+)
 
 function basculerPoste() {
   posteConstante.value = !posteConstante.value

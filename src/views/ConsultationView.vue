@@ -148,6 +148,8 @@
         </ul>
       </section>
 
+      <!-- Entête figé : fiche patient + onglets -->
+      <div class="consultation-entete-fixe">
       <!-- Fiche patient -->
       <section v-if="passageCourant" class="card fiche-card">
         <div class="fiche-info">
@@ -178,6 +180,20 @@
         <button class="btn btn-outline btn-sm" @click="quitterPatient">✕ Changer de patient</button>
       </section>
 
+      <!-- Onglets (dans l'entête figé) -->
+      <nav v-if="passageCourant && passageCourant.consultable" class="tabs-nav">
+        <button class="tab-btn" :class="{ active: onglet === 'fiche' }" @click="onglet = 'fiche'">
+          📋 Fiche de consultation
+        </button>
+        <button class="tab-btn" :class="{ active: onglet === 'medicaments' }" @click="onglet = 'medicaments'">
+          💊 Prescription de médicaments
+        </button>
+        <button class="tab-btn" :class="{ active: onglet === 'examens' }" @click="onglet = 'examens'">
+          🔬 Examens (labo / imagerie)
+        </button>
+      </nav>
+      </div>
+
       <!-- Passage non activé -->
       <section v-if="passageCourant && !passageCourant.consultable" class="card">
         <div class="empty-state">
@@ -188,17 +204,6 @@
 
       <!-- Contenu consultation : 3 onglets -->
       <div v-if="passageCourant && passageCourant.consultable" class="consultation-tabs">
-        <nav class="tabs-nav">
-          <button class="tab-btn" :class="{ active: onglet === 'fiche' }" @click="onglet = 'fiche'">
-            📋 Fiche de consultation
-          </button>
-          <button class="tab-btn" :class="{ active: onglet === 'medicaments' }" @click="onglet = 'medicaments'">
-            💊 Prescription de médicaments
-          </button>
-          <button class="tab-btn" :class="{ active: onglet === 'examens' }" @click="onglet = 'examens'">
-            🔬 Examens (labo / imagerie)
-          </button>
-        </nav>
 
         <!-- ══ Onglet 1 : Fiche de consultation ══ -->
         <section v-if="onglet === 'fiche'" class="card">
@@ -607,6 +612,7 @@
                     <button
                       type="button"
                       class="btn btn-primary btn-sm"
+                      style="width: auto; white-space: nowrap"
                       :disabled="ficheMedEnCours"
                       @click="ajouterMedicamentFiche"
                     >

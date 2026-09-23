@@ -481,3 +481,65 @@ select {
   font-size: 11px;
   margin-top: 2px;
 }
+
+/* ── Barres figées pendant le défilement (Pharmacie) ── */
+
+/* ---------- En-têtes de page figés pendant le défilement ---------- */
+:root {
+  --header-h: 64px;
+  --tabs-h: 44px;
+}
+
+.accueil-header,
+.caisse-header,
+.consultation-header,
+.hospitalisation-header,
+.imagerie-header,
+.laboratoire-header,
+.pharmacie-header,
+.stat-header,
+.top-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+}
+/* Tous les onglets de l'application restent figés en haut pendant le défilement */
+.tabs-nav {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 50;
+  background: #fff;
+  padding: 4px 8px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.stock-fixe {
+  position: sticky;
+  top: calc(var(--header-h) + var(--tabs-h));
+  z-index: 45;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+/* Entête figé de la consultation (fiche patient + onglets) */
+.consultation-entete-fixe {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 50;
+  background: #fff;
+  border-bottom: 2px solid #d5eee9;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+.consultation-entete-fixe .card {
+  margin-bottom: 0;
+  border: none;
+  box-shadow: none;
+}
+.consultation-entete-fixe .tabs-nav {
+  box-shadow: none;
+  border-bottom: none;
+}

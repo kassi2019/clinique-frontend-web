@@ -21,7 +21,7 @@
 
     <main class="pharmacie-content">
       <!-- Onglets -->
-      <nav class="tabs-nav">
+      <nav class="tabs-nav tabs-fixe">
         <button class="tab-btn" :class="{ active: onglet === 'ordonnances' }" @click="onglet = 'ordonnances'">
           Ordonnances
         </button>
@@ -270,39 +270,33 @@
           <button class="btn btn-outline btn-sm" @click="chargerAlertes">⚠️ Alertes</button>
         </div>
 
-        <!-- Sous-onglets : Entrée / Inventaire / Mouvements -->
-        <nav class="tabs-nav" style="margin-bottom: 12px">
-          <button
-            class="tab-btn"
-            :class="{ active: sousOnglet === 'entree' }"
-            @click="sousOnglet = 'entree'"
-          >
-            📥 Entrée
-          </button>
-          <button
-            class="tab-btn"
-            :class="{ active: sousOnglet === 'inventaire' }"
-            @click="sousOnglet = 'inventaire'; chargerInventaireLots()"
-          >
-            🔢 Inventaire
-          </button>
-          <button
-            class="tab-btn"
-            :class="{ active: sousOnglet === 'mouvement' }"
-            @click="sousOnglet = 'mouvement'; chargerMouvementsMed()"
-          >
-            📜 Mouvements
-          </button>
-        </nav>
+        <!-- Barre figée pendant le défilement : sous-onglets + recherche + action -->
+        <div class="stock-fixe">
+          <nav class="tabs-nav" style="margin-bottom: 0">
+            <button
+              class="tab-btn"
+              :class="{ active: sousOnglet === 'entree' }"
+              @click="sousOnglet = 'entree'"
+            >
+              📥 Entrée
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ active: sousOnglet === 'inventaire' }"
+              @click="sousOnglet = 'inventaire'; chargerInventaireLots()"
+            >
+              🔢 Inventaire
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ active: sousOnglet === 'mouvement' }"
+              @click="sousOnglet = 'mouvement'; chargerMouvementsMed()"
+            >
+              📜 Mouvements
+            </button>
+          </nav>
 
-        <p v-if="alertes && (alertes.stockBas.length || alertes.peremptions.length)" class="alert alert-error">
-          ⚠️ {{ alertes.stockBas.length }} médicament(s) sous le seuil minimum ·
-          {{ alertes.peremptions.length }} lot(s) périmé(s) ou proches de la péremption
-        </p>
-
-        <!-- ── ENTREE : le tableau actuel ── -->
-        <template v-if="sousOnglet === 'entree'">
-          <div class="toolbar">
+          <div v-if="sousOnglet === 'entree'" class="toolbar">
             <input
               v-model="filtreStock"
               class="search-input"
@@ -311,6 +305,39 @@
               @input="onRechercheStock"
             />
           </div>
+          <div v-else-if="sousOnglet === 'inventaire'" class="toolbar">
+            <input
+              v-model="filtreStock"
+              class="search-input"
+              type="text"
+              placeholder="Rechercher un médicament…"
+              @input="onRechercheStock"
+            />
+            <button
+              class="btn btn-success btn-sm"
+              :disabled="nbSaisies === 0"
+              @click="validerInventaireGlobal"
+            >
+              ✅ Valider tout l'inventaire ({{ nbSaisies }})
+            </button>
+          </div>
+          <div v-else class="toolbar">
+            <SelectSearch
+              v-model="mouvementMedId"
+              :options="optionsStocks"
+              placeholder="— Choisir un médicament —"
+              @update:model-value="chargerMouvementsMed"
+            />
+          </div>
+        </div>
+
+        <p v-if="alertes && (alertes.stockBas.length || alertes.peremptions.length)" class="alert alert-error">
+          ⚠️ {{ alertes.stockBas.length }} médicament(s) sous le seuil minimum ·
+          {{ alertes.peremptions.length }} lot(s) périmé(s) ou proches de la péremption
+        </p>
+
+        <!-- ── ENTREE : le tableau actuel ── -->
+        <template v-if="sousOnglet === 'entree'">
           <div class="table-wrap">
             <table>
               <thead>
@@ -355,15 +382,6 @@
 
         <!-- ── INVENTAIRE : liste des produits et de leurs lots ── -->
         <template v-else-if="sousOnglet === 'inventaire'">
-          <div class="toolbar">
-            <input
-              v-model="filtreStock"
-              class="search-input"
-              type="text"
-              placeholder="Rechercher un médicament…"
-              @input="onRechercheStock"
-            />
-          </div>
           <div v-if="stocks.length === 0" class="empty-state">
             Aucun médicament en stock.
           </div>
@@ -430,14 +448,6 @@
 
         <!-- ── MOUVEMENTS : historique par médicament ── -->
         <template v-else>
-          <div class="toolbar">
-            <SelectSearch
-              v-model="mouvementMedId"
-              :options="optionsStocks"
-              placeholder="— Choisir un médicament —"
-              @update:model-value="chargerMouvementsMed"
-            />
-          </div>
           <div v-if="mouvements.length === 0" class="empty-state">
             Choisissez un médicament pour voir ses mouvements.
           </div>
@@ -672,6 +682,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import Swal from 'sweetalert2'
 import { useAuthStore } from '../stores/auth'
 import http from '../api/http'
 import { toastError, toastSuccess } from '../utils/notifications'
@@ -848,6 +859,41 @@ async function chargerInventaireLots() {
     tousLots.value = data ?? []
   } catch {
     tousLots.value = []
+  }
+}
+
+/** Nombre de lots avec une quantité réelle saisie (inventaire). */
+const nbSaisies = computed(() =>
+  Object.values(inventaireSaisies.value).filter((s) => s !== '' && s !== undefined && s !== null).length,
+)
+
+/** Valide d'un coup toutes les quantités réelles saisies. */
+async function validerInventaireGlobal() {
+  const lignes = tousLots.value
+    .filter((l) => {
+      const s = inventaireSaisies.value[l.id]
+      return s !== '' && s !== undefined && s !== null
+    })
+    .map((l) => ({ lotId: l.id, quantiteReelle: Number(inventaireSaisies.value[l.id]) }))
+  if (lignes.length === 0) return
+  const reponse = await Swal.fire({
+    title: `Valider tout l'inventaire ?`,
+    text: `${lignes.length} lot(s) seront ajustés.`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Oui, valider',
+    cancelButtonText: 'Annuler',
+    confirmButtonColor: '#16a34a',
+  })
+  if (!reponse.isConfirmed) return
+  try {
+    const { data } = await http.post('/pharmacie/lots/inventaire-multiple', { lignes })
+    toastSuccess(`${data.ajustes} lot(s) ajusté(s) sur ${data.total}.`)
+    await chargerInventaireLots()
+    await chargerStocks()
+    await chargerAlertes()
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Inventaire impossible.')
   }
 }
 
