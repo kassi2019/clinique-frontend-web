@@ -488,6 +488,8 @@ select {
 :root {
   --header-h: 64px;
   --tabs-h: 44px;
+  --stock-fixe-h: 118px; /* barre pharmacie (sous-onglets + recherche + bouton) */
+  --consultation-entete-h: 132px; /* bloc patient + onglets de la consultation */
 }
 
 .accueil-header,
@@ -543,3 +545,5 @@ select {
   box-shadow: none;
   border-bottom: none;
 }
+
+/* (En-têtes de tableaux : défilement normal, comme avant) */

@@ -2,7 +2,27 @@
   <div>
     <div class="card-header">
       <h2>🛡️ Assurances & prises en charge</h2>
-      <button v-if="vue === 'assurances'" class="btn btn-primary btn-sm" @click="ouvrirAjoutAssurance">＋ Ajouter une assurance</button>
+      <div v-if="vue === 'assurances'" class="header-actions">
+        <button class="btn btn-outline btn-sm" @click="telechargerModeleAssurance">📄 Modèle Excel</button>
+        <label class="btn btn-outline btn-sm" style="cursor: pointer">
+          📥 Charger (Excel)
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            style="display: none"
+            @change="importerAssurancesExcel"
+          />
+        </label>
+        <button class="btn btn-primary btn-sm" @click="ouvrirAjoutAssurance">＋ Ajouter une assurance</button>
+      </div>
+    </div>
+
+    <!-- Canevas du fichier Excel (assurances) -->
+    <div v-if="vue === 'assurances'" class="alert" style="background: #ecfdf5; border: 1px solid #bbf7d0; color: #166534">
+      <strong>📄 Canevas du fichier Excel :</strong> colonnes
+      <strong>Code · Libellé · Téléphone · Email · Adresse · Agrément</strong>
+      (une assurance par ligne, en-têtes en ligne 1). Les codes déjà présents sont ignorés.
+      Téléchargez le <strong>Modèle Excel</strong> pour partir du bon format.
     </div>
 
     <nav class="tabs-nav">
@@ -297,6 +317,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import * as XLSX from 'xlsx'
 import http from '../../api/http'
 import PaginationBar from '../../components/PaginationBar.vue'
 import SelectSearch from '../../components/SelectSearch.vue'
@@ -399,6 +420,53 @@ async function charger() {
     toastError(e.response?.data?.message || 'Impossible de charger les assurances.')
   } finally {
     chargement.value = false
+  }
+}
+
+/** Télécharge le modèle Excel des assurances. */
+function telechargerModeleAssurance() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Code', 'Libellé', 'Téléphone', 'Email', 'Adresse', 'Agrément'],
+    ['SUNU', 'SUNU Assurances', '27 22 50 00 00', 'contact@sunu.ci', 'Abidjan', 'AGR-001'],
+    ['NSIA', 'NSIA Assurances', '', '', '', ''],
+  ])
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Assurances')
+  XLSX.writeFile(wb, 'modele_assurances.xlsx')
+}
+
+/** Import Excel : colonnes Code, Libellé, Téléphone, Email, Adresse, Agrément. */
+async function importerAssurancesExcel(event) {
+  const fichier = event.target.files?.[0]
+  event.target.value = ''
+  if (!fichier) return
+  try {
+    const buffer = await fichier.arrayBuffer()
+    const classeur = XLSX.read(buffer, { type: 'array' })
+    const premiere = classeur.SheetNames[0]
+    if (!premiere) {
+      toastError('Fichier vide.')
+      return
+    }
+    const lignes = XLSX.utils.sheet_to_json(classeur.Sheets[premiere])
+    if (lignes.length === 0) {
+      toastError('Aucune ligne trouvée.')
+      return
+    }
+    const { data } = await http.post('/assurances/import', {
+      lignes: lignes.map((l) => ({
+        code: l.code ?? l['Code'],
+        libelle: l.libelle ?? l['Libellé'],
+        telephone: l.telephone ?? l['Téléphone'],
+        email: l.email ?? l['Email'],
+        adresse: l.adresse ?? l['Adresse'],
+        numeroAgrement: l.numeroAgrement ?? l['Agrément'],
+      })),
+    }, { params: { cliniqueId: cliniqueId.value } })
+    toastSuccess(`${data.ajoutes} assurance(s) ajoutée(s) (${data.total} ligne(s) lue(s)).`)
+    await charger()
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Import impossible.')
   }
 }
 

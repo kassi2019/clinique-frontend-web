@@ -62,6 +62,20 @@ const routes = [
     component: () => import('../views/HospitalisationView.vue'),
     meta: { module: 'HOSPITALISATION' },
   },
+  // Module Maternité (CPN, accouchements et suivi)
+  {
+    path: '/maternite',
+    name: 'maternite',
+    component: () => import('../views/MaterniteView.vue'),
+    meta: { module: 'MATERNITE' },
+  },
+  // Module Soins (prescriptions et réalisation des soins)
+  {
+    path: '/soins',
+    name: 'soins',
+    component: () => import('../views/SoinsView.vue'),
+    meta: { module: 'SOINS' },
+  },
   // Module Statistiques
   {
     path: '/statistiques',

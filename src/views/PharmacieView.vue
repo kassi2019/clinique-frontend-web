@@ -264,10 +264,19 @@
       </section>
 
       <!-- ============ STOCKS ============ -->
-      <section v-else-if="onglet === 'stocks'" class="card">
+      <section v-else-if="onglet === 'stocks'" class="card card-stocks">
         <div class="card-header">
           <h2>Stocks de médicaments</h2>
-          <button class="btn btn-outline btn-sm" @click="chargerAlertes">⚠️ Alertes</button>
+          <div class="header-actions">
+            <button
+              class="btn btn-outline btn-sm"
+              title="Seuil = consommation des 60 derniers jours ÷ 120"
+              @click="recalculerSeuils"
+            >
+              🎯 Recalculer les seuils
+            </button>
+            <button class="btn btn-outline btn-sm" @click="chargerAlertes">⚠️ Alertes</button>
+          </div>
         </div>
 
         <!-- Barre figée pendant le défilement : sous-onglets + recherche + action -->
@@ -817,6 +826,20 @@ async function imprimerRecuPharmacie(paiementId) {
     else toastError(data.message)
   } catch (e) {
     toastError(`Erreur d'impression : ${e.response?.data?.message || e.message}`)
+  }
+}
+
+/** Recalcule les seuils automatiques (consommation 60 j ÷ 120) de tous les médicaments. */
+async function recalculerSeuils() {
+  try {
+    const { data } = await http.post('/pharmacie/seuils/recalculer', null, {
+      params: { cliniqueId: cliniqueId.value },
+    })
+    toastSuccess(`${data.recalcules} seuil(s) recalculé(s) — consommation 60 j ÷ 120.`)
+    await chargerStocks()
+    await chargerAlertes()
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Recalcul impossible.')
   }
 }
 
