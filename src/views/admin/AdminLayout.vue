@@ -122,6 +122,9 @@ const navItems = [
       { to: { name: 'admin-listes', params: { code: 'fournisseurs' } }, label: 'Fournisseurs', icon: '🚚' },
       { to: { name: 'admin-listes', params: { code: 'nationalites' } }, label: 'Nationalités', icon: '🌍' },
       { to: { name: 'admin-listes', params: { code: 'residences' } }, label: 'Résidences', icon: '🏠' },
+      { to: { name: 'admin-listes', params: { code: 'professions' } }, label: 'Professions', icon: '💼' },
+      { to: { name: 'admin-listes', params: { code: 'motifs' } }, label: 'Motifs de consultation', icon: '📋' },
+      { to: { name: 'admin-listes', params: { code: 'quartiers' } }, label: 'Quartiers', icon: '🏘️' },
     ],
   },
   {

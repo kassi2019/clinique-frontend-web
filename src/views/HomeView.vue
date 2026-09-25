@@ -158,6 +158,7 @@ const MODULES = [
   { code: 'MATERNITE', label: 'Maternité', icon: '🤰', description: 'CPN, accouchements et suivi', route: '/maternite' },
   { code: 'HOSPITALISATION', label: 'Hospitalisation', icon: '🛏️', description: 'Chambres, lits et séjours', route: '/hospitalisation' },
   { code: 'SOINS', label: 'Soins', icon: '💉', description: 'Prescriptions et réalisation des soins', route: '/soins' },
+  { code: 'RAPPORTS', label: 'Rapports', icon: '📄', description: 'Rapport mensuel officiel SIG', route: '/rapports' },
   { code: 'STATISTIQUES', label: 'Statistiques', icon: '📊', description: 'Tableaux de bord et rapports', route: '/statistiques' },
   { code: 'PARAMETRAGE', label: 'Paramétrage', icon: '⚙️', description: 'Personnel, utilisateurs, rôles et référentiels', route: '/parametrage' },
 ]

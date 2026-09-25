@@ -342,7 +342,17 @@ tbody tr:hover {
   #stat-print,
   #stat-print *,
   #ordo-examens-print,
-  #ordo-examens-print * {
+  #ordo-examens-print *,
+  #rapport-print,
+  #rapport-print *,
+  #cpn-print,
+  #cpn-print *,
+  #cpon-print,
+  #cpon-print *,
+  #acc-print,
+  #acc-print *,
+  #pf-print,
+  #pf-print * {
     visibility: visible;
     height: auto !important;
     min-height: 0 !important;
@@ -355,7 +365,12 @@ tbody tr:hover {
   #labo-print,
   #ima-print,
   #stat-print,
-  #ordo-examens-print {
+  #ordo-examens-print,
+  #rapport-print,
+  #cpn-print,
+  #cpon-print,
+  #acc-print,
+  #pf-print {
     position: absolute;
     left: 0;
     top: 0;

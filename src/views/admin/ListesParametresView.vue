@@ -140,6 +140,9 @@ const CATEGORIES = {
   fournisseurs: { code: 'FOURNISSEUR', icone: '🚚', libelle: 'Fournisseurs', route: '/fournisseurs' },
   fonctions: { code: 'FONCTION', icone: '👔', libelle: 'Fonctions du personnel', route: '/fonctions' },
   posologies: { code: 'POSOLOGIE', icone: '💊', libelle: 'Posologies', route: '/posologies' },
+  professions: { code: 'PROFESSION', icone: '💼', libelle: 'Professions des patients', route: '/professions' },
+  motifs: { code: 'MOTIF', icone: '📋', libelle: 'Motifs de consultation', route: '/motifs' },
+  quartiers: { code: 'QUARTIER', icone: '🏘️', libelle: 'Quartiers', route: '/quartiers' },
 }
 
 const categorie = computed(() => CATEGORIES[route.params.code] ?? CATEGORIES.nationalites)

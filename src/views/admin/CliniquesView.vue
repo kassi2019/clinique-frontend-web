@@ -79,6 +79,51 @@
             <label>Téléphone</label>
             <input v-model.trim="form.telephone" placeholder="Ex : +225 27 22 00 00 00" />
           </div>
+          <div class="form-separator">Rapport mensuel SIG — en-tête officielle (paramétrable)</div>
+          <div class="form-row">
+            <div class="field">
+              <label>Numéro d'immatriculation</label>
+              <input v-model.trim="form.immatriculation" placeholder="N° d'immatriculation de l'établissement" />
+            </div>
+            <div class="field">
+              <label>Population desservie</label>
+              <input v-model.number="form.populationDesservie" type="number" min="0" placeholder="Ex : 25000" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>District sanitaire</label>
+              <input v-model.trim="form.districtNom" placeholder="Ex : Abidjan Est" />
+            </div>
+            <div class="field">
+              <label>Code district</label>
+              <input v-model.trim="form.districtCode" placeholder="Code" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>Région sanitaire</label>
+              <input v-model.trim="form.regionNom" placeholder="Ex : Abidjan 1" />
+            </div>
+            <div class="field">
+              <label>Code région</label>
+              <input v-model.trim="form.regionCode" placeholder="Code" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>Rapport réalisé par (nom)</label>
+              <input v-model.trim="form.responsableRapportNom" placeholder="Nom du responsable du rapport" />
+            </div>
+            <div class="field">
+              <label>Fonction</label>
+              <input v-model.trim="form.responsableRapportFonction" placeholder="Ex : Responsable de la clinique" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Contact téléphonique</label>
+            <input v-model.trim="form.responsableRapportContact" placeholder="Ex : +225 07 00 00 00 00" />
+          </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-outline" @click="formVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">
@@ -130,6 +175,15 @@ function openForm(c) {
       adresse: c.adresse ?? '',
       telephone: c.telephone ?? '',
       statut: c.statut,
+      immatriculation: c.immatriculation ?? '',
+      populationDesservie: c.populationDesservie ?? '',
+      districtNom: c.districtNom ?? '',
+      districtCode: c.districtCode ?? '',
+      regionNom: c.regionNom ?? '',
+      regionCode: c.regionCode ?? '',
+      responsableRapportNom: c.responsableRapportNom ?? '',
+      responsableRapportFonction: c.responsableRapportFonction ?? '',
+      responsableRapportContact: c.responsableRapportContact ?? '',
     })
   } else {
     Object.assign(form, {
@@ -138,6 +192,15 @@ function openForm(c) {
       adresse: '',
       telephone: '',
       statut: 'ACTIF',
+      immatriculation: '',
+      populationDesservie: '',
+      districtNom: '',
+      districtCode: '',
+      regionNom: '',
+      regionCode: '',
+      responsableRapportNom: '',
+      responsableRapportFonction: '',
+      responsableRapportContact: '',
     })
   }
   formVisible.value = true
@@ -208,4 +271,16 @@ onMounted(load)
 </script>
 
 <style scoped>
+.form-separator {
+  margin: 14px 0 8px;
+  padding: 7px 10px;
+  background: #f0fdfa;
+  border: 1px solid #c9ece5;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #0f766e;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
 </style>

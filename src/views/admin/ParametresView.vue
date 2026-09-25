@@ -70,6 +70,61 @@
       </div>
     </div>
 
+    <!-- ============ Page de garde du rapport SIG ============ -->
+    <div class="card imprimante-card">
+      <div class="card-header">
+        <h2>📄 Page de garde du rapport mensuel SIG</h2>
+      </div>
+      <p v-if="sigMessage" class="alert" :class="sigMessageOk ? 'alert-success' : 'alert-error'">
+        {{ sigMessage }}
+      </p>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Logo en haut à gauche (armoiries — PNG ou JPG)</label>
+          <div v-if="logoGauchePreview" class="logo-apercu">
+            <img :src="logoGauchePreview" alt="Logo gauche" />
+            <button type="button" class="btn btn-outline btn-sm" @click="retirerLogo('gauche')">Retirer</button>
+          </div>
+          <input type="file" accept="image/png, image/jpeg" @change="(e) => onLogoChoisi(e, 'gauche')" />
+        </div>
+        <div class="field">
+          <label>Emblème au centre (entre DIIS et SIG — PNG ou JPG)</label>
+          <div v-if="logoCentrePreview" class="logo-apercu">
+            <img :src="logoCentrePreview" alt="Logo centre" />
+            <button type="button" class="btn btn-outline btn-sm" @click="retirerLogo('centre')">Retirer</button>
+          </div>
+          <input type="file" accept="image/png, image/jpeg" @change="(e) => onLogoChoisi(e, 'centre')" />
+        </div>
+        <div class="field">
+          <label>Logo en haut à droite (PNG ou JPG)</label>
+          <div v-if="logoDroitPreview" class="logo-apercu">
+            <img :src="logoDroitPreview" alt="Logo droit" />
+            <button type="button" class="btn btn-outline btn-sm" @click="retirerLogo('droit')">Retirer</button>
+          </div>
+          <input type="file" accept="image/png, image/jpeg" @change="(e) => onLogoChoisi(e, 'droit')" />
+        </div>
+        <div class="field">
+          <label>Lettre de version du rapport</label>
+          <select v-model="sigVersionChoisie">
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+          </select>
+          <small class="text-muted">
+            Affiche la lettre « A » à droite de l'en-tête du rapport, comme le
+            formulaire officiel (ex. « SIG A »).
+          </small>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="justify-content: flex-start">
+        <button class="btn btn-primary" :disabled="sigSaving" @click="saveSig">
+          {{ sigSaving ? 'Enregistrement…' : 'Enregistrer la page de garde' }}
+        </button>
+      </div>
+    </div>
+
     <!-- ============ Imprimantes par poste ============ -->
     <div class="card imprimante-card">
       <div class="card-header">
@@ -261,8 +316,93 @@ async function loadParametre() {
   try {
     const { data } = await http.get(`/parametres/${cliniqueId.value}`)
     imageEnBase.value = data.loginImage
+    // Page de garde du rapport SIG
+    logoGaucheEnBase.value = data.logoRapportGauche
+    logoCentreEnBase.value = data.logoRapportCentre
+    logoDroitEnBase.value = data.logoRapportDroit
+    logoGaucheChoisi.value = null
+    logoCentreChoisi.value = null
+    logoDroitChoisi.value = null
+    sigVersionChoisie.value = data.sigVersion ?? 'A'
   } catch {
     imageEnBase.value = null
+  }
+}
+
+// ── Page de garde du rapport SIG (logos + lettre de version) ──
+const logoGaucheEnBase = ref(null)
+const logoCentreEnBase = ref(null)
+const logoDroitEnBase = ref(null)
+const logoGaucheChoisi = ref(null)
+const logoCentreChoisi = ref(null)
+const logoDroitChoisi = ref(null)
+const sigVersionChoisie = ref('A')
+const sigMessage = ref('')
+const sigMessageOk = ref(true)
+const sigSaving = ref(false)
+
+const logoGauchePreview = computed(() => logoGaucheChoisi.value ?? logoGaucheEnBase.value)
+const logoCentrePreview = computed(() => logoCentreChoisi.value ?? logoCentreEnBase.value)
+const logoDroitPreview = computed(() => logoDroitChoisi.value ?? logoDroitEnBase.value)
+
+async function onLogoChoisi(e, cote) {
+  const file = e.target.files[0]
+  sigMessage.value = ''
+  if (!file) return
+  try {
+    const { dataUrl } = await optimiserImage(file, 800, 0.92)
+    if (cote === 'gauche') logoGaucheChoisi.value = dataUrl
+    else if (cote === 'centre') logoCentreChoisi.value = dataUrl
+    else logoDroitChoisi.value = dataUrl
+  } catch (err) {
+    sigMessage.value = err.message
+    sigMessageOk.value = false
+  }
+}
+
+async function retirerLogo(cote) {
+  if (cote === 'gauche') {
+    logoGaucheChoisi.value = null
+    logoGaucheEnBase.value = null
+  } else if (cote === 'centre') {
+    logoCentreChoisi.value = null
+    logoCentreEnBase.value = null
+  } else {
+    logoDroitChoisi.value = null
+    logoDroitEnBase.value = null
+  }
+  await saveSig()
+}
+
+async function saveSig() {
+  sigSaving.value = true
+  sigMessage.value = ''
+  try {
+    await http.patch(`/parametres/${cliniqueId.value}`, {
+      logoRapportGauche: logoGaucheChoisi.value ?? logoGaucheEnBase.value ?? null,
+      logoRapportCentre: logoCentreChoisi.value ?? logoCentreEnBase.value ?? null,
+      logoRapportDroit: logoDroitChoisi.value ?? logoDroitEnBase.value ?? null,
+      sigVersion: sigVersionChoisie.value,
+    })
+    if (logoGaucheChoisi.value) {
+      logoGaucheEnBase.value = logoGaucheChoisi.value
+      logoGaucheChoisi.value = null
+    }
+    if (logoCentreChoisi.value) {
+      logoCentreEnBase.value = logoCentreChoisi.value
+      logoCentreChoisi.value = null
+    }
+    if (logoDroitChoisi.value) {
+      logoDroitEnBase.value = logoDroitChoisi.value
+      logoDroitChoisi.value = null
+    }
+    sigMessage.value = 'Page de garde enregistrée — elle apparaîtra sur les rapports SIG imprimés.'
+    sigMessageOk.value = true
+  } catch (e) {
+    sigMessage.value = e.response?.data?.message || "Erreur lors de l'enregistrement."
+    sigMessageOk.value = false
+  } finally {
+    sigSaving.value = false
   }
 }
 
@@ -331,6 +471,21 @@ watch(posteActif, appliquerConfigPoste)
 </script>
 
 <style scoped>
+.logo-apercu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.logo-apercu img {
+  width: 90px;
+  height: 82px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 4px;
+}
 .clinique-field {
   max-width: 340px;
 }

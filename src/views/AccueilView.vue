@@ -377,15 +377,24 @@
               </div>
               <div class="field">
                 <label>Ville</label>
-                <input v-model.trim="form.ville" />
+                <input v-model.trim="form.ville" list="liste-residence" placeholder="Ex : Abidjan…" />
+                <datalist id="liste-residence">
+                  <option v-for="r in listesParams.RESIDENCE" :key="r.id" :value="r.libelle" />
+                </datalist>
               </div>
               <div class="field">
                 <label>Quartier</label>
-                <input v-model.trim="form.quartier" />
+                <input v-model.trim="form.quartier" list="liste-quartier" placeholder="Ex : Yopougon…" />
+                <datalist id="liste-quartier">
+                  <option v-for="q in listesParams.QUARTIER" :key="q.id" :value="q.libelle" />
+                </datalist>
               </div>
               <div class="field champ-large">
-                <label>Profession</label>
-                <input v-model.trim="form.profession" />
+                <label>Profession *</label>
+                <input v-model.trim="form.profession" list="liste-profession" required placeholder="Ex : commerçant…" />
+                <datalist id="liste-profession">
+                  <option v-for="p in listesParams.PROFESSION" :key="p.id" :value="p.libelle" />
+                </datalist>
               </div>
               <div class="field champ-large">
                 <label>Téléphone</label>
@@ -413,7 +422,10 @@
             </div>
             <div class="field">
               <label>Motif</label>
-              <input v-model.trim="form.motif" placeholder="Ex : fièvre, suivi grossesse…" />
+              <input v-model.trim="form.motif" list="liste-motif" placeholder="Ex : fièvre, suivi grossesse…" />
+              <datalist id="liste-motif">
+                <option v-for="m in listesParams.MOTIF" :key="m.id" :value="m.libelle" />
+              </datalist>
             </div>
           </div>
           <div class="form-row">
@@ -581,12 +593,12 @@
               <input v-model="formConstantes.pouls" type="number" min="0" max="300" placeholder="ex : 72" />
             </div>
             <div class="field">
-              <label>Tension art. gauche (TAg)</label>
-              <input v-model.trim="formConstantes.tensionGauche" placeholder="ex : 12/8" />
+              <label>Tension art. gauche (TAg) *</label>
+              <input v-model.trim="formConstantes.tensionGauche" placeholder="ex : 12/8" pattern="[0-9]{1,3}/[0-9]{1,3}" required />
             </div>
             <div class="field">
-              <label>Tension art. droite (TAd)</label>
-              <input v-model.trim="formConstantes.tensionDroite" placeholder="ex : 12/8" />
+              <label>Tension art. droite (TAd) *</label>
+              <input v-model.trim="formConstantes.tensionDroite" placeholder="ex : 12/8" pattern="[0-9]{1,3}/[0-9]{1,3}" required />
             </div>
             <div class="field">
               <label>Poids (kg)</label>
@@ -673,15 +685,15 @@
             </div>
             <div class="field">
               <label>Ville</label>
-              <input v-model.trim="formEdit.ville" />
+              <input v-model.trim="formEdit.ville" list="liste-residence" />
             </div>
             <div class="field">
               <label>Quartier</label>
-              <input v-model.trim="formEdit.quartier" />
+              <input v-model.trim="formEdit.quartier" list="liste-quartier" />
             </div>
             <div class="field">
-              <label>Profession</label>
-              <input v-model.trim="formEdit.profession" />
+              <label>Profession *</label>
+              <input v-model.trim="formEdit.profession" list="liste-profession" required />
             </div>
             <div class="field">
               <label>Téléphone</label>
@@ -708,7 +720,7 @@
             </div>
             <div class="field">
               <label>Motif</label>
-              <input v-model.trim="formEdit.motif" />
+              <input v-model.trim="formEdit.motif" list="liste-motif" />
             </div>
           </div>
           <div v-if="formEdit.typePatient === 'EXTERNE'" class="form-row">
@@ -858,6 +870,50 @@ const recherchePatient = ref('')
 const resultatsPatients = ref([])
 const patientChoisi = ref(null)
 let rechercheTimer = null
+
+// ── Listes déroulantes (résidence/ville, quartier, profession, motif) : saisie libre auto-alimentée ──
+const ROUTES_LISTES = {
+  RESIDENCE: '/residences',
+  QUARTIER: '/quartiers',
+  PROFESSION: '/professions',
+  MOTIF: '/motifs',
+}
+
+const listesParams = reactive({
+  RESIDENCE: [],
+  QUARTIER: [],
+  PROFESSION: [],
+  MOTIF: [],
+})
+
+async function chargerListesParams(cliniqueId) {
+  if (!cliniqueId) return
+  try {
+    const codes = Object.keys(listesParams)
+    const reponses = await Promise.all(
+      codes.map((code) => http.get(ROUTES_LISTES[code], { params: { cliniqueId } })),
+    )
+    codes.forEach((code, i) => {
+      listesParams[code] = reponses[i].data ?? []
+    })
+  } catch {
+    /* listes vides */
+  }
+}
+
+/** Ajoute silencieusement une valeur saisie librement à sa liste dédiée. */
+async function alimenterListe(code, libelle) {
+  if (!libelle?.trim() || !auth.user?.clinique?.id || !ROUTES_LISTES[code]) return
+  try {
+    await http.post(ROUTES_LISTES[code], {
+      cliniqueId: auth.user.clinique.id,
+      libelle: libelle.trim(),
+    })
+    await chargerListesParams(auth.user.clinique.id)
+  } catch {
+    /* facultatif */
+  }
+}
 
 // Assurance du patient (rattachement à une assurance et une formule)
 const modaleAssurance = ref(false)
@@ -1127,6 +1183,10 @@ async function enregistrer() {
     formError.value = 'Le nom du patient est obligatoire.'
     return
   }
+  if (!patientExistant.value && !form.profession.trim()) {
+    formError.value = 'La profession du patient est obligatoire.'
+    return
+  }
   saving.value = true
   try {
     const payload = {
@@ -1156,6 +1216,13 @@ async function enregistrer() {
     const { data } = await http.post('/accueil/passages', payload)
     passageCree.value = data
     ticket.value = data
+    // Saisie libre auto-alimentée : les nouvelles valeurs rejoignent les listes déroulantes
+    if (!patientExistant.value) {
+      await alimenterListe('PROFESSION', form.profession)
+      if (form.ville) await alimenterListe('RESIDENCE', form.ville)
+      if (form.quartier) await alimenterListe('QUARTIER', form.quartier)
+    }
+    if (form.motif) await alimenterListe('MOTIF', form.motif)
     if (data.impression) {
       if (data.impression.ok) {
         toastSuccess(`Ticket imprimé : ${data.impression.message}`)
@@ -1211,6 +1278,18 @@ function ouvrirConstantes(pg) {
 
 async function enregistrerConstantes() {
   if (!passageConstante.value) return
+  // Tensions artérielles obligatoires, au format x/y (ex : 12/8)
+  const RE_TA = /^\d{1,3}\/\d{1,3}$/
+  const taG = String(formConstantes.tensionGauche ?? '').trim()
+  const taD = String(formConstantes.tensionDroite ?? '').trim()
+  if (!RE_TA.test(taG)) {
+    toastError('Tension artérielle gauche obligatoire : format « x/y » (ex : 12/8).')
+    return
+  }
+  if (!RE_TA.test(taD)) {
+    toastError('Tension artérielle droite obligatoire : format « x/y » (ex : 12/8).')
+    return
+  }
   savingConstante.value = true
   try {
     await http.patch(`/accueil/passages/${passageConstante.value.id}`, {
@@ -1261,6 +1340,10 @@ function ouvrirModification(pg) {
 
 async function enregistrerModification() {
   if (!editCible.value) return
+  if (!formEdit.profession?.trim()) {
+    editError.value = 'La profession du patient est obligatoire.'
+    return
+  }
   savingEdit.value = true
   editError.value = ''
   try {
@@ -1282,6 +1365,11 @@ async function enregistrerModification() {
       },
     })
     editVisible.value = false
+    // Saisie libre auto-alimentée
+    await alimenterListe('PROFESSION', formEdit.profession)
+    if (formEdit.ville) await alimenterListe('RESIDENCE', formEdit.ville)
+    if (formEdit.quartier) await alimenterListe('QUARTIER', formEdit.quartier)
+    if (formEdit.motif) await alimenterListe('MOTIF', formEdit.motif)
     if (ticket.value?.id === data.id) {
       ticket.value = data
       passageCree.value = data
@@ -1323,6 +1411,8 @@ function imprimer() {
 
 onMounted(async () => {
   resetForm()
+  // Listes déroulantes (profession, motif) de la clinique
+  chargerListesParams(cliniqueId.value)
   // Historique : du jour et des 30 derniers jours par défaut (aujourd'hui inclus)
   const aujourdHui = new Date()
   filtreFin.value = aujourdHui.toISOString().slice(0, 10)

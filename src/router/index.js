@@ -76,6 +76,13 @@ const routes = [
     component: () => import('../views/SoinsView.vue'),
     meta: { module: 'SOINS' },
   },
+  // Module Rapports (rapport mensuel officiel SIG)
+  {
+    path: '/rapports',
+    name: 'rapports',
+    component: () => import('../views/RapportsView.vue'),
+    meta: { module: 'RAPPORTS' },
+  },
   // Module Statistiques
   {
     path: '/statistiques',
