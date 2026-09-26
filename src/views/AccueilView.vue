@@ -328,11 +328,11 @@
         <form @submit.prevent="enregistrer">
           <!-- Patient existant : recherche -->
           <div v-if="patientExistant" class="field">
-            <label>Rechercher le patient (nom, prénom, n° de dossier ou N° d'ordre)</label>
+            <label>Rechercher le patient (nom, prénom, code, téléphone, N° CNI, N° CMU, date de naissance ou N° d'ordre)</label>
             <input
               v-model="recherchePatient"
               type="text"
-              placeholder="Tapez au moins 2 caractères…"
+              placeholder="Ex : TRAORE, 07 00 00 00 00, CI0123456789, 12/05/1990…"
               @input="onRecherchePatient"
             />
             <ul v-if="resultatsPatients.length" class="patient-results">
@@ -355,6 +355,34 @@
           <div v-else>
             <h3 class="section-title">Identification</h3>
             <div class="form-row">
+              <div class="field">
+                <label>N° CNI</label>
+                <input v-model.trim="form.numeroCni" placeholder="N° de la carte d'identité" />
+              </div>
+              <div class="field">
+                <label>N° CMU</label>
+                <input v-model.trim="form.numeroCmu" placeholder="N° CMU" />
+              </div>
+            </div>
+            <!-- Garde-fou anti-doublon : patients ressemblants détectés pendant la saisie -->
+            <div v-if="doublonsPossibles.length" class="doublons-alerte">
+              <strong>⚠️ {{ doublonsPossibles.length }} patient(s) ressemblant(s) trouvé(s) :</strong>
+              <ul>
+                <li v-for="d in doublonsPossibles" :key="d.id">
+                  <span>
+                    <strong>{{ d.nom }} {{ d.prenom }}</strong>
+                    <span class="text-muted"> — code {{ d.code }} · dossier {{ d.numeroDossier }}</span>
+                    <span v-if="d.passages?.length" class="text-muted">
+                      · dernier passage {{ d.passages[0].numeroOrdre }} ({{ formatDate(d.passages[0].createdAt) }})
+                    </span>
+                  </span>
+                  <button type="button" class="btn btn-outline btn-sm" @click="utiliserPatientExistant(d)">
+                    Utiliser ce dossier
+                  </button>
+                </li>
+              </ul>
+            </div>
+            <div class="form-row">
               <div class="field champ-large">
                 <label>Nom *</label>
                 <input v-model.trim="form.nom" required />
@@ -366,6 +394,10 @@
               <div class="field">
                 <label>Âge</label>
                 <input v-model="form.age" type="number" min="0" max="150" placeholder="ans" />
+              </div>
+              <div class="field">
+                <label>Date de naissance</label>
+                <input v-model="form.dateNaissance" type="date" />
               </div>
               <div class="field">
                 <label>Sexe</label>
@@ -664,6 +696,14 @@
           <h3 class="section-title">Patient</h3>
           <div class="form-row">
             <div class="field">
+              <label>N° CNI</label>
+              <input v-model.trim="formEdit.numeroCni" />
+            </div>
+            <div class="field">
+              <label>N° CMU</label>
+              <input v-model.trim="formEdit.numeroCmu" />
+            </div>
+            <div class="field">
               <label>Nom *</label>
               <input v-model.trim="formEdit.nom" required />
             </div>
@@ -674,6 +714,10 @@
             <div class="field">
               <label>Âge</label>
               <input v-model="formEdit.age" type="number" min="0" max="150" />
+            </div>
+            <div class="field">
+              <label>Date de naissance</label>
+              <input v-model="formEdit.dateNaissance" type="date" />
             </div>
             <div class="field">
               <label>Sexe</label>
@@ -871,6 +915,42 @@ const resultatsPatients = ref([])
 const patientChoisi = ref(null)
 let rechercheTimer = null
 
+// ── Garde-fou anti-doublon : recherche les patients ressemblants pendant la saisie du nom ──
+const doublonsPossibles = ref([])
+let doublonTimer = null
+
+watch(
+  () => form.nom,
+  (nom) => {
+    clearTimeout(doublonTimer)
+    const q = (nom ?? '').trim()
+    // Détection uniquement en mode « nouveau patient », à partir de 3 lettres
+    if (patientExistant.value || q.length < 3) {
+      doublonsPossibles.value = []
+      return
+    }
+    doublonTimer = setTimeout(async () => {
+      try {
+        const { data } = await http.get('/accueil/patients', {
+          params: { search: q, cliniqueId: cliniqueId.value },
+        })
+        doublonsPossibles.value = data ?? []
+      } catch {
+        doublonsPossibles.value = []
+      }
+    }, 350)
+  },
+)
+
+/** L'agent confirme que le patient existe déjà : on bascule sur son dossier. */
+function utiliserPatientExistant(pt) {
+  patientExistant.value = true
+  patientChoisi.value = pt
+  recherchePatient.value = pt.nom
+  doublonsPossibles.value = []
+  toastInfo(`Patient existant sélectionné : ${pt.nom} ${pt.prenom} (code ${pt.code}).`)
+}
+
 // ── Listes déroulantes (résidence/ville, quartier, profession, motif) : saisie libre auto-alimentée ──
 const ROUTES_LISTES = {
   RESIDENCE: '/residences',
@@ -1041,12 +1121,89 @@ function formatDateHeure(d) {
 function resetForm() {
   Object.keys(form).forEach((k) => delete form[k])
   Object.assign(form, {
-    nom: '', prenom: '', age: '', sexe: '', ville: '', quartier: '',
+    nom: '', prenom: '', age: '', dateNaissance: '', numeroCni: '', numeroCmu: '',
+    sexe: '', ville: '', quartier: '',
     profession: '', telephone: '', serviceId: null, typePatient: 'INTERNE',
     motif: '', referent: '', prestationDemandee: '', consultationPrestationId: null,
     actePrestationId: null,
   })
+  doublonsPossibles.value = []
 }
+
+// ── Calcul automatique âge ⇄ date de naissance ──
+function ageDepuisNaissance(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return ''
+  const now = new Date()
+  let age = now.getFullYear() - d.getFullYear()
+  const m = now.getMonth() - d.getMonth()
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--
+  return age >= 0 && age <= 150 ? String(age) : ''
+}
+
+function naissanceDepuisAge(ageStr) {
+  const age = parseInt(ageStr, 10)
+  if (isNaN(age) || age < 0 || age > 150) return ''
+  const d = new Date()
+  d.setFullYear(d.getFullYear() - age)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Âge saisi → la date de naissance est renseignée automatiquement. */
+watch(() => form.age, (age) => {
+  if (age !== '' && age !== null && !form.dateNaissance) {
+    form.dateNaissance = naissanceDepuisAge(age)
+  }
+})
+
+/** Date de naissance saisie → l'âge est calculé automatiquement. */
+watch(() => form.dateNaissance, (dn) => {
+  if (dn) {
+    form.age = ageDepuisNaissance(dn)
+  }
+})
+
+/** Même calcul automatique dans la modale de modification. */
+watch(() => formEdit.age, (age) => {
+  if (age !== '' && age !== null && !formEdit.dateNaissance) {
+    formEdit.dateNaissance = naissanceDepuisAge(age)
+  }
+})
+
+watch(() => formEdit.dateNaissance, (dn) => {
+  if (dn) {
+    formEdit.age = ageDepuisNaissance(dn)
+  }
+})
+
+// ── N° CNI / N° CMU uniques : si le patient existe, il s'affiche automatiquement ──
+let identifiantTimer = null
+
+async function detecterPatientIdentifiant(valeur) {
+  const v = (valeur ?? '').trim()
+  clearTimeout(identifiantTimer)
+  if (patientExistant.value || v.length < 3) return
+  identifiantTimer = setTimeout(async () => {
+    try {
+      const { data } = await http.get('/accueil/patients', {
+        params: { search: v, cliniqueId: cliniqueId.value },
+      })
+      const exact = (data ?? []).find((p) => p.numeroCni === v || p.numeroCmu === v)
+      if (exact) {
+        toastInfo(
+          `N° déjà connu : ${exact.nom} ${exact.prenom} (code ${exact.code}) — dossier existant sélectionné.`,
+        )
+        utiliserPatientExistant(exact)
+      }
+    } catch {
+      /* facultatif */
+    }
+  }, 400)
+}
+
+watch(() => form.numeroCni, detecterPatientIdentifiant)
+watch(() => form.numeroCmu, detecterPatientIdentifiant)
 
 function changerOnglet(o) {
   onglet.value = o
@@ -1206,6 +1363,9 @@ async function enregistrer() {
         nom: form.nom,
         prenom: form.prenom,
         age: form.age || undefined,
+        dateNaissance: form.dateNaissance || undefined,
+        numeroCni: form.numeroCni || undefined,
+        numeroCmu: form.numeroCmu || undefined,
         sexe: form.sexe || undefined,
         ville: form.ville || undefined,
         quartier: form.quartier || undefined,
@@ -1324,6 +1484,11 @@ function ouvrirModification(pg) {
     nom: pg.patient?.nom ?? '',
     prenom: pg.patient?.prenom ?? '',
     age: pg.patient?.age ?? '',
+    dateNaissance: pg.patient?.dateNaissance
+      ? pg.patient.dateNaissance.slice(0, 10)
+      : '',
+    numeroCni: pg.patient?.numeroCni ?? '',
+    numeroCmu: pg.patient?.numeroCmu ?? '',
     sexe: pg.patient?.sexe ?? '',
     ville: pg.patient?.ville ?? '',
     quartier: pg.patient?.quartier ?? '',
@@ -1357,6 +1522,9 @@ async function enregistrerModification() {
         nom: formEdit.nom,
         prenom: formEdit.prenom,
         age: formEdit.age || undefined,
+        dateNaissance: formEdit.dateNaissance || undefined,
+        numeroCni: formEdit.numeroCni || undefined,
+        numeroCmu: formEdit.numeroCmu || undefined,
         sexe: formEdit.sexe || undefined,
         ville: formEdit.ville || undefined,
         quartier: formEdit.quartier || undefined,
@@ -1456,6 +1624,26 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.doublons-alerte {
+  margin: 10px 0;
+  padding: 10px 14px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.doublons-alerte ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.doublons-alerte li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 4px 0;
+}
 .accueil-page {
   min-height: 100vh;
   background: linear-gradient(170deg, #ffffff 0%, #eef9f7 55%, #e3f4f0 100%);
