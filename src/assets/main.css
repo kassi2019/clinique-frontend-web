@@ -352,7 +352,9 @@ tbody tr:hover {
   #acc-print,
   #acc-print *,
   #pf-print,
-  #pf-print * {
+  #pf-print *,
+  #certificat-print,
+  #certificat-print * {
     visibility: visible;
     height: auto !important;
     min-height: 0 !important;
@@ -370,7 +372,8 @@ tbody tr:hover {
   #cpn-print,
   #cpon-print,
   #acc-print,
-  #pf-print {
+  #pf-print,
+  #certificat-print {
     position: absolute;
     left: 0;
     top: 0;

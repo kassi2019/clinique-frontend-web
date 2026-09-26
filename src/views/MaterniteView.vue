@@ -2120,12 +2120,6 @@ async function retirerMedicament(m) {
   }
 }
 
-function imprimerOrdonnance() {
-  registreImprimable.value = 'ordonnance'
-  nextTick(() => window.print())
-  registreImprimable.value = null
-}
-
 // ── Examens (imagerie, laboratoire) ──
 const nouvelExamenId = ref(null)
 const nouvelExamenLibre = ref('')
@@ -2267,8 +2261,18 @@ function ouiNon(v) {
 }
 
 function imprimerRegistre(type) {
+  imprimerZone(type)
+}
+
+function imprimerOrdonnance() {
+  imprimerZone('ordonnance')
+}
+
+/** Affiche la zone demandée, attend son rendu, imprime, puis la masque. */
+async function imprimerZone(type) {
   registreImprimable.value = type
-  nextTick(() => window.print())
+  await nextTick()
+  window.print()
   registreImprimable.value = null
 }
 

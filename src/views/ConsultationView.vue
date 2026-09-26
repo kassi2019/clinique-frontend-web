@@ -191,6 +191,9 @@
         <button class="tab-btn" :class="{ active: onglet === 'examens' }" @click="onglet = 'examens'">
           🔬 Examens (labo / imagerie)
         </button>
+        <button class="tab-btn" :class="{ active: onglet === 'certificat' }" @click="onglet = 'certificat'">
+          📄 Certificat d'arrêt
+        </button>
       </nav>
       </div>
 
@@ -907,6 +910,94 @@
           </div>
 
         </section>
+
+        <!-- ══ Onglet 4 : Certificat d'arrêt de travail ══ -->
+        <section v-else-if="onglet === 'certificat'" class="card">
+          <div class="card-header">
+            <h2>Certificat d'arrêt de travail</h2>
+            <button class="btn btn-primary btn-sm" :disabled="certificatEnCours" @click="imprimerCertificat">
+              {{ certificatEnCours ? 'Enregistrement…' : '🖨️ Imprimer le certificat' }}
+            </button>
+          </div>
+          <p class="text-muted small-note">
+            Le certificat reprend le modèle officiel (même texte, même style).
+            À chaque impression, il est <strong>enregistré</strong> (numéro séquentiel)
+            et reste réimprimable depuis la liste ci-dessous.
+          </p>
+          <div class="form-row">
+            <div class="field">
+              <label>Madame / Mademoiselle / Monsieur</label>
+              <select v-model="formCertificat.civilite">
+                <option value="Mme">Madame</option>
+                <option value="Mlle">Mademoiselle</option>
+                <option value="M.">Monsieur</option>
+              </select>
+            </div>
+            <div class="field champ-large">
+              <label>Patient(e)</label>
+              <input v-model.trim="formCertificat.nomPatient" />
+            </div>
+            <div class="field">
+              <label>Né(e) le</label>
+              <input v-model.trim="formCertificat.dateNaissance" type="date" />
+            </div>
+            <div class="field">
+              <label>Profession</label>
+              <input v-model.trim="formCertificat.profession" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>Durée de l'arrêt (jours)</label>
+              <input v-model.number="formCertificat.dureeJours" type="number" min="1" max="365" />
+            </div>
+            <div class="field">
+              <label>Du</label>
+              <input v-model="formCertificat.debut" type="date" />
+            </div>
+            <div class="field">
+              <label>Au</label>
+              <input v-model="formCertificat.fin" type="date" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>Médecin</label>
+              <input v-model.trim="formCertificat.medecin" />
+            </div>
+            <div class="field">
+              <label>Fait à</label>
+              <input v-model.trim="formCertificat.lieu" />
+            </div>
+            <div class="field">
+              <label>Le</label>
+              <input v-model="formCertificat.dateJour" type="date" />
+            </div>
+          </div>
+
+          <h3 class="section-title">Certificats enregistrés pour ce patient</h3>
+          <div v-if="certificatsEnregistres.length === 0" class="text-muted small-note">
+            Aucun certificat enregistré — imprimez pour créer le premier.
+          </div>
+          <div v-else class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Numéro</th><th>Établi le</th><th>Durée</th><th>Période</th><th></th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="c in certificatsEnregistres" :key="c.id">
+                  <td><strong>{{ c.numero }}</strong></td>
+                  <td>{{ formatDateFr(c.createdAt) }}</td>
+                  <td>{{ c.dureeJours }} jour(s)</td>
+                  <td>{{ formatDateFr(c.debut) }} → {{ formatDateFr(c.fin) }}</td>
+                  <td>
+                    <button class="btn btn-outline btn-sm" @click="rechargerCertificat(c)">🖨️ Réimprimer</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </main>
 
@@ -1078,7 +1169,7 @@
         d'imprimer
       </span>
       <div class="apercu-barre-actions">
-        <button class="btn btn-primary btn-sm" @click="imprimerFiche">🖨️ Imprimer</button>
+        <button class="btn btn-primary btn-sm" @click="imprimerDepuisApercu">🖨️ Imprimer</button>
         <button
           class="btn btn-outline btn-sm btn-back"
           @click="apercuFicheVisible = false; apercuExamensVisible = false"
@@ -1090,9 +1181,9 @@
 
     <!-- Fiche de consultation imprimable (A4, format papier) -->
     <div
-      v-if="passageCourant"
+      v-if="passageCourant && (zoneImpression === 'fiche' || apercuFicheVisible)"
       id="fiche-print"
-      :class="{ 'apercu-flottant': apercuFicheVisible, 'masque-impression': apercuExamensVisible }"
+      :class="{ 'apercu-flottant': apercuFicheVisible }"
     >
       <div class="fiche-a4">
         <div class="fiche-a4-head">
@@ -1102,7 +1193,7 @@
         <h2 class="fiche-a4-titre">FICHE DE CONSULTATION CURATIVE</h2>
 
         <!-- Données administratives -->
-        <h2 class="fiche-a4-section">Données administratives</h2>
+        <h2 class="fiche-a4-section">DONNÉES ADMINISTRATIVES</h2>
         <p class="fiche-a4-ligne">Numéro d'ordre : <strong>{{ passageCourant.numeroOrdre }}</strong></p>
         <p class="fiche-a4-ligne">
           Mode d'entrée :
@@ -1168,7 +1259,7 @@
         <p class="fiche-a4-ligne">Type de suivi : {{ formConsult.typeSuivi }} &nbsp;&nbsp; Consultant : {{ formConsult.consultantType }}</p>
 
         <!-- Examen clinique -->
-        <h2 class="fiche-a4-section">Examen clinique et constantes physiques du patient</h2>
+        <h2 class="fiche-a4-section">EXAMEN CLINIQUE ET CONSTANTES PHYSIQUES DU PATIENT</h2>
         <p class="fiche-a4-ligne">Motifs de consultation : {{ formConsult.motif }}</p>
         <p class="fiche-a4-ligne">
           Constantes physiques : Poids : {{ formConsult.poids }} kg &nbsp; Taille : {{ formConsult.taille }} m &nbsp;
@@ -1185,7 +1276,7 @@
         <p class="fiche-a4-ligne">Diagnostic retenu : <strong>{{ formConsult.diagnostic }}</strong></p>
         <p class="fiche-a4-ligne">Autres pathologies associées : {{ formConsult.pathologiesAssociees }}</p>
 
-        <h2 class="fiche-a4-section">Examens complémentaires</h2>
+        <h2 class="fiche-a4-section">EXAMENS COMPLÉMENTAIRES</h2>
         <p class="fiche-a4-ligne">
           TDR Paludisme : {{ caseCoche(formConsult.tdrPaludisme === 'positif') }} positif
           {{ caseCoche(formConsult.tdrPaludisme === 'négatif') }} Négatif
@@ -1216,7 +1307,7 @@
         <p class="fiche-a4-texte">{{ textePrescriptions || '—' }}</p>
 
         <!-- Issue -->
-        <h2 class="fiche-a4-section">Issue de la consultation</h2>
+        <h2 class="fiche-a4-section">ISSUE DE LA CONSULTATION</h2>
         <p class="fiche-a4-ligne">
           Sortie :
           <span v-for="o in ISSUES_SORTIE" :key="o.value">{{ caseCoche(formConsult.issueSortie === o.value) }} {{ o.label }} &nbsp;</span>
@@ -1248,7 +1339,7 @@
     </div>
 
     <!-- Ordonnance d'examens imprimable (A4, navigateur) -->
-    <div v-if="apercuExamensVisible && detail" id="ordo-examens-print" class="apercu-flottant">
+    <div v-if="(apercuExamensVisible || zoneImpression === 'examens') && detail" id="ordo-examens-print" class="apercu-flottant">
       <div class="ordo-ex-a4">
         <div class="fiche-a4-head">
           <h1>{{ cliniqueNom }}</h1>
@@ -1309,7 +1400,7 @@
     </div>
 
     <!-- Ordonnance imprimable (A4, navigateur) -->
-    <div v-if="ordonnance" id="ordo-print">
+    <div v-if="ordonnance && zoneImpression === 'ordonnance'" id="ordo-print">
       <div class="ordo-a4">
         <div class="ordo-a4-head">
           <img :src="logoClinique" alt="Logo" class="ordo-a4-logo" />
@@ -1366,11 +1457,59 @@
         <div class="ordo-a4-cut" aria-hidden="true">✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ✂</div>
       </div>
     </div>
+
+    <!-- ============ Certificat d'arrêt de travail (modèle officiel, A4) ============ -->
+    <div v-if="zoneImpression === 'certificat'" id="certificat-print">
+      <div class="certificat-a4">
+        <div class="certificat-entete">
+          <img :src="logoClinique" alt="Logo" class="certificat-logo" />
+          <div class="certificat-entete-texte">
+            <div class="certificat-clinique">{{ cliniqueNom }}</div>
+            <div v-if="cliniqueTel" class="certificat-tel">Tel: {{ cliniqueTel }}</div>
+          </div>
+        </div>
+        <h1 class="certificat-titre">CERTIFICAT D'ARRÊT DE TRAVAIL</h1>
+        <p class="certificat-corps">
+          Je soussigné(e), <strong class="certificat-valeur">{{ formCertificat.medecin || 'Dr ……………………' }}</strong>,
+          Médecin traitant au <strong class="certificat-valeur">{{ auth.user?.clinique?.nom || 'Centre Médical Espoir de Bloléquin' }}</strong>,
+          certifie avoir examiné ce jour :
+        </p>
+        <p class="certificat-corps">
+          {{ formCertificat.civilite }} : <strong class="certificat-valeur">{{ formCertificat.nomPatient || '………………………………………………' }}</strong><br />
+          Né(e) le : <strong class="certificat-valeur">{{ formCertificat.dateNaissance || '………………' }}</strong>&nbsp;&nbsp;&nbsp;
+          Profession : <strong class="certificat-valeur">{{ formCertificat.profession || '………………………………' }}</strong>
+        </p>
+        <p class="certificat-corps">
+          Après examen clinique, l'état de santé de l'intéressé(e) nécessite un arrêt de travail de :
+          <strong class="certificat-valeur">{{ formCertificat.dureeJours }}</strong>
+          (<strong class="certificat-valeur">{{ nombreEnLettres(Number(formCertificat.dureeJours) || 0) }}</strong>) jours.
+        </p>
+        <p class="certificat-corps">
+          Période de l'arrêt : du <strong class="certificat-valeur">{{ formatDateFr(formCertificat.debut) }}</strong>
+          au <strong class="certificat-valeur">{{ formatDateFr(formCertificat.fin) }}</strong>,
+          sous réserve de l'évolution de son état de santé et en l'absence de toute complication.
+        </p>
+        <p class="certificat-corps">
+          Cet arrêt de travail est prescrit afin de permettre au patient de bénéficier du repos nécessaire à son rétablissement.
+        </p>
+        <p class="certificat-corps">
+          En foi de quoi, le présent certificat est délivré à l'intéressé(e) pour servir et valoir ce que de droit.
+        </p>
+        <p class="certificat-corps">
+          Fait à <strong class="certificat-valeur">{{ formCertificat.lieu }}</strong>,
+          le <strong class="certificat-valeur">{{ formatDateFr(formCertificat.dateJour) }}</strong>
+        </p>
+        <div class="certificat-signature">
+          <div class="certificat-cachet">Signature et cachet</div>
+          <div class="certificat-medecin">LE MÉDECIN TRAITANT</div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import http from '../api/http'
@@ -1384,6 +1523,7 @@ const router = useRouter()
 const cliniqueId = computed(() => auth.user?.clinique?.id ?? null)
 const cliniqueNom = computed(() => auth.user?.clinique?.nom || 'Gestion Clinique')
 const cliniqueAdresse = ref('')
+const cliniqueTel = computed(() => auth.user?.clinique?.telephone || '')
 
 const todayLabel = computed(() =>
   new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
@@ -1466,7 +1606,148 @@ async function ouvrirTerminee(a) {
 }
 
 // Onglets de la consultation
-const onglet = ref('fiche') // fiche | medicaments | examens
+const onglet = ref('fiche') // fiche | medicaments | examens | certificat
+
+// ── Certificat d'arrêt de travail (modèle officiel) ──
+const formCertificat = reactive({
+  civilite: 'Mme',
+  nomPatient: '',
+  dateNaissance: '',
+  profession: '',
+  dureeJours: 7,
+  debut: '',
+  fin: '',
+  medecin: '',
+  lieu: '',
+  dateJour: '',
+})
+
+function nombreEnLettres(n) {
+  // Conversion simple des nombres 1-365 en lettres (français)
+  const unites = ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf',
+    'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf']
+  const dizaines = ['', '', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante-dix', 'quatre-vingt', 'quatre-vingt-dix']
+  if (n < 20) return unites[n]
+  if (n < 100) {
+    const d = Math.floor(n / 10)
+    const u = n % 10
+    if (u === 0) return dizaines[d]
+    if (d === 7 || d === 9) return `${dizaines[d - 1]}-${unites[10 + u]}`
+    return `${dizaines[d]}-${unites[u]}`
+  }
+  if (n < 1000) {
+    const c = Math.floor(n / 100)
+    const r = n % 100
+    const cent = c === 1 ? 'cent' : `${unites[c]} cent${c > 1 ? 's' : ''}`
+    return r === 0 ? cent : `${cent} ${nombreEnLettres(r)}`
+  }
+  return String(n)
+}
+
+function initCertificat() {
+  const p = detail.value?.passage?.patient
+  const personnel = auth.user?.personnel
+  const aujourdHui = new Date()
+  const iso = (d) => d.toISOString().slice(0, 10)
+  const fin = new Date(aujourdHui)
+  fin.setDate(fin.getDate() + (Number(formCertificat.dureeJours) || 7) - 1)
+  Object.assign(formCertificat, {
+    civilite: p?.sexe === 'M' ? 'M.' : 'Mme',
+    nomPatient: p ? `${p.nom} ${p.prenom}` : '',
+    dateNaissance: p?.dateNaissance ? p.dateNaissance.slice(0, 10) : '',
+    profession: p?.profession ?? '',
+    dureeJours: formCertificat.dureeJours || 7,
+    debut: iso(aujourdHui),
+    fin: iso(fin),
+    medecin: personnel ? `Dr ${personnel.nom} ${personnel.prenom}` : '',
+    lieu: auth.user?.clinique?.adresse || auth.user?.clinique?.nom || 'Bloléquin',
+    dateJour: iso(aujourdHui),
+  })
+}
+
+watch(() => formCertificat.dureeJours, (duree) => {
+  if (!formCertificat.debut) return
+  const debut = new Date(formCertificat.debut)
+  const fin = new Date(debut)
+  fin.setDate(fin.getDate() + (Number(duree) || 1) - 1)
+  formCertificat.fin = fin.toISOString().slice(0, 10)
+})
+
+watch(onglet, (o) => {
+  if (o === 'certificat') {
+    initCertificat()
+    chargerCertificats()
+  }
+})
+
+const certificatsEnregistres = ref([])
+const certificatEnCours = ref(false)
+
+/** Charge les certificats déjà établis pour cette consultation. */
+async function chargerCertificats() {
+  if (!consultation.value) return
+  try {
+    const { data } = await http.get(`/consultations/${consultation.value.id}/certificats-arret`)
+    certificatsEnregistres.value = data ?? []
+  } catch {
+    certificatsEnregistres.value = []
+  }
+}
+
+/** Recharge un certificat enregistré dans le formulaire pour le réimprimer. */
+function rechargerCertificat(c) {
+  Object.assign(formCertificat, {
+    civilite: c.civilite,
+    nomPatient: c.nomPatient,
+    dateNaissance: c.dateNaissance ?? '',
+    profession: c.profession ?? '',
+    dureeJours: c.dureeJours,
+    debut: c.debut ? c.debut.slice(0, 10) : '',
+    fin: c.fin ? c.fin.slice(0, 10) : '',
+    medecin: c.medecin,
+    lieu: c.lieu ?? '',
+    dateJour: new Date(c.createdAt).toISOString().slice(0, 10),
+  })
+  onglet.value = 'certificat'
+  lancerImpression('certificat')
+}
+
+async function imprimerCertificat() {
+  initCertificat()
+  // Enregistrement du certificat (numéro séquentiel, horodaté, médecin tracé)
+  certificatEnCours.value = true
+  try {
+    if (consultation.value) {
+      await http.post(`/consultations/${consultation.value.id}/certificat-arret`, {
+        civilite: formCertificat.civilite,
+        nomPatient: formCertificat.nomPatient || detail.value?.passage?.patient?.nom || '',
+        dateNaissance: formCertificat.dateNaissance || undefined,
+        profession: formCertificat.profession || undefined,
+        dureeJours: Number(formCertificat.dureeJours) || 1,
+        debut: formCertificat.debut,
+        fin: formCertificat.fin,
+        medecin: formCertificat.medecin,
+        lieu: formCertificat.lieu || undefined,
+      })
+      await chargerCertificats()
+      toastSuccess('Certificat enregistré — prêt pour l’impression.')
+    }
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Enregistrement du certificat impossible.')
+  } finally {
+    certificatEnCours.value = false
+  }
+  lancerImpression('certificat')
+}
+
+/** Date au format jj/mm/aaaa (format du certificat officiel). */
+function formatDateFr(d) {
+  if (!d) return '……/……/……'
+  const date = new Date(d)
+  if (isNaN(date.getTime())) return '……/……/……'
+  const p = (n) => String(n).padStart(2, '0')
+  return `${p(date.getDate())}/${p(date.getMonth() + 1)}/${date.getFullYear()}`
+}
 
 // Formulaire consultation (fiche curative)
 const formConsult = reactive({})
@@ -1606,8 +1887,24 @@ function caseCoche(valeur) {
   return valeur ? '☑' : '☐'
 }
 
-function imprimerFiche() {
+// Zone d'impression active : UNE seule à la fois (évite que la fiche ou
+// l'ordonnance sortent quand on imprime le certificat, et inversement).
+const zoneImpression = ref(null) // 'fiche' | 'ordonnance' | 'examens' | 'certificat'
+
+async function lancerImpression(zone) {
+  zoneImpression.value = zone
+  await nextTick() // attendre le RENDU de la zone avant d'imprimer
   window.print()
+  zoneImpression.value = null
+}
+
+function imprimerFiche() {
+  lancerImpression('fiche')
+}
+
+/** Imprime la zone affichée dans l'aperçu flottant (fiche ou ordonnance d'examens). */
+function imprimerDepuisApercu() {
+  lancerImpression(apercuFicheVisible.value ? 'fiche' : 'examens')
 }
 
 // Aperçu de la fiche (flottant) avant impression
@@ -2152,7 +2449,7 @@ async function imprimerOrdonnance() {
 
 async function imprimerNavigateur() {
   construireApercu()
-  window.print()
+  lancerImpression('ordonnance')
 }
 
 function formatDate(d) {
@@ -2870,6 +3167,98 @@ onUnmounted(() => {
   @page {
     size: A4;
     margin: 16mm 14mm;
+  }
+}
+/* ── Certificat d'arrêt de travail (modèle officiel) ── */
+@media screen {
+  #certificat-print {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+  }
+}
+.certificat-a4 {
+  width: 182mm;
+  max-width: 100%;
+  margin: 0 auto;
+  background: #fff;
+  padding: 10mm 12mm;
+  font-family: 'Times New Roman', 'Segoe UI', serif;
+  color: #111;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.certificat-entete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 8mm;
+}
+.certificat-logo {
+  width: 74px;
+  height: 74px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.certificat-entete-texte {
+  text-align: center;
+}
+.certificat-clinique {
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.certificat-tel {
+  font-size: 11px;
+}
+.certificat-titre {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0 0 14px;
+  text-decoration: underline;
+}
+.certificat-corps {
+  font-weight: 700;
+  margin: 10px 0;
+  text-align: justify;
+  hyphens: auto;
+}
+.certificat-valeur {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.certificat-signature {
+  margin-top: 26mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.certificat-cachet {
+  border: 1px solid #111;
+  border-radius: 6px;
+  width: 150px;
+  height: 55px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #555;
+  font-style: italic;
+  font-weight: 400;
+}
+.certificat-medecin {
+  font-weight: 800;
+  text-align: right;
+}
+@media print {
+  .certificat-a4 {
+    width: 100%;
+    padding: 0;
   }
 }
 .modal-a4 {
