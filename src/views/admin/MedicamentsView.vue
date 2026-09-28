@@ -128,10 +128,6 @@
               <small class="text-muted">Le stock sera géré par le module Pharmacie.</small>
             </div>
             <div class="field">
-              <label>Seuil d'alerte</label>
-              <input v-model.number="form.seuilAlerte" type="number" min="0" placeholder="Ex : 10" />
-            </div>
-            <div class="field">
               <label>Consommable</label>
               <select v-model="form.consommable">
                 <option :value="false">Non</option>
@@ -258,7 +254,7 @@ function openForm(m) {
       prixVente: m.prixVente ?? null,
       uniteVente: m.uniteVente ?? 'BOITE',
       stock: m.stock ?? 0,
-      seuilAlerte: m.seuilAlerte ?? 0,
+      // seuilAlerte : géré automatiquement
       consommable: m.consommable ?? false,
     })
   } else {
@@ -288,7 +284,7 @@ async function save() {
       prixVente: form.prixVente ?? undefined,
       uniteVente: form.uniteVente ?? 'BOITE',
       stock: form.stock ?? 0,
-      seuilAlerte: form.seuilAlerte ?? 0,
+      // Seuil d'alerte : calculé AUTOMATIQUEMENT (consommation 30 j ÷ 30)
       consommable: form.consommable ?? false,
     }
     if (form.id) {

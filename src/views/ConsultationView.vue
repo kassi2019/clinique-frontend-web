@@ -1717,21 +1717,25 @@ async function imprimerCertificat() {
   // Enregistrement du certificat (numéro séquentiel, horodaté, médecin tracé)
   certificatEnCours.value = true
   try {
-    if (consultation.value) {
-      await http.post(`/consultations/${consultation.value.id}/certificat-arret`, {
-        civilite: formCertificat.civilite,
-        nomPatient: formCertificat.nomPatient || detail.value?.passage?.patient?.nom || '',
-        dateNaissance: formCertificat.dateNaissance || undefined,
-        profession: formCertificat.profession || undefined,
-        dureeJours: Number(formCertificat.dureeJours) || 1,
-        debut: formCertificat.debut,
-        fin: formCertificat.fin,
-        medecin: formCertificat.medecin,
-        lieu: formCertificat.lieu || undefined,
-      })
-      await chargerCertificats()
-      toastSuccess('Certificat enregistré — prêt pour l’impression.')
+    // Si la fiche n'a pas encore été enregistrée, on crée la consultation
+    // pour pouvoir y rattacher le certificat.
+    if (!consultation.value) {
+      const { data } = await http.post(`/consultations/passages/${passageCourant.value.id}`, {})
+      consultation.value = data
     }
+    await http.post(`/consultations/${consultation.value.id}/certificat-arret`, {
+      civilite: formCertificat.civilite,
+      nomPatient: formCertificat.nomPatient || detail.value?.passage?.patient?.nom || '',
+      dateNaissance: formCertificat.dateNaissance || undefined,
+      profession: formCertificat.profession || undefined,
+      dureeJours: Number(formCertificat.dureeJours) || 1,
+      debut: formCertificat.debut,
+      fin: formCertificat.fin,
+      medecin: formCertificat.medecin,
+      lieu: formCertificat.lieu || undefined,
+    })
+    await chargerCertificats()
+    toastSuccess('Certificat enregistré — prêt pour l’impression.')
   } catch (e) {
     toastError(e.response?.data?.message || 'Enregistrement du certificat impossible.')
   } finally {

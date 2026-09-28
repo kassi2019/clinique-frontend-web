@@ -12,6 +12,9 @@
         </div>
         <div class="header-actions">
           <span class="date-pill">{{ todayLabel }}</span>
+          <button class="btn btn-outline btn-sm btn-bascule" @click="router.push({ name: 'caisse' })">
+            💰 Caisse
+          </button>
           <button class="btn btn-outline btn-sm btn-back" @click="router.push({ name: 'home' })">
             ← Modules
           </button>
@@ -363,11 +366,21 @@
                 <tr v-for="m in stocks" :key="m.id">
                   <td><strong>{{ m.nom }}</strong><span v-if="m.dosage" class="text-muted"> {{ m.dosage }}</span></td>
                   <td>
-                    <span class="badge" :class="m.alerteStock ? 'badge-danger' : m.stock > 0 ? 'badge-success' : 'badge-warning'">
+                    <span
+                      class="badge"
+                      :style="{
+                        backgroundColor: m.statutStock?.couleur ?? '#64748b',
+                        color: '#fff',
+                      }"
+                      :title="m.statutStock?.libelle"
+                    >
                       {{ m.stock }}
                     </span>
                   </td>
-                  <td>{{ m.seuilAlerte }}</td>
+                  <td>
+                    {{ m.seuilAlerte }}
+                    <span class="text-muted statut-stock-libelle">{{ m.statutStock?.libelle }}</span>
+                  </td>
                   <td>{{ m.prixVente ? m.prixVente.toLocaleString('fr-FR') + ' F' : '—' }}</td>
                   <td>
                     <div v-for="l in m.lots.slice(0, 3)" :key="l.id" class="lot-line">
@@ -1159,6 +1172,11 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.statut-stock-libelle {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+}
 .pharmacie-page {
   min-height: 100vh;
   background: linear-gradient(170deg, #ffffff 0%, #eef9f7 55%, #e3f4f0 100%);
@@ -1222,6 +1240,14 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
   text-transform: capitalize;
+}
+.btn-bascule {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.55);
+  font-weight: 700;
+}
+.btn-bascule:hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 .btn-back {
   color: #fff;

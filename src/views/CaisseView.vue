@@ -12,6 +12,9 @@
         </div>
         <div class="header-actions">
           <span class="date-pill">{{ todayLabel }}</span>
+          <button class="btn btn-outline btn-sm btn-bascule" @click="router.push({ name: 'pharmacie' })">
+            💊 Pharmacie
+          </button>
           <button class="btn btn-outline btn-sm btn-back" @click="router.push({ name: 'home' })">
             ← Modules
           </button>
@@ -927,6 +930,14 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
   text-transform: capitalize;
+}
+.btn-bascule {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.55);
+  font-weight: 700;
+}
+.btn-bascule:hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 .btn-back {
   color: #fff;
