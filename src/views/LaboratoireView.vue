@@ -84,7 +84,7 @@
             v-model="recherche"
             class="search-input"
             type="text"
-            placeholder="Rechercher par code patient, nom ou N° d'ordre…"
+            placeholder="Rechercher par code dossier patient, nom ou N° d'ordre…"
             @input="onRecherche"
           />
         </div>
@@ -467,7 +467,7 @@
             </span>
           </div>
           <div class="labo-a4-ligne">
-            <span class="labo-a4-label">Code patient</span>
+            <span class="labo-a4-label">Code dossier patient</span>
             <span>{{ cr.patient.code }}</span>
           </div>
           <div class="labo-a4-ligne">

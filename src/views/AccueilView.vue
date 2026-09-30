@@ -78,7 +78,7 @@
             v-model="rechercheCode"
             class="search-input"
             type="text"
-            placeholder="Ou rechercher par code patient ou N° d'ordre (ex. B9M48Y, MED-004092026)…"
+            placeholder="Ou rechercher par code dossier patient ou N° d'ordre (ex. B9M48Y, MED-004092026)…"
             @keyup.enter="rechercherParCode"
           />
           <button class="btn btn-outline btn-sm" :disabled="rechercheEnCours" @click="rechercherParCode">
@@ -101,7 +101,7 @@
           </select>
         </div>
 
-        <div v-if="loading" class="empty-state">Chargement…</div>
+        <div v-if="loading" class="empty-state chargement">Chargement…</div>
         <div v-else-if="error" class="alert alert-error">{{ error }}</div>
         <div v-else-if="passages.length === 0" class="empty-state">
           Aucun passage en attente de constante. 🎉
@@ -179,7 +179,7 @@
           </select>
         </div>
 
-        <div v-if="loading" class="empty-state">Chargement…</div>
+        <div v-if="loading" class="empty-state chargement">Chargement…</div>
         <div v-else-if="error" class="alert alert-error">{{ error }}</div>
         <div v-else-if="passages.length === 0" class="empty-state">
           Aucun passage avec constantes pour aujourd'hui.
@@ -255,7 +255,7 @@
           <span class="count-pill">{{ total }} passage(s)</span>
         </div>
 
-        <div v-if="loading" class="empty-state">Chargement…</div>
+        <div v-if="loading" class="empty-state chargement">Chargement…</div>
         <div v-else-if="error" class="alert alert-error">{{ error }}</div>
         <div v-else-if="passages.length === 0" class="empty-state">
           Aucun passage sur cette période.
@@ -660,7 +660,7 @@
       <div class="modal modal-ticket">
         <h2>✓ Passage enregistré</h2>
         <div class="code-display">
-          <span>Code patient (permanent)</span>
+          <span>Code dossier patient (permanent)</span>
           <strong>{{ passageCree.patient.code }}</strong>
           <small>N° d'ordre {{ passageCree.numeroOrdre }} — valable 10 jours</small>
         </div>

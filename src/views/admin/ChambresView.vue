@@ -41,7 +41,7 @@
       </div>
     </div>
 
-    <div v-if="chargement" class="empty-state">Chargement…</div>
+    <div v-if="chargement" class="empty-state chargement">Chargement…</div>
     <div v-else-if="chambres.length === 0" class="empty-state">
       Aucune chambre paramétrée. Ajoutez une première chambre et ses lits.
     </div>

@@ -128,7 +128,7 @@
             v-model="recherche"
             class="search-input"
             type="text"
-            placeholder="Rechercher par code patient ou N° d'ordre…"
+            placeholder="Rechercher par code dossier patient ou N° d'ordre…"
             @input="onRecherche"
           />
         </div>
@@ -881,7 +881,7 @@
                   </td>
                   <td>
                     <button
-                      v-if="resultatExamen(l)"
+                      v-if="resultatExamen(l) || (l.prestation?.type === 'IMAGERIE' && fichesPassage.length)"
                       class="btn btn-outline btn-sm"
                       title="Voir le résultat de l'examen"
                       @click="ouvrirResultat(l)"
@@ -1004,7 +1004,7 @@
     <!-- Modale : résultat d'examen (labo / imagerie) -->
     <div v-if="resultatVisible" class="modal-backdrop">
       <div class="modal">
-        <h2>📋 Résultat d'examen — {{ resultatCourant?.exam.libelle }}</h2>
+        <h2>📋 Résultat d'examen — {{ resultatCourant?.exam?.libelle || resultatCourant?.libelle }}</h2>
         <template v-if="resultatCourant?.type === 'LABO'">
           <table class="resultat-table">
             <thead>
@@ -1029,12 +1029,28 @@
           </p>
         </template>
         <template v-else-if="resultatCourant?.type === 'IMAGERIE'">
-          <p><strong>Indication :</strong> {{ resultatCourant.exam.indication || '—' }}</p>
-          <p><strong>Technique :</strong> {{ resultatCourant.exam.technique || '—' }}</p>
-          <p><strong>Résultat :</strong> {{ resultatCourant.exam.resultat || '—' }}</p>
-          <p class="resultat-conclusion">
-            <strong>Conclusion :</strong> {{ resultatCourant.exam.conclusion || '—' }}
-          </p>
+          <template v-if="resultatCourant.exam">
+            <p><strong>Indication :</strong> {{ resultatCourant.exam.indication || '—' }}</p>
+            <p><strong>Technique :</strong> {{ resultatCourant.exam.technique || '—' }}</p>
+            <p><strong>Résultat :</strong> {{ resultatCourant.exam.resultat || '—' }}</p>
+            <p class="resultat-conclusion">
+              <strong>Conclusion :</strong> {{ resultatCourant.exam.conclusion || '—' }}
+            </p>
+          </template>
+
+          <!-- Fiches d'échographie du passage (texte complet établi par l'imagerie) -->
+          <div v-if="fichesPassage.length" class="resultat-fiches">
+            <h3>📄 Fiches d'échographie du passage</h3>
+            <div v-for="f in fichesPassage" :key="f.id" class="resultat-fiche">
+              <p class="resultat-fiche-titre">
+                {{ f.libelleType }} — {{ new Date(f.createdAt).toLocaleDateString('fr-FR') }}
+                <span v-if="f.medecin?.personnel" class="text-muted">
+                  · Dr {{ f.medecin.personnel.nom }} {{ f.medecin.personnel.prenom }}
+                </span>
+              </p>
+              <p class="resultat-fiche-texte">{{ f.texte }}</p>
+            </div>
+          </div>
         </template>
         <p v-if="resultatCourant?.exam.valideLe" class="text-muted small-note">
           Validé le {{ new Date(resultatCourant.exam.valideLe).toLocaleString('fr-FR') }}
@@ -1356,7 +1372,7 @@
             </span>
           </div>
           <div class="fiche-a4-ligne">
-            <span class="ordo-ex-label">Code patient</span>
+            <span class="ordo-ex-label">Code dossier patient</span>
             <span>{{ detail.passage.patient.code }}</span>
           </div>
           <div class="fiche-a4-ligne">
@@ -1937,7 +1953,10 @@ function estFait(l) {
 
 // ── Résultats des examens (visibles par le médecin) ──
 const resultatVisible = ref(false)
-const resultatCourant = ref(null) // { type: 'LABO' | 'IMAGERIE', exam }
+const resultatCourant = ref(null) // { type: 'LABO' | 'IMAGERIE', exam, libelle? }
+
+/** Fiches d'échographie établies par l'imagerie pour ce passage. */
+const fichesPassage = computed(() => detail.value?.passage?.fiches ?? [])
 
 /** Retourne l'examen réalisé (avec résultats) pour une ligne de prestation. */
 function resultatExamen(l) {
@@ -1957,8 +1976,10 @@ function resultatExamen(l) {
 }
 
 function ouvrirResultat(l) {
-  resultatCourant.value = resultatExamen(l)
-  if (resultatCourant.value) resultatVisible.value = true
+  const r = resultatExamen(l)
+  // Fiches seules (pas encore de CR validé) : on ouvre quand même pour le médecin
+  resultatCourant.value = r ?? { type: 'IMAGERIE', exam: null, libelle: l.libelle }
+  resultatVisible.value = true
 }
 
 function auteurExamen(exam) {
@@ -2491,6 +2512,38 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Fiches d'échographie dans la modale de résultat (visibles par le médecin) */
+.resultat-fiches {
+  margin-top: 14px;
+  border-top: 1px dashed var(--border);
+  padding-top: 10px;
+}
+.resultat-fiches h3 {
+  font-size: 13px;
+  color: #0f766e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.resultat-fiche {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.resultat-fiche-titre {
+  font-weight: 700;
+  font-size: 13.5px;
+  margin-bottom: 6px;
+}
+.resultat-fiche-texte {
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #334155;
+}
+
 .consultation-page {
   min-height: 100vh;
   background: linear-gradient(170deg, #ffffff 0%, #eef9f7 55%, #e3f4f0 100%);

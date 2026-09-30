@@ -49,7 +49,7 @@
             v-model="recherche"
             class="search-input"
             type="text"
-            placeholder="Rechercher par code patient, nom ou N° d'ordre…"
+            placeholder="Rechercher par code dossier patient, nom ou N° d'ordre…"
             @input="onRecherche"
           />
         </div>

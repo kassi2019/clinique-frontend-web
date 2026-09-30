@@ -9,7 +9,7 @@
     </div>
 
     <div class="card">
-      <div v-if="loading" class="empty-state">Chargement…</div>
+      <div v-if="loading" class="empty-state chargement">Chargement…</div>
       <div v-else-if="error" class="alert alert-error">{{ error }}</div>
       <div v-else-if="liste.length === 0" class="empty-state">Aucun service créé.</div>
       <div v-else class="table-wrap">

@@ -114,7 +114,7 @@
     <!-- ============ ASSURANCES ============ -->
     <div v-else>
 
-    <div v-if="chargement" class="empty-state">Chargement…</div>
+    <div v-if="chargement" class="empty-state chargement">Chargement…</div>
     <div v-else-if="assurances.length === 0" class="empty-state">
       Aucune assurance paramétrée (SUNU, NSIA, MUGEF…).
     </div>

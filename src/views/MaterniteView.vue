@@ -1,5 +1,10 @@
 <template>
   <div class="maternite-page">
+    <!-- Liste des résidences : partagée par les onglets CPN et CPON (toujours dans le DOM) -->
+    <datalist id="liste-residence">
+      <option v-for="r in listesParams.RESIDENCE" :key="r.id" :value="r.libelle" />
+    </datalist>
+
     <!-- En-tête -->
     <header class="maternite-header">
       <div class="header-inner">
@@ -43,14 +48,19 @@
         <section v-if="onglet === 'attente'" class="card">
           <div class="card-header">
             <h2>Patientes à traiter — par ordre d'arrivée</h2>
-            <button class="btn btn-outline btn-sm" @click="chargerFile">🔄 Actualiser</button>
+            <div class="actions">
+              <button class="btn btn-danger btn-sm" @click="ouvrirUrgence">
+                🚑 Accouchement en urgence
+              </button>
+              <button class="btn btn-outline btn-sm" @click="chargerFile">🔄 Actualiser</button>
+            </div>
           </div>
           <div class="toolbar">
             <input
               v-model="recherche"
               class="search-input"
               type="text"
-              placeholder="Rechercher par code patient, nom ou N° d'ordre…"
+              placeholder="Rechercher par code dossier patient, nom ou N° d'ordre…"
               @input="onRecherche"
             />
           </div>
@@ -72,7 +82,7 @@
             v-if="!resultatsRecherche.length && recherche.trim().length >= 2"
             class="empty-state"
           >
-            Aucune patiente trouvée avec une prestation maternité payée.
+            Aucune patiente trouvée avec une prestation maternité payée ou en attente de paiement.
           </div>
 
           <div v-if="!recherche.trim()">
@@ -92,7 +102,25 @@
                 <tbody>
                   <tr v-for="(p, i) in file" :key="p.id">
                     <td>{{ i + 1 }}</td>
-                    <td><strong>{{ p.patient.nom }} {{ p.patient.prenom }}</strong></td>
+                    <td>
+                      <strong>{{ p.patient.nom }} {{ p.patient.prenom }}</strong>
+                      <span
+                        v-if="p.credit"
+                        class="badge badge-warning"
+                        style="margin-left: 6px"
+                        title="Prise en charge par ticket de crédit ou cas social"
+                      >
+                        Crédit / Cas social
+                      </span>
+                      <span
+                        v-else-if="p.paye === false"
+                        class="badge badge-warning"
+                        style="margin-left: 6px"
+                        title="Paiement à encaisser à la caisse après l'accouchement"
+                      >
+                        Non payé
+                      </span>
+                    </td>
                     <td>{{ p.numeroOrdre }}</td>
                     <td>{{ heure(p.createdAt) }}</td>
                     <td>{{ (p.actes ?? []).join(', ') }}</td>
@@ -259,9 +287,6 @@
               <div class="field">
                 <label>Résidence habituelle</label>
                 <input v-model.trim="formCpn.residenceHabituelle" list="liste-residence" />
-                <datalist id="liste-residence">
-                  <option v-for="r in listesParams.RESIDENCE" :key="r.id" :value="r.libelle" />
-                </datalist>
               </div>
               <div class="field">
                 <label>Résidence actuelle</label>
@@ -296,12 +321,17 @@
             <div class="form-separator">Grossesse</div>
             <div class="form-row">
               <div class="field"><label>DDR (date des dernières règles) *</label><input v-model="formCpn.ddr" type="date" required /></div>
-              <div class="field"><label>Terme prévu (calculé)</label><input :value="termePrevu" disabled /></div>
-              <div class="field"><label>Âge gestationnel (SA)</label><input v-model.trim="formCpn.ageGestationnelSA" placeholder="Ex : 16 SA + 3 j" /></div>
+              <div class="field"><label>Terme prévu (intervalle calculé)</label><input :value="termePrevu" disabled /></div>
+              <div class="field"><label>Âge gestationnel (calculé, modifiable)</label><input v-model.trim="formCpn.ageGestationnelSA" placeholder="Ex : 16 SA + 3 j" /></div>
             </div>
             <div class="form-row">
-              <div class="field"><label>Date de la dernière CPN</label><input :value="derniereCpn" disabled /></div>
-              <div class="field"><label>Rang de la visite</label><input :value="'CPN' + (visiteEnEdition ? visiteEnEdition.numero : (dossier?.visites?.length ?? 0) + 1)" disabled /></div>
+              <div class="field"><label>Date de la dernière CPN</label><input v-model="formCpn.dateDerniereCpn" type="date" /></div>
+              <div class="field">
+                <label>Rang de la visite</label>
+                <select v-model.number="formCpn.numero">
+                  <option v-for="n in 8" :key="n" :value="n">CPN{{ n }}</option>
+                </select>
+              </div>
             </div>
 
             <div class="form-separator">Statut vaccinal VAT</div>
@@ -578,7 +608,17 @@
             </div>
           </div>
           <div v-if="!dossier" class="empty-state">
-            Enregistrez d'abord la CPN1 (onglet CPN) pour créer le dossier de grossesse.
+            <p style="margin-bottom: 10px">
+              Cette patiente n'a pas de dossier de grossesse (elle n'a pas fait de CPN).
+            </p>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              :disabled="dossierEnCours"
+              @click="creerDossierAccouchement"
+            >
+              {{ dossierEnCours ? 'Création…' : '📂 Créer le dossier pour cet accouchement' }}
+            </button>
           </div>
           <form v-else @submit.prevent="enregistrerAccouchement">
             <div class="form-separator">Identité et arrivée</div>
@@ -891,6 +931,82 @@
         </section>
       </template>
     </main>
+
+    <!-- ============ Modale : accouchement en urgence ============ -->
+    <div v-if="urgenceVisible" class="modal-backdrop">
+      <div class="modal modal-lg">
+        <h2>🚑 Accouchement en urgence</h2>
+        <p class="text-muted small-note">
+          La patiente arrive en travail : l'accouchement est enregistré <strong>avant</strong> le
+          paiement (encaissé ensuite à la caisse) et sans passage par l'accueil.
+        </p>
+        <p v-if="urgenceError" class="alert alert-error">{{ urgenceError }}</p>
+
+        <div class="form-row">
+          <div class="field champ-large">
+            <label>Patiente existante (recherche)</label>
+            <input
+              v-model.trim="urgenceRecherche"
+              class="search-input"
+              type="text"
+              placeholder="Nom, prénom ou code dossier patient…"
+              :disabled="!!urgencePatiente"
+              @input="onUrgenceRecherche"
+            />
+            <ul v-if="urgenceResultats.length" class="resultats" style="margin-top: 6px">
+              <li v-for="pa in urgenceResultats" :key="pa.id">
+                <div class="resultat-item">
+                  <div>
+                    <strong>{{ pa.nom }} {{ pa.prenom }}</strong>
+                    <span>code {{ pa.code }} · {{ pa.age ?? '—' }} ans</span>
+                  </div>
+                  <button type="button" class="btn btn-outline btn-sm" @click="choisirUrgencePatiente(pa)">
+                    Choisir
+                  </button>
+                </div>
+              </li>
+            </ul>
+            <div
+              v-if="urgenceRecherche.trim().length >= 2 && !urgenceResultats.length"
+              class="text-muted small-note"
+            >
+              Aucune patiente trouvée — créez-la ci-dessous.
+            </div>
+          </div>
+          <div class="field">
+            <label>Patiente sélectionnée</label>
+            <div v-if="urgencePatiente" class="urgence-patiente">
+              <strong>{{ urgencePatiente.nom }} {{ urgencePatiente.prenom }}</strong>
+              <span class="text-muted">code {{ urgencePatiente.code }}</span>
+              <button type="button" class="btn btn-outline btn-sm" @click="urgencePatiente = null; urgenceRecherche = ''">
+                ✕ Nouvelle patiente
+              </button>
+            </div>
+            <div v-else class="text-muted small-note">— aucune (nouvelle patiente ci-dessous) —</div>
+          </div>
+        </div>
+
+        <div class="form-separator">Ou nouvelle patiente</div>
+        <div class="form-row">
+          <div class="field"><label>Nom *</label><input v-model.trim="urgenceForm.nom" :disabled="!!urgencePatiente" /></div>
+          <div class="field"><label>Prénom(s) *</label><input v-model.trim="urgenceForm.prenom" :disabled="!!urgencePatiente" /></div>
+          <div class="field"><label>Âge</label><input v-model.number="urgenceForm.age" type="number" min="0" :disabled="!!urgencePatiente" /></div>
+          <div class="field"><label>Téléphone</label><input v-model.trim="urgenceForm.telephone" :disabled="!!urgencePatiente" /></div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" @click="urgenceVisible = false">✖ Annuler</button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            :disabled="urgenceEnCours"
+            @click="creerUrgence"
+          >
+            {{ urgenceEnCours ? 'Création…' : '🚑 Créer le passage et ouvrir l\'accouchement' }}
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- ============ Modale : accouchement ============ -->
     <div v-if="modaleAccouchement" class="modal-backdrop">
@@ -1446,7 +1562,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import http from '../api/http'
 import PaginationBar from '../components/PaginationBar.vue'
@@ -1487,6 +1603,84 @@ async function chargerFile() {
     file.value = data
   } catch {
     file.value = []
+  }
+}
+
+// ── Accouchement en urgence (patiente non enregistrée / non payée) ──
+const urgenceVisible = ref(false)
+const urgenceRecherche = ref('')
+const urgenceResultats = ref([])
+const urgencePatiente = ref(null)
+const urgenceForm = reactive({ nom: '', prenom: '', age: null, telephone: '' })
+const urgenceEnCours = ref(false)
+const urgenceError = ref('')
+let urgenceTimer = null
+
+function ouvrirUrgence() {
+  urgenceVisible.value = true
+  urgenceError.value = ''
+  urgenceRecherche.value = ''
+  urgenceResultats.value = []
+  urgencePatiente.value = null
+  Object.assign(urgenceForm, { nom: '', prenom: '', age: null, telephone: '' })
+}
+
+function onUrgenceRecherche() {
+  clearTimeout(urgenceTimer)
+  urgenceTimer = setTimeout(async () => {
+    const q = urgenceRecherche.value.trim()
+    if (q.length < 2) {
+      urgenceResultats.value = []
+      return
+    }
+    try {
+      const { data } = await http.get('/maternite/urgences/patients', {
+        params: { recherche: q, cliniqueId: cliniqueId.value },
+      })
+      urgenceResultats.value = data
+    } catch {
+      urgenceResultats.value = []
+    }
+  }, 300)
+}
+
+function choisirUrgencePatiente(pa) {
+  urgencePatiente.value = pa
+  urgenceResultats.value = []
+}
+
+async function creerUrgence() {
+  urgenceError.value = ''
+  if (!urgencePatiente.value && (!urgenceForm.nom.trim() || !urgenceForm.prenom.trim())) {
+    urgenceError.value = 'Sélectionnez une patiente existante ou saisissez nom et prénoms.'
+    return
+  }
+  urgenceEnCours.value = true
+  try {
+    const corps = { cliniqueId: cliniqueId.value }
+    if (urgencePatiente.value) {
+      corps.patientId = urgencePatiente.value.id
+    } else {
+      corps.nouveauPatient = {
+        nom: urgenceForm.nom.trim(),
+        prenom: urgenceForm.prenom.trim(),
+        age: urgenceForm.age ?? undefined,
+        sexe: 'F',
+        telephone: urgenceForm.telephone.trim() || undefined,
+      }
+    }
+    const { data } = await http.post('/maternite/urgences', corps)
+    toastSuccess(
+      `Passage ${data.passage.numeroOrdre} créé — le paiement se fera à la caisse après l'accouchement.`,
+    )
+    urgenceVisible.value = false
+    passageCourant.value = data.passage
+    ongletTraitement.value = 'accouchement'
+    await chargerDetail()
+  } catch (e) {
+    urgenceError.value = e.response?.data?.message || "Impossible de créer le passage en urgence."
+  } finally {
+    urgenceEnCours.value = false
   }
 }
 
@@ -1632,6 +1826,8 @@ const visiteEnEdition = ref(null)
 function initFormCpn() {
   const g = dossier.value
   const pat = detail.value?.passage?.patient
+  // Constantes saisies à l'accueil : préremplissent l'examen clinique de la visite
+  const cst = detail.value?.passage
   const v = visiteEnEdition.value
   viderForm(formCpn)
   Object.assign(formCpn, {
@@ -1663,17 +1859,24 @@ function initFormCpn() {
     // Grossesse
     ddr: g?.ddr ? g.ddr.slice(0, 10) : '',
     ageGestationnelSA: v?.ageGestationnelSA ?? '',
+    dateDerniereCpn: g?.dateDerniereCpn
+      ? g.dateDerniereCpn.slice(0, 10)
+      : g?.visites?.length
+        ? g.visites[g.visites.length - 1].date.slice(0, 10)
+        : '',
+    // Rang de la visite (liste déroulante CPN1..CPN8)
+    numero: v?.numero ?? (g?.visites?.length ?? 0) + 1,
     // VAT / VIH
     vatStatut: g?.vatStatut ?? '',
     vat1: g?.vat1 ? g.vat1.slice(0, 10) : '',
     vat2: g?.vat2 ? g.vat2.slice(0, 10) : '',
     vatRappel: g?.vatRappel ? g.vatRappel.slice(0, 10) : '',
     statutVih: g?.statutVih ?? '',
-    // Examen clinique
-    poids: v?.poids != null ? Number(v.poids) : null,
-    taille: v?.taille ?? '',
-    tensionGauche: v?.tensionGauche ?? '',
-    tensionDroite: v?.tensionDroite ?? '',
+    // Examen clinique — prérempli par les constantes de l'accueil (poids, taille, TA)
+    poids: v?.poids != null ? Number(v.poids) : cst?.poids != null ? Number(cst.poids) : null,
+    taille: v?.taille ?? cst?.taille ?? '',
+    tensionGauche: v?.tensionGauche ?? cst?.tensionGauche ?? '',
+    tensionDroite: v?.tensionDroite ?? cst?.tensionDroite ?? '',
     oedemes: v?.oedemes ?? '',
     albumine: v?.albumine ?? '',
     sucre: v?.sucre ?? '',
@@ -1698,6 +1901,10 @@ function initFormCpn() {
     conseils: v?.conseils ?? '',
     prochaineVisite: v?.prochaineVisite ? v.prochaineVisite.slice(0, 10) : '',
   })
+  // Âge gestationnel précalculé depuis la DDR (s'il n'a pas été saisi)
+  if (formCpn.ddr && !formCpn.ageGestationnelSA) {
+    formCpn.ageGestationnelSA = calculerAgeGestationnel(formCpn.ddr, formCpn.date || undefined)
+  }
 }
 
 function editerVisite(v) {
@@ -1710,12 +1917,34 @@ function annulerEdition() {
   initFormCpn()
 }
 
+/** Terme prévu : intervalle calculé automatiquement depuis la DDR (DPA ± 15 jours). */
 const termePrevu = computed(() => {
   if (!formCpn.ddr) return ''
   const ddr = new Date(formCpn.ddr)
   const dpa = new Date(ddr.getTime() + 280 * 24 * 3600 * 1000)
-  return dpa.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const fmt = (d) => d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const debut = new Date(dpa.getTime() - 15 * 24 * 3600 * 1000)
+  const fin = new Date(dpa.getTime() + 15 * 24 * 3600 * 1000)
+  return `du ${fmt(debut)} au ${fmt(fin)}`
 })
+
+/** Âge gestationnel calculé depuis la DDR (ex. « 16 SA + 3 j »), modifiable. */
+function calculerAgeGestationnel(ddr, dateRef) {
+  if (!ddr) return ''
+  const debut = new Date(ddr)
+  const fin = dateRef ? new Date(dateRef) : new Date()
+  if (isNaN(debut.getTime()) || fin < debut) return ''
+  const jours = Math.floor((fin.getTime() - debut.getTime()) / (24 * 3600 * 1000))
+  return `${Math.floor(jours / 7)} SA + ${jours % 7} j`
+}
+
+// Recalcul automatique dès que la DDR change (à la date de la visite, sinon aujourd'hui)
+watch(
+  () => formCpn.ddr,
+  (ddr) => {
+    if (ddr) formCpn.ageGestationnelSA = calculerAgeGestationnel(ddr, formCpn.date || undefined)
+  },
+)
 
 const derniereCpn = computed(() => {
   const visites = dossier.value?.visites ?? []
@@ -1736,14 +1965,14 @@ function payloadNettoye(form) {
 const CHAMPS_DOSSIER = [
   'modeEntree', 'numeroGestante', 'ddr', 'gravidite', 'parite', 'enfantsVivants', 'enfantsDecedes',
   'cesariennes', 'avortements', 'toxemie', 'antecedentsMedicaux', 'antecedentsChirurgicaux',
-  'antecedentsObstetricaux', 'vatStatut', 'vat1', 'vat2', 'vatRappel', 'statutVih',
+  'antecedentsObstetricaux', 'vatStatut', 'vat1', 'vat2', 'vatRappel', 'statutVih', 'dateDerniereCpn',
 ]
 const CHAMPS_PATIENT = [
   'nom', 'prenom', 'age', 'profession', 'nationalite', 'statutConjugal',
   'scolarisation', 'residenceHabituelle', 'residenceActuelle', 'telephone',
 ]
 const CHAMPS_VISITE = [
-  'date', 'ageGestationnelSA', 'poids', 'taille', 'tensionGauche', 'tensionDroite',
+  'numero', 'date', 'ageGestationnelSA', 'poids', 'taille', 'tensionGauche', 'tensionDroite',
   'hauteurUterine', 'bcf', 'mouvementsActifs', 'oedemes', 'albumine', 'sucre',
   'presentation', 'tv', 'conseils', 'prochaineVisite', 'spDose', 'mildaRemise',
   'ferFolate', 'deparasitee', 'counselingPfppi', 'risqueDepiste', 'malnutrition',
@@ -1784,7 +2013,7 @@ async function enregistrerCpn() {
       toastSuccess('Visite CPN corrigée.')
     } else {
       await http.post(`/maternite/grossesses/${dossierId}/cpn`, champsVisite)
-      toastSuccess(`CPN${(dossier.value?.visites?.length ?? 0) + 1} enregistrée.`)
+      toastSuccess(`CPN${formCpn.numero} enregistrée.`)
     }
     visiteEnEdition.value = null
     await chargerDetail()
@@ -1871,6 +2100,24 @@ async function enregistrerAccouchement() {
     toastError(e.response?.data?.message || 'Enregistrement impossible.')
   } finally {
     saving.value = false
+  }
+}
+
+// ── Accouchement sans CPN : dossier de grossesse créé à la demande ──
+const dossierEnCours = ref(false)
+
+async function creerDossierAccouchement() {
+  if (!passageCourant.value) return
+  dossierEnCours.value = true
+  try {
+    const { data } = await http.post(`/maternite/passages/${passageCourant.value.id}/dossier`)
+    toastSuccess(`Dossier ${data.numero} créé — enregistrez maintenant l'accouchement.`)
+    await chargerDetail()
+    initFormAcc()
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Impossible de créer le dossier.')
+  } finally {
+    dossierEnCours.value = false
   }
 }
 
@@ -2291,6 +2538,15 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.urgence-patiente {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
 .maternite-page {
   min-height: 100vh;
   background: linear-gradient(170deg, #ffffff 0%, #eef9f7 55%, #e3f4f0 100%);

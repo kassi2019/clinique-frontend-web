@@ -11,7 +11,7 @@
     </div>
 
     <div class="card">
-      <div v-if="loading" class="empty-state">Chargement…</div>
+      <div v-if="loading" class="empty-state chargement">Chargement…</div>
       <div v-else-if="error" class="alert alert-error">{{ error }}</div>
       <div v-else-if="liste.length === 0" class="empty-state">Aucun utilisateur créé.</div>
       <div v-else class="table-wrap">
@@ -91,7 +91,12 @@
           <div class="form-row">
             <div class="field">
               <label>Matricule de connexion *</label>
-              <input v-model.trim="form.matricule" required placeholder="Ex : koffi.a" />
+              <input
+                v-model.trim="form.matricule"
+                :disabled="!!form.personnelId"
+                required
+                placeholder="Sélectionnez la fiche personnel"
+              />
               <p class="text-muted" style="font-size: 11px; margin-top: 3px">
                 Reprend automatiquement le matricule du personnel sélectionné.
               </p>
@@ -257,9 +262,11 @@ function openForm(u) {
       motDePasse: '',
     })
   } else {
+    const premier = personnelDisponibles.value[0]
     Object.assign(form, {
-      personnelId: personnelDisponibles.value[0]?.id ?? null,
-      matricule: '',
+      personnelId: premier?.id ?? null,
+      // Le matricule de connexion reprend TOUJOURS celui du personnel (champ grisé)
+      matricule: premier?.matricule ?? '',
       roleId: roles.value[0]?.id ?? null,
       motDePasse: '123456', // mot de passe par défaut (§ cahier des charges)
     })
@@ -267,13 +274,11 @@ function openForm(u) {
   formVisible.value = true
 }
 
-/** Au choix du personnel : préremplit le matricule de connexion avec celui du personnel. */
+/** Au choix du personnel : le matricule de connexion reprend celui du personnel (champ grisé). */
 function onPersonnelChange(id) {
   form.personnelId = id
   const p = personnelDisponibles.value.find((x) => x.id === id)
-  if (p && !form.matricule?.trim()) {
-    form.matricule = p.matricule
-  }
+  form.matricule = p?.matricule ?? ''
 }
 
 async function save() {

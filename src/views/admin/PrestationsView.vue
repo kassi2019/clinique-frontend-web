@@ -23,7 +23,7 @@
         </select>
       </div>
 
-      <div v-if="loading" class="empty-state">Chargement…</div>
+      <div v-if="loading" class="empty-state chargement">Chargement…</div>
       <div v-else-if="error" class="alert alert-error">{{ error }}</div>
       <div v-else-if="liste.length === 0" class="empty-state">Aucune prestation trouvée.</div>
       <div v-else class="table-wrap">
@@ -259,11 +259,24 @@ async function save() {
     delete payload.id
     if (form.id) {
       await http.patch(`/prestations/${form.id}`, payload)
+      toastSuccess('Prestation modifiée.')
     } else {
       await http.post('/prestations', payload)
+      toastSuccess('Prestation créée.')
     }
-    formVisible.value = false
-    toastSuccess(form.id ? 'Prestation modifiée.' : 'Prestation créée.')
+    // La modale reste OUVERTE (l'utilisateur la ferme lui-même) :
+    // le formulaire repart sur une nouvelle prestation, même clinique/service.
+    const { cliniqueId, serviceId } = form
+    Object.keys(form).forEach((k) => delete form[k])
+    Object.assign(form, {
+      cliniqueId,
+      serviceId,
+      code: '',
+      libelle: '',
+      type: 'CONSULTATION',
+      montant: 0,
+      actif: true,
+    })
     await load()
   } catch (e) {
     toastError(e.response?.data?.message || 'Erreur lors de l\'enregistrement.')

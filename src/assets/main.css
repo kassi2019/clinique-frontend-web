@@ -235,6 +235,19 @@ tbody tr:hover {
   padding: 40px 20px;
   color: var(--text-muted);
 }
+/* Illustration au-dessus du message quand une liste/table est vide */
+.empty-state::before {
+  content: '';
+  display: block;
+  width: 300px;
+  height: 200px;
+  margin: 0 auto 14px;
+  background: url('../assets/1425.png') center / contain no-repeat;
+}
+/* États de chargement : pas d'illustration */
+.empty-state.chargement::before {
+  display: none;
+}
 
 /* ---------- Barre d'outils (recherche + filtres) ---------- */
 .toolbar {
@@ -354,7 +367,9 @@ tbody tr:hover {
   #pf-print,
   #pf-print *,
   #certificat-print,
-  #certificat-print * {
+  #certificat-print *,
+  #recu-a4-print,
+  #recu-a4-print * {
     visibility: visible;
     height: auto !important;
     min-height: 0 !important;
@@ -373,7 +388,8 @@ tbody tr:hover {
   #cpon-print,
   #acc-print,
   #pf-print,
-  #certificat-print {
+  #certificat-print,
+  #recu-a4-print {
     position: absolute;
     left: 0;
     top: 0;
