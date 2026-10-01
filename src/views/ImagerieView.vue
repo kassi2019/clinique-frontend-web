@@ -817,9 +817,8 @@
             line-height: 1.45;
             text-align: justify;
           "
-        >
-          {{ ficheApercu.fiche.texte }}
-        </p>
+          v-html="texteFicheMarque(ficheApercu.fiche)"
+        ></p>
 
         <div class="ima-a4-sign">
           <div class="ima-a4-sign-date">
@@ -848,6 +847,7 @@ import {
 import { useRouter } from "vue-router";
 import Swal from "sweetalert2";
 import http from "../api/http";
+import { marquerValeurs } from "../utils/texteFiche";
 import PaginationBar from "../components/PaginationBar.vue";
 import SelectSearch from "../components/SelectSearch.vue";
 import { useAuthStore } from "../stores/auth";
@@ -1173,8 +1173,12 @@ async function enregistrerFiche() {
 }
 
 /** Affiche l'aperçu A4 de la fiche (en-tête officiel + texte généré) avant impression. */
-function ouvrirApercuFiche(f) {
-  const type = fichesTypes.value.find((t) => t.id === f.typeFicheId);
+/** Valeurs saisies en gras + police différente dans l'aperçu (comme à la main). */
+function texteFicheMarque(f) {
+  return marquerValeurs(f?.texte, f?.valeurs);
+}
+
+function ouvrirApercuFiche(f) {  const type = fichesTypes.value.find((t) => t.id === f.typeFicheId);
   ficheApercu.value = {
     fiche: f,
     titre: (type?.titre || type?.libelle || f.libelleType || "").toUpperCase(),
@@ -1737,6 +1741,10 @@ onUnmounted(() => {
   font-size: 11px;
   margin: 1px 0 3px;
   white-space: pre-wrap;
+}
+.ima-a4-texte .val {
+  font-weight: 800;
+  font-family: 'Georgia', 'Times New Roman', serif;
 }
 .ima-a4-sign {
   margin-top: 10px;

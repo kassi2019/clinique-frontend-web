@@ -1048,7 +1048,7 @@
                   · Dr {{ f.medecin.personnel.nom }} {{ f.medecin.personnel.prenom }}
                 </span>
               </p>
-              <p class="resultat-fiche-texte">{{ f.texte }}</p>
+              <p class="resultat-fiche-texte" v-html="marquerValeurs(f.texte, f.valeurs)"></p>
             </div>
           </div>
         </template>
@@ -1529,6 +1529,7 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import http from '../api/http'
+import { marquerValeurs } from '../utils/texteFiche'
 import { toastError, toastSuccess } from '../utils/notifications'
 import logoClinique from '../assets/logoclinique.jpeg'
 import SelectSearch from '../components/SelectSearch.vue'
@@ -2542,6 +2543,10 @@ onUnmounted(() => {
   font-size: 13px;
   line-height: 1.5;
   color: #334155;
+}
+.resultat-fiche-texte .val {
+  font-weight: 800;
+  font-family: 'Georgia', 'Times New Roman', serif;
 }
 
 .consultation-page {
