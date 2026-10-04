@@ -101,6 +101,7 @@ const navItems = [
       { to: { name: 'admin-personnel' }, label: 'Personnel', icon: '👤' },
       { to: { name: 'admin-roles' }, label: 'Rôles & habilitations', icon: '🛡️' },
       { to: { name: 'admin-utilisateurs' }, label: 'Utilisateurs', icon: '🔐' },
+      { to: { name: 'admin-journal' }, label: 'Journal des actions', icon: '📜' },
     ],
   },
   {

@@ -152,6 +152,11 @@ const routes = [
         name: 'admin-listes',
         component: () => import('../views/admin/ListesParametresView.vue'),
       },
+      {
+        path: 'journal',
+        name: 'admin-journal',
+        component: () => import('../views/admin/JournalView.vue'),
+      },
     ],
   },
 ]
