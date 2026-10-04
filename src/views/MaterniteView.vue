@@ -212,6 +212,7 @@
           <button class="tab-btn" :class="{ active: ongletTraitement === 'pf' }" @click="ongletTraitement = 'pf'">4. PF</button>
           <button class="tab-btn" :class="{ active: ongletTraitement === 'ordonnance' }" @click="ongletTraitement = 'ordonnance'; assurerConsultation()">5. Ordonnance</button>
           <button class="tab-btn" :class="{ active: ongletTraitement === 'examens' }" @click="ongletTraitement = 'examens'; assurerConsultation(); chargerPrestations()">6. Examens</button>
+          <button class="tab-btn" :class="{ active: ongletTraitement === 'reference' }" @click="ongletTraitement = 'reference'">7. Référence</button>
         </nav>
 
         <!-- ─── 1. CPN (registre complet, en pleine page) ─── -->
@@ -929,6 +930,25 @@
             </table>
           </div>
         </section>
+
+        <!-- ─── 7. Référence / contre-référence ─── -->
+        <section v-if="ongletTraitement === 'reference'" class="card">
+          <div class="card-header">
+            <h2>📤 Fiche de référence / contre-référence (évacuation)</h2>
+          </div>
+          <div v-if="detail?.passage.typePatient === 'EXTERNE'" class="empty-state">
+            La fiche de référence ne concerne pas les patients externes.
+          </div>
+          <ReferenceFiche
+            v-else-if="detail"
+            :passage="{
+              id: detail.passage.id,
+              patient: detail.passage.patient,
+              service: detail.passage.service,
+            }"
+            :clinique-id="cliniqueId ?? undefined"
+          />
+        </section>
       </template>
     </main>
 
@@ -1567,6 +1587,7 @@ import { useRouter } from 'vue-router'
 import http from '../api/http'
 import PaginationBar from '../components/PaginationBar.vue'
 import SelectSearch from '../components/SelectSearch.vue'
+import ReferenceFiche from '../components/ReferenceFiche.vue'
 import { useAuthStore } from '../stores/auth'
 import { toastError, toastSuccess } from '../utils/notifications'
 

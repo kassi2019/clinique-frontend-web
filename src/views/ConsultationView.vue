@@ -197,6 +197,9 @@
         <button class="tab-btn" :class="{ active: onglet === 'historique' }" @click="onglet = 'historique'">
           📚 Historique
         </button>
+        <button class="tab-btn" :class="{ active: onglet === 'reference' }" @click="onglet = 'reference'">
+          📤 Référence
+        </button>
       </nav>
       </div>
 
@@ -1014,75 +1017,164 @@
         <!-- ══ Onglet 5 : Historique médical du patient (consultations passées) ══ -->
         <section v-else-if="onglet === 'historique'" class="card">
           <div class="card-header">
-            <h2>📚 Historique du patient</h2>
+            <h2>📚 Historique du patient — du plus récent au plus ancien</h2>
           </div>
           <div v-if="historiquePatient.length === 0" class="empty-state">
             Aucune consultation antérieure pour ce patient.
           </div>
-          <div v-else class="historique-list">
-            <div v-for="h in historiquePatient" :key="h.id" class="historique-item">
-              <div class="historique-head">
-                <strong>{{ formatDateFr(h.createdAt) }}</strong>
-                <span>{{ h.passage?.service?.nom }} · {{ h.passage?.numeroOrdre }}</span>
-                <span v-if="h.medecin?.personnel" class="text-muted">
-                  Dr {{ h.medecin.personnel.nom }} {{ h.medecin.personnel.prenom }}
-                </span>
-              </div>
-              <p v-if="h.motif" class="historique-diag"><strong>Motif :</strong> {{ h.motif }}</p>
-              <p v-if="h.diagnostic" class="historique-diag"><strong>Diagnostic :</strong> {{ h.diagnostic }}</p>
-
-              <!-- Médicaments prescrits -->
-              <div v-if="h.medicaments?.length" class="historique-meds">
-                <strong>Médicaments :</strong>
-                <span v-for="m in h.medicaments" :key="m.id" class="historique-med">
-                  {{ m.nom }} — {{ m.posologie || '—' }} ({{ m.quantite || '—' }}, {{ m.duree || '—' }})
-                </span>
-              </div>
-
-              <!-- Examens de laboratoire avec résultats -->
-              <div v-if="h.passage?.examensLabo?.length" class="historique-examens">
-                <strong>🔬 Laboratoire :</strong>
-                <div v-for="e in h.passage.examensLabo" :key="e.id" class="historique-examen">
-                  <span class="badge" :class="e.statut === 'VALIDE' ? 'badge-success' : 'badge-warning'">
-                    {{ e.libelle }} — {{ e.statut === 'VALIDE' ? 'Validé' : 'En cours' }}
-                  </span>
-                  <ul v-if="e.lignes?.length" class="historique-lignes">
-                    <li v-for="lg in e.lignes" :key="lg.id">
-                      {{ lg.parametre }} : <strong>{{ lg.valeur }}</strong> {{ lg.unite }}
-                      <span class="text-muted">(normes {{ lg.normes || '—' }})</span>
-                    </li>
-                  </ul>
-                  <p v-if="e.conclusion" class="historique-conclusion">
-                    <strong>Conclusion :</strong> {{ e.conclusion }}
-                  </p>
-                </div>
-              </div>
-
-              <!-- Examens d'imagerie -->
-              <div v-if="h.passage?.examensImagerie?.length" class="historique-examens">
-                <strong>🩻 Imagerie :</strong>
-                <div v-for="e in h.passage.examensImagerie" :key="e.id" class="historique-examen">
-                  <span class="badge" :class="e.statut === 'VALIDE' ? 'badge-success' : 'badge-warning'">
-                    {{ e.libelle }} — {{ e.statut === 'VALIDE' ? 'Validé' : 'En cours' }}
-                  </span>
-                  <p v-if="e.resultat" class="historique-conclusion"><strong>Résultat :</strong> {{ e.resultat }}</p>
-                  <p v-if="e.conclusion" class="historique-conclusion"><strong>Conclusion :</strong> {{ e.conclusion }}</p>
-                </div>
-              </div>
-
-              <!-- Fiches d'échographie -->
-              <div v-if="h.passage?.fichesExamenImagerie?.length" class="historique-examens">
-                <strong>📄 Fiches d'échographie :</strong>
-                <div v-for="f in h.passage.fichesExamenImagerie" :key="f.id" class="historique-examen">
-                  <span class="badge badge-muted">{{ f.libelleType }} — {{ formatDateFr(f.createdAt) }}</span>
-                  <p class="resultat-fiche-texte" v-html="marquerValeurs(f.texte, f.valeurs)"></p>
-                </div>
-              </div>
-            </div>
+          <div v-else class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date de consultation</th>
+                  <th>N° de passage</th>
+                  <th>Service</th>
+                  <th>Médecin</th>
+                  <th>Diagnostic</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="h in historiquePatient" :key="h.id">
+                  <td>{{ formatDateFr(h.createdAt) }}</td>
+                  <td>
+                    <button class="btn-lien" title="Voir ce que le patient a reçu (ordonnance, examens, résultats)" @click="ouvrirHistoriqueDetail(h)">
+                      {{ h.passage?.numeroOrdre || '—' }}
+                    </button>
+                  </td>
+                  <td>{{ h.passage?.service?.nom || '—' }}</td>
+                  <td>
+                    <span v-if="h.medecin?.personnel">
+                      Dr {{ h.medecin.personnel.nom }} {{ h.medecin.personnel.prenom }}
+                    </span>
+                    <span v-else class="text-muted">—</span>
+                  </td>
+                  <td>{{ h.diagnostic || h.motif || '—' }}</td>
+                  <td>
+                    <button class="btn btn-outline btn-sm" @click="ouvrirHistoriqueDetail(h)">
+                      👁️ Détail
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
+        </section>
+
+        <!-- ══ Onglet 6 : Fiche de référence / contre-référence ══ -->
+        <section v-else-if="onglet === 'reference'" class="card">
+          <div class="card-header">
+            <h2>📤 Fiche de référence / contre-référence (évacuation)</h2>
+          </div>
+          <div v-if="detail?.passage.typePatient === 'EXTERNE'" class="empty-state">
+            La fiche de référence ne concerne pas les patients externes.
+          </div>
+          <ReferenceFiche
+            v-else-if="detail"
+            :passage="{
+              id: detail.passage.id,
+              patient: detail.passage.patient,
+              service: detail.passage.service,
+            }"
+            :clinique-id="cliniqueId ?? undefined"
+          />
         </section>
       </div>
     </main>
+
+    <!-- Modale : détail d'une consultation passée (ce que le patient a reçu) -->
+    <div v-if="historiqueDetail" class="modal-backdrop">
+      <div class="modal modal-lg">
+        <h2>
+          📚 Passage {{ historiqueDetail.passage?.numeroOrdre || '—' }} — {{ formatDateFr(historiqueDetail.createdAt) }}
+        </h2>
+        <div class="fiche-info">
+          <div class="fiche-ligne">
+            <span class="fiche-label">Patient</span>
+            <strong>{{ detail?.passage?.patient?.nom }} {{ detail?.passage?.patient?.prenom }}</strong>
+          </div>
+          <div class="fiche-ligne">
+            <span class="fiche-label">Service</span>
+            <span>{{ historiqueDetail.passage?.service?.nom || '—' }}</span>
+          </div>
+          <div class="fiche-ligne">
+            <span class="fiche-label">Médecin</span>
+            <span>
+              <template v-if="historiqueDetail.medecin?.personnel">
+                Dr {{ historiqueDetail.medecin.personnel.nom }} {{ historiqueDetail.medecin.personnel.prenom }}
+              </template>
+              <template v-else>—</template>
+            </span>
+          </div>
+        </div>
+
+        <p v-if="historiqueDetail.motif" class="historique-diag"><strong>Motif :</strong> {{ historiqueDetail.motif }}</p>
+        <p v-if="historiqueDetail.diagnostic" class="historique-diag"><strong>Diagnostic :</strong> {{ historiqueDetail.diagnostic }}</p>
+
+        <!-- Ordonnance : médicaments reçus -->
+        <div class="cr-section">
+          <strong>💊 Ordonnance :</strong>
+          <template v-if="historiqueDetail.medicaments?.length">
+            <div v-for="m in historiqueDetail.medicaments" :key="m.id" class="historique-med">
+              • {{ m.nom }} — {{ m.posologie || '—' }} ({{ m.quantite || '—' }}, {{ m.duree || '—' }})
+            </div>
+          </template>
+          <template v-else>Aucun médicament prescrit.</template>
+        </div>
+
+        <!-- Examens de laboratoire avec résultats -->
+        <div v-if="historiqueDetail.passage?.examensLabo?.length" class="cr-section">
+          <strong>🔬 Examens de laboratoire et résultats :</strong>
+          <div v-for="e in historiqueDetail.passage.examensLabo" :key="e.id" class="historique-examen">
+            <span class="badge" :class="e.statut === 'VALIDE' ? 'badge-success' : 'badge-warning'">
+              {{ e.libelle }} — {{ e.statut === 'VALIDE' ? 'Validé' : 'En cours' }}
+            </span>
+            <table v-if="e.lignes?.length" class="resultat-table">
+              <thead>
+                <tr><th>Paramètre</th><th>Résultat</th><th>Unité</th><th>Normes</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="lg in e.lignes" :key="lg.id">
+                  <td>{{ lg.parametre || '—' }}</td>
+                  <td><strong>{{ lg.valeur || '—' }}</strong></td>
+                  <td>{{ lg.unite || '—' }}</td>
+                  <td>{{ lg.normes || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="e.conclusion" class="historique-conclusion">
+              <strong>Conclusion :</strong> {{ e.conclusion }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Examens d'imagerie -->
+        <div v-if="historiqueDetail.passage?.examensImagerie?.length" class="cr-section">
+          <strong>🩻 Examens d'imagerie :</strong>
+          <div v-for="e in historiqueDetail.passage.examensImagerie" :key="e.id" class="historique-examen">
+            <span class="badge" :class="e.statut === 'VALIDE' ? 'badge-success' : 'badge-warning'">
+              {{ e.libelle }} — {{ e.statut === 'VALIDE' ? 'Validé' : 'En cours' }}
+            </span>
+            <p v-if="e.resultat" class="historique-conclusion"><strong>Résultat :</strong> {{ e.resultat }}</p>
+            <p v-if="e.conclusion" class="historique-conclusion"><strong>Conclusion :</strong> {{ e.conclusion }}</p>
+          </div>
+        </div>
+
+        <!-- Fiches d'échographie -->
+        <div v-if="historiqueDetail.passage?.fichesExamenImagerie?.length" class="cr-section">
+          <strong>📄 Fiches d'échographie :</strong>
+          <div v-for="f in historiqueDetail.passage.fichesExamenImagerie" :key="f.id" class="historique-examen">
+            <span class="badge badge-muted">{{ f.libelleType }} — {{ formatDateFr(f.createdAt) }}</span>
+            <p class="resultat-fiche-texte" v-html="marquerValeurs(f.texte, f.valeurs)"></p>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="historiqueDetail = null">✖ Fermer</button>
+        </div>
+      </div>
+    </div>
+
 
     <!-- Modale : résultat d'examen (labo / imagerie) -->
     <div v-if="resultatVisible" class="modal-backdrop">
@@ -1616,6 +1708,7 @@ import { marquerValeurs } from '../utils/texteFiche'
 import { toastError, toastSuccess } from '../utils/notifications'
 import logoClinique from '../assets/logoclinique.jpeg'
 import SelectSearch from '../components/SelectSearch.vue'
+import ReferenceFiche from '../components/ReferenceFiche.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -2044,6 +2137,13 @@ const fichesPassage = computed(() => detail.value?.passage?.fiches ?? [])
 
 /** Consultations antérieures du patient (historique enrichi : médicaments + examens + fiches). */
 const historiquePatient = computed(() => detail.value?.historique ?? [])
+
+/** Détail d'une consultation passée affiché en modale (ordonnance, examens, résultats). */
+const historiqueDetail = ref(null)
+
+function ouvrirHistoriqueDetail(h) {
+  historiqueDetail.value = h
+}
 
 /** Retourne l'examen réalisé (avec résultats) pour une ligne de prestation. */
 function resultatExamen(l) {
@@ -2650,6 +2750,19 @@ onUnmounted(() => {
 .resultat-fiche-texte .val {
   font-weight: 800;
   font-family: 'Georgia', 'Times New Roman', serif;
+}
+.btn-lien {
+  background: none;
+  border: none;
+  color: #0d9488;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+}
+.btn-lien:hover {
+  color: #0f766e;
 }
 
 .consultation-page {
