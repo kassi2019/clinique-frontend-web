@@ -19,6 +19,18 @@
           title="Vide = tous les jours"
           @change="charger"
         />
+        <input
+          v-model.trim="entiteFiltre"
+          type="text"
+          list="journal-entites"
+          class="search-input"
+          style="max-width: 200px; flex: none"
+          placeholder="Module (ex. passages)…"
+          @change="charger"
+        />
+        <datalist id="journal-entites">
+          <option v-for="e in ENTITES_CONNUES" :key="e" :value="e" />
+        </datalist>
         <SelectSearch
           v-model="utilisateurId"
           :options="optionsUtilisateurs"
@@ -26,6 +38,9 @@
           style="max-width: 320px; flex: 1"
           @change="charger"
         />
+        <button class="btn btn-outline btn-sm" @click="exporterExcel" title="Exporter la liste filtrée en Excel">
+          📥 Excel
+        </button>
       </div>
 
       <div class="table-wrap">
@@ -90,7 +105,8 @@ import http from '../../api/http'
 import PaginationBar from '../../components/PaginationBar.vue'
 import SelectSearch from '../../components/SelectSearch.vue'
 import { useAuthStore } from '../../stores/auth'
-import { toastError } from '../../utils/notifications'
+import { toastError, toastSuccess } from '../../utils/notifications'
+import * as XLSX from 'xlsx'
 
 const auth = useAuthStore()
 const cliniqueId = auth.user?.clinique?.id ?? null
@@ -102,8 +118,17 @@ const perPage = ref(50)
 const totalPages = ref(1)
 const chargement = ref(false)
 const jourFiltre = ref('')
+const entiteFiltre = ref('')
 const utilisateurId = ref(null)
 const utilisateurs = ref([])
+
+// Modules connus de l'application (aide à la saisie du filtre « Module »)
+const ENTITES_CONNUES = [
+  'passages', 'patients', 'consultations', 'caisse', 'paiements', 'pharmacie',
+  'prestations', 'utilisateurs', 'personnel', 'roles', 'services', 'maternite',
+  'imagerie', 'laboratoire', 'hospitalisation', 'soins', 'rapports', 'parametres',
+  'medicaments', 'listes-parametres', 'chambres', 'assurances', 'impression',
+]
 
 const optionsUtilisateurs = utilisateurs
 
@@ -133,6 +158,7 @@ async function charger() {
         page: page.value,
         perPage: perPage.value,
         jour: jourFiltre.value || undefined,
+        entite: entiteFiltre.value || undefined,
         utilisateurId: utilisateurId.value ?? undefined,
       },
     })
@@ -143,6 +169,40 @@ async function charger() {
     toastError(e.response?.data?.message || 'Impossible de charger le journal.')
   } finally {
     chargement.value = false
+  }
+}
+
+/** Export Excel des actions filtrées (jusqu'à 2000 lignes). */
+async function exporterExcel() {
+  try {
+    const { data: rep } = await http.get('/journal', {
+      params: {
+        cliniqueId: cliniqueId ?? undefined,
+        page: 1,
+        perPage: 2000,
+        jour: jourFiltre.value || undefined,
+        entite: entiteFiltre.value || undefined,
+        utilisateurId: utilisateurId.value ?? undefined,
+      },
+    })
+    const lignes = (rep.data ?? []).map((e) => ({
+      'Date / heure': formatDateHeure(e.createdAt),
+      Utilisateur: e.utilisateur?.matricule ?? '—',
+      'Nom': e.utilisateur?.personnel
+        ? `${e.utilisateur.personnel.nom} ${e.utilisateur.personnel.prenom}`
+        : '—',
+      'Action': libelleMethode(e.methode),
+      'Module': e.entite ?? '—',
+      'Route': e.route,
+      'Détails': e.details ?? '',
+    }))
+    const feuille = XLSX.utils.json_to_sheet(lignes)
+    const classeur = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(classeur, feuille, 'Journal')
+    XLSX.writeFile(classeur, `journal-actions-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    toastSuccess(`${lignes.length} action(s) exportée(s) en Excel.`)
+  } catch (e) {
+    toastError(e.response?.data?.message || "Impossible d'exporter le journal.")
   }
 }
 

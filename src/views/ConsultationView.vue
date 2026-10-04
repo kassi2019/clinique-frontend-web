@@ -194,6 +194,9 @@
         <button class="tab-btn" :class="{ active: onglet === 'certificat' }" @click="onglet = 'certificat'">
           📄 Certificat d'arrêt
         </button>
+        <button class="tab-btn" :class="{ active: onglet === 'historique' }" @click="onglet = 'historique'">
+          📚 Historique
+        </button>
       </nav>
       </div>
 
@@ -826,9 +829,18 @@
           <div v-if="consultation" class="ajout-examen">
             <div class="ajout-examen-select">
               <SelectSearch
-                v-model="nouvelExamenId"
-                :options="optionsExamensCatalogue"
-                placeholder="— Choisir un examen à prescrire (labo, imagerie…) —"
+                v-model="nouvelExamenLaboId"
+                :options="optionsExamensLabo"
+                placeholder="— 🔬 Laboratoire —"
+                @change="(v) => { nouvelExamenId = v; nouvelExamenImagerieId = null }"
+              />
+            </div>
+            <div class="ajout-examen-select">
+              <SelectSearch
+                v-model="nouvelExamenImagerieId"
+                :options="optionsExamensImagerie"
+                placeholder="— 🩻 Imagerie —"
+                @change="(v) => { nouvelExamenId = v; nouvelExamenLaboId = null }"
               />
             </div>
             <button
@@ -996,6 +1008,77 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+        </section>
+
+        <!-- ══ Onglet 5 : Historique médical du patient (consultations passées) ══ -->
+        <section v-else-if="onglet === 'historique'" class="card">
+          <div class="card-header">
+            <h2>📚 Historique du patient</h2>
+          </div>
+          <div v-if="historiquePatient.length === 0" class="empty-state">
+            Aucune consultation antérieure pour ce patient.
+          </div>
+          <div v-else class="historique-list">
+            <div v-for="h in historiquePatient" :key="h.id" class="historique-item">
+              <div class="historique-head">
+                <strong>{{ formatDateFr(h.createdAt) }}</strong>
+                <span>{{ h.passage?.service?.nom }} · {{ h.passage?.numeroOrdre }}</span>
+                <span v-if="h.medecin?.personnel" class="text-muted">
+                  Dr {{ h.medecin.personnel.nom }} {{ h.medecin.personnel.prenom }}
+                </span>
+              </div>
+              <p v-if="h.motif" class="historique-diag"><strong>Motif :</strong> {{ h.motif }}</p>
+              <p v-if="h.diagnostic" class="historique-diag"><strong>Diagnostic :</strong> {{ h.diagnostic }}</p>
+
+              <!-- Médicaments prescrits -->
+              <div v-if="h.medicaments?.length" class="historique-meds">
+                <strong>Médicaments :</strong>
+                <span v-for="m in h.medicaments" :key="m.id" class="historique-med">
+                  {{ m.nom }} — {{ m.posologie || '—' }} ({{ m.quantite || '—' }}, {{ m.duree || '—' }})
+                </span>
+              </div>
+
+              <!-- Examens de laboratoire avec résultats -->
+              <div v-if="h.passage?.examensLabo?.length" class="historique-examens">
+                <strong>🔬 Laboratoire :</strong>
+                <div v-for="e in h.passage.examensLabo" :key="e.id" class="historique-examen">
+                  <span class="badge" :class="e.statut === 'VALIDE' ? 'badge-success' : 'badge-warning'">
+                    {{ e.libelle }} — {{ e.statut === 'VALIDE' ? 'Validé' : 'En cours' }}
+                  </span>
+                  <ul v-if="e.lignes?.length" class="historique-lignes">
+                    <li v-for="lg in e.lignes" :key="lg.id">
+                      {{ lg.parametre }} : <strong>{{ lg.valeur }}</strong> {{ lg.unite }}
+                      <span class="text-muted">(normes {{ lg.normes || '—' }})</span>
+                    </li>
+                  </ul>
+                  <p v-if="e.conclusion" class="historique-conclusion">
+                    <strong>Conclusion :</strong> {{ e.conclusion }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Examens d'imagerie -->
+              <div v-if="h.passage?.examensImagerie?.length" class="historique-examens">
+                <strong>🩻 Imagerie :</strong>
+                <div v-for="e in h.passage.examensImagerie" :key="e.id" class="historique-examen">
+                  <span class="badge" :class="e.statut === 'VALIDE' ? 'badge-success' : 'badge-warning'">
+                    {{ e.libelle }} — {{ e.statut === 'VALIDE' ? 'Validé' : 'En cours' }}
+                  </span>
+                  <p v-if="e.resultat" class="historique-conclusion"><strong>Résultat :</strong> {{ e.resultat }}</p>
+                  <p v-if="e.conclusion" class="historique-conclusion"><strong>Conclusion :</strong> {{ e.conclusion }}</p>
+                </div>
+              </div>
+
+              <!-- Fiches d'échographie -->
+              <div v-if="h.passage?.fichesExamenImagerie?.length" class="historique-examens">
+                <strong>📄 Fiches d'échographie :</strong>
+                <div v-for="f in h.passage.fichesExamenImagerie" :key="f.id" class="historique-examen">
+                  <span class="badge badge-muted">{{ f.libelleType }} — {{ formatDateFr(f.createdAt) }}</span>
+                  <p class="resultat-fiche-texte" v-html="marquerValeurs(f.texte, f.valeurs)"></p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </div>
@@ -1959,6 +2042,9 @@ const resultatCourant = ref(null) // { type: 'LABO' | 'IMAGERIE', exam, libelle?
 /** Fiches d'échographie établies par l'imagerie pour ce passage. */
 const fichesPassage = computed(() => detail.value?.passage?.fiches ?? [])
 
+/** Consultations antérieures du patient (historique enrichi : médicaments + examens + fiches). */
+const historiquePatient = computed(() => detail.value?.historique ?? [])
+
 /** Retourne l'examen réalisé (avec résultats) pour une ligne de prestation. */
 function resultatExamen(l) {
   const labo = (detail.value?.passage.examensLabo ?? []).find(
@@ -2354,6 +2440,8 @@ async function retirerExamen(l) {
 
 // ── Ajout d'un examen depuis le catalogue (labo, imagerie…) ──
 const nouvelExamenId = ref(null)
+const nouvelExamenLaboId = ref(null)
+const nouvelExamenImagerieId = ref(null)
 const ajoutExamenEnCours = ref(false)
 const prestationsCatalogue = ref([])
 
@@ -2378,6 +2466,7 @@ async function chargerLits() {
 }
 
 /** Examens du catalogue proposés au médecin : actifs, hors consultation, pas déjà sur le passage. */
+/** Examens prescriptibles, séparés par service : laboratoire et imagerie. */
 const optionsExamensCatalogue = computed(() => {
   const deja = new Set(
     (detail.value?.passage.prestations ?? [])
@@ -2386,8 +2475,20 @@ const optionsExamensCatalogue = computed(() => {
   )
   return prestationsCatalogue.value
     .filter((p) => p.actif && p.type !== 'CONSULTATION' && !deja.has(p.id))
-    .map((p) => ({ value: p.id, label: p.libelle }))
+    .map((p) => ({ value: p.id, label: p.libelle, type: p.type }))
 })
+
+const optionsExamensLabo = computed(() =>
+  optionsExamensCatalogue.value
+    .filter((o) => o.type === 'EXAMEN_LABO')
+    .map(({ value, label }) => ({ value, label })),
+)
+
+const optionsExamensImagerie = computed(() =>
+  optionsExamensCatalogue.value
+    .filter((o) => o.type === 'IMAGERIE')
+    .map(({ value, label }) => ({ value, label })),
+)
 
 async function chargerPrestations() {
   try {
@@ -2409,6 +2510,8 @@ async function ajouterExamen() {
     })
     toastSuccess('Examen ajouté à la prescription — payable à la caisse.')
     nouvelExamenId.value = null
+    nouvelExamenLaboId.value = null
+    nouvelExamenImagerieId.value = null
     await chargerDetail()
   } catch (e) {
     toastError(e.response?.data?.message || "Impossible d'ajouter l'examen.")

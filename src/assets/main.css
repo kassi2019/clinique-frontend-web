@@ -369,7 +369,9 @@ tbody tr:hover {
   #certificat-print,
   #certificat-print *,
   #recu-a4-print,
-  #recu-a4-print * {
+  #recu-a4-print *,
+  #pharma-fin-print,
+  #pharma-fin-print * {
     visibility: visible;
     height: auto !important;
     min-height: 0 !important;
@@ -389,7 +391,8 @@ tbody tr:hover {
   #acc-print,
   #pf-print,
   #certificat-print,
-  #recu-a4-print {
+  #recu-a4-print,
+  #pharma-fin-print {
     position: absolute;
     left: 0;
     top: 0;

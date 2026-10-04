@@ -12,6 +12,22 @@
         </div>
         <div class="header-actions">
           <span class="date-pill">{{ todayLabel }}</span>
+          <button
+            class="btn btn-outline btn-sm btn-alerte-peremption"
+            :class="{ 'btn-alerte-active': nbPeremptions30 > 0 }"
+            title="Lots dont la péremption arrive dans les 30 jours — cliquer pour la liste"
+            @click="ouvrirPeremptions"
+          >
+            ⏳ Péremption ≤ 30 j : <strong>{{ nbPeremptions30 }}</strong>
+          </button>
+          <button
+            class="btn btn-outline btn-sm btn-alerte-stock"
+            :class="{ 'btn-alerte-active': alertes.stockBas.length > 0 }"
+            title="Médicaments sous le seuil — cliquer pour la liste"
+            @click="ouvrirStockBas"
+          >
+            ⚠️ Stock bas : <strong>{{ alertes.stockBas.length }}</strong>
+          </button>
           <button class="btn btn-outline btn-sm btn-bascule" @click="router.push({ name: 'caisse' })">
             💰 Caisse
           </button>
@@ -30,6 +46,9 @@
         </button>
         <button class="tab-btn" :class="{ active: onglet === 'stocks' }" @click="onglet = 'stocks'; chargerStocks()">
           Stocks
+        </button>
+        <button class="tab-btn" :class="{ active: onglet === 'financier' }" @click="onglet = 'financier'; chargerFinancier()">
+          💰 Points financiers
         </button>
       </nav>
 
@@ -459,7 +478,14 @@
                         @click="validerInventaireLot(l)"
                       >
                       ✅ Valider
-                    </button>
+                      </button>
+                      <button
+                        class="btn btn-outline btn-sm btn-retrait"
+                        title="Retirer du stock (retour fournisseur, périmé, casse, perte…)"
+                        @click="ouvrirRetrait(l)"
+                      >
+                      ↩️ Retirer
+                      </button>
                   </td>
                 </tr>
               </tbody>
@@ -504,7 +530,316 @@
           </div>
         </template>
       </section>
+
+      <!-- ============ POINTS FINANCIERS ============ -->
+      <section v-if="onglet === 'financier'" class="card">
+        <div class="card-header">
+          <h2>💰 Points financiers de la pharmacie</h2>
+        </div>
+        <div class="toolbar">
+          <input
+            v-model="financierDebut"
+            type="date"
+            class="search-input"
+            style="max-width: 160px; flex: none"
+            title="Vide = sans début"
+            @change="chargerFinancier"
+          />
+          <input
+            v-model="financierFin"
+            type="date"
+            class="search-input"
+            style="max-width: 160px; flex: none"
+            title="Vide = sans fin"
+            @change="chargerFinancier"
+          />
+          <button class="btn btn-outline btn-sm" @click="chargerFinancier">🔄 Actualiser</button>
+        </div>
+
+        <div class="financier-grille">
+          <div class="financier-carte financier-cliquable" title="Cliquer pour le détail" @click="ouvrirDetailFinancier('recus')">
+            <div class="financier-label">📥 Médicaments reçus 👁️</div>
+            <div class="financier-montant">{{ formatMontant(financier.recus) }}</div>
+            <div class="financier-note">Entrées valorisées au prix d'achat sur la période</div>
+          </div>
+          <div class="financier-carte financier-cliquable" title="Cliquer pour le détail" @click="ouvrirDetailFinancier('vendus')">
+            <div class="financier-label">📤 Médicaments vendus 👁️</div>
+            <div class="financier-montant">{{ formatMontant(financier.vendus) }}</div>
+            <div class="financier-note">Dispensations encaissées sur la période</div>
+          </div>
+          <div class="financier-carte financier-cliquable" title="Cliquer pour le détail" @click="ouvrirDetailFinancier('perdus')">
+            <div class="financier-label">🗑️ Médicaments perdus 👁️</div>
+            <div class="financier-montant">{{ formatMontant(financier.perdus) }}</div>
+            <div class="financier-note">Périmés, pertes, casses… sur la période</div>
+          </div>
+          <div class="financier-carte financier-cliquable" title="Cliquer pour le détail" @click="ouvrirDetailFinancier('correctifs')">
+            <div class="financier-label">🧮 Correctif d'inventaire 👁️</div>
+            <div class="financier-montant" :class="financier.correctifs < 0 ? 'financier-negatif' : ''">
+              {{ financier.correctifs > 0 ? '+' : '' }}{{ formatMontant(financier.correctifs) }}
+            </div>
+            <div class="financier-note">Écarts (±) des inventaires validés sur la période</div>
+          </div>
+          <div class="financier-carte financier-carte-total financier-cliquable" title="Cliquer pour le détail" @click="ouvrirDetailFinancier('restants')">
+            <div class="financier-label">📦 Médicaments restants 👁️</div>
+            <div class="financier-montant">{{ formatMontant(financier.restants) }}</div>
+            <div class="financier-note">Valeur du stock actuel (lots en stock)</div>
+          </div>
+        </div>
+
+        <h3 class="section-title">Rapport des retraits (périmés, pertes, casses…)</h3>
+        <div class="toolbar" style="margin-bottom: 8px">
+          <span class="text-muted" style="font-size: 12.5px">
+            Actualisation automatique toutes les 30 secondes ·
+          </span>
+          <button class="btn btn-outline btn-sm" @click="exporterRetraitsExcel">📥 Excel</button>
+          <button class="btn btn-outline btn-sm" @click="imprimerRetraitsPdf">🖨️ PDF</button>
+        </div>
+        <div v-if="retraits.length === 0" class="empty-state">
+          Aucun retrait sur la période.
+        </div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Médicament</th>
+                <th>Motif</th>
+                <th>Quantité</th>
+                <th>Lot</th>
+                <th>Par</th>
+                <th>Commentaire</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in retraits" :key="r.id">
+                <td>{{ formatDateHeure(r.createdAt) }}</td>
+                <td><strong>{{ r.medicament?.nom }}</strong> <span class="text-muted">{{ r.medicament?.dosage }}</span></td>
+                <td><span class="badge badge-danger">{{ r.reference || 'Retrait' }}</span></td>
+                <td>{{ r.quantite }}</td>
+                <td>{{ r.lot?.numeroLot || '—' }}</td>
+                <td>
+                  <span v-if="r.utilisateur" class="text-muted">
+                    {{ r.utilisateur.personnel?.nom }} {{ r.utilisateur.personnel?.prenom }}
+                  </span>
+                  <span v-else class="text-muted">Système</span>
+                </td>
+                <td class="text-muted">{{ r.commentaire || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </main>
+
+    <!-- Modale : retrait d'un lot -->
+    <div v-if="retraitVisible" class="modal-backdrop">
+      <div class="modal">
+        <h2>↩️ Retirer du stock — {{ retraitCible?.medicament?.nom }} (lot {{ retraitCible?.numeroLot }})</h2>
+        <p class="text-muted small-note">
+          Stock actuel du lot : <strong>{{ retraitCible?.quantiteRestante }}</strong> unité(s).
+          Le retrait est tracé (utilisateur, motif) et ressort dans les points financiers.
+        </p>
+        <p v-if="retraitError" class="alert alert-error">{{ retraitError }}</p>
+        <div class="field">
+          <label>Quantité à retirer *</label>
+          <input v-model.number="retraitForm.quantite" type="number" min="1" :max="retraitCible?.quantiteRestante" />
+        </div>
+        <div class="field">
+          <label>Motif *</label>
+          <select v-model="retraitForm.motif">
+            <option value="">— Choisir —</option>
+            <option value="RETOUR_FOURNISSEUR">Retour fournisseur</option>
+            <option value="PERIME">Périmé</option>
+            <option value="CASSE">Casse</option>
+            <option value="PERTE">Perte</option>
+            <option value="AUTRE">Autre</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Commentaire</label>
+          <input v-model.trim="retraitForm.commentaire" placeholder="Ex : boîte abîmée…" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="retraitVisible = false">✖ Annuler</button>
+          <button class="btn btn-danger" :disabled="retraitEnCours" @click="confirmerRetrait">
+            {{ retraitEnCours ? 'Retrait…' : '↩️ Retirer' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modale : stock bas -->
+    <div v-if="stockBasVisible" class="modal-backdrop">
+      <div class="modal modal-lg">
+        <h2>⚠️ Médicaments sous le seuil ({{ alertes.stockBas.length }})</h2>
+        <div v-if="alertes.stockBas.length === 0" class="empty-state">
+          Aucun médicament sous le seuil. ✅
+        </div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Médicament</th>
+                <th>Stock</th>
+                <th>Seuil</th>
+                <th>État</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="m in alertes.stockBas" :key="m.id">
+                <td><strong>{{ m.nom }}</strong> <span class="text-muted">{{ m.dosage }}</span></td>
+                <td>{{ m.stock }}</td>
+                <td>{{ m.seuilAlerte ?? '—' }}</td>
+                <td>
+                  <span class="badge" :class="m.stock <= 0 ? 'badge-danger' : 'badge-warning'">
+                    {{ m.stock <= 0 ? 'Rupture' : 'Sous stock' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="stockBasVisible = false">✖ Fermer</button>
+          <button class="btn btn-primary" @click="imprimerStockBasPdf">🖨️ PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modale : détail d'un bloc financier -->
+    <div v-if="detailFinancierVisible" class="modal-backdrop">
+      <div class="modal modal-lg">
+        <h2>{{ detailFinancierTitre }}</h2>
+        <p v-if="detailFinancierPeriode" class="text-muted small-note">{{ detailFinancierPeriode }}</p>
+        <div v-if="detailFinancierChargement" class="empty-state chargement">Chargement…</div>
+        <div v-else-if="detailFinancierListe.length === 0" class="empty-state">
+          Aucune ligne sur la période.
+        </div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th v-for="c in detailFinancierColonnes" :key="c">{{ c }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(l, i) in detailFinancierListe" :key="i">
+                <td v-for="c in detailFinancierChamps" :key="c">
+                  <template v-if="c === 'montant'">
+                    <strong :class="Number(l[c]) < 0 ? 'financier-negatif' : ''">
+                      {{ formatMontant(l[c]) }}
+                    </strong>
+                  </template>
+                  <template v-else-if="c === 'ecart'">
+                    <strong :class="Number(l[c]) < 0 ? 'financier-negatif' : ''">
+                      {{ l[c] > 0 ? '+' : '' }}{{ l[c] }}
+                    </strong>
+                  </template>
+                  <template v-else>{{ l[c] ?? '—' }}</template>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot v-if="detailFinancierListe.length > 0">
+              <tr>
+                <td class="financier-total-lib">TOTAL</td>
+                <td
+                  v-for="c in detailFinancierChamps.slice(1)"
+                  :key="c"
+                  :class="c === 'montant' && detailFinancierTotal < 0 ? 'financier-negatif' : ''"
+                >
+                  <template v-if="CHAMPS_NUMERIQUES.includes(c)">
+                    <strong>{{ formatCelluleSomme(detailFinancierSums[c], c) }}</strong>
+                  </template>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="detailFinancierVisible = false">✖ Fermer</button>
+          <button class="btn btn-outline" @click="exporterDetailExcel">📥 Excel</button>
+          <button class="btn btn-primary" @click="imprimerDetailPdf">🖨️ PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zone d'impression (PDF) : rapport des retraits ou détail d'un bloc -->
+    <div v-if="printZone" id="pharma-fin-print">
+      <div class="pharma-fin-a4">
+        <h2 class="pharma-fin-clinique">{{ cliniqueNom }}</h2>
+        <h2>{{ printZone.titre }}</h2>
+        <p v-if="printZone.periode" class="pharma-fin-periode">{{ printZone.periode }}</p>
+        <table>
+          <thead>
+            <tr>
+              <th v-for="c in printZone.colonnes" :key="c">{{ c }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(l, i) in printZone.lignes" :key="i">
+              <td v-for="(c, j) in printZone.champs" :key="j">
+                {{ formatCellulePrint(l[c], c) }}
+              </td>
+            </tr>
+          </tbody>
+          <tfoot v-if="printZone.lignes.length > 0">
+            <tr>
+              <td class="pharma-fin-total">TOTAL</td>
+              <td
+                v-for="c in printZone.champs.slice(1)"
+                :key="c"
+                :class="c === 'montant' && printZone.sommes?.montant < 0 ? 'financier-negatif' : ''"
+              >
+                <template v-if="CHAMPS_NUMERIQUES.includes(c)">
+                  {{ formatCelluleSomme(printZone.sommes?.[c] ?? 0, c) }}
+                </template>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div v-if="peremptionsVisible" class="modal-backdrop">
+      <div class="modal modal-lg">
+        <h2>⏳ Péremptions dans les 30 jours ({{ peremptions30.length }})</h2>
+        <div v-if="peremptions30.length === 0" class="empty-state">
+          Aucun lot ne périme dans les 30 jours. ✅
+        </div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Médicament</th>
+                <th>Lot</th>
+                <th>Péremption</th>
+                <th>Stock restant</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="l in peremptions30" :key="l.id">
+                <td><strong>{{ l.medicament?.nom }}</strong> <span class="text-muted">{{ l.medicament?.dosage }}</span></td>
+                <td>{{ l.numeroLot }}</td>
+                <td>
+                  <span class="badge" :class="new Date(l.datePeremption) < new Date() ? 'badge-danger' : 'badge-warning'">
+                    {{ formatDate(l.datePeremption) }}
+                  </span>
+                </td>
+                <td>{{ l.quantiteRestante }}</td>
+                <td>
+                  <button class="btn btn-outline btn-sm" @click="ouvrirRetrait(l)">↩️ Retirer</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="peremptionsVisible = false">✖ Fermer</button>
+          <button class="btn btn-primary" @click="imprimerPeremptionsPdf">🖨️ PDF</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Modale : entrée de stock -->
     <div v-if="entreeVisible" class="modal-backdrop">
@@ -702,12 +1037,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Swal from 'sweetalert2'
 import { useAuthStore } from '../stores/auth'
 import http from '../api/http'
 import { toastError, toastSuccess } from '../utils/notifications'
+import * as XLSX from 'xlsx'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -858,7 +1194,7 @@ async function recalculerSeuils() {
 
 // Stocks
 const stocks = ref([])
-const alertes = ref(null)
+const alertes = ref({ stockBas: [], peremptions: [] })
 const filtreStock = ref('')
 let stockTimer = null
 
@@ -1159,15 +1495,369 @@ function formatDateHeure(d) {
   return new Date(d).toLocaleString('fr-FR')
 }
 
+// ── Péremptions ≤ 30 jours (badge + liste) ──
+const nbPeremptions30 = ref(0)
+const peremptions30 = ref([])
+const peremptionsVisible = ref(false)
+
+async function chargerPeremptions() {
+  try {
+    const { data } = await http.get('/pharmacie/peremptions', {
+      params: { cliniqueId: cliniqueId.value, jours: 30 },
+    })
+    peremptions30.value = data ?? []
+    nbPeremptions30.value = peremptions30.value.length
+  } catch {
+    nbPeremptions30.value = 0
+  }
+}
+
+function ouvrirPeremptions() {
+  peremptionsVisible.value = true
+  chargerPeremptions()
+}
+
+// ── Stock bas (badge + liste) ──
+const stockBasVisible = ref(false)
+
+function ouvrirStockBas() {
+  chargerAlertes()
+  stockBasVisible.value = true
+}
+
+// ── Retrait de lot (retour fournisseur, périmé, casse, perte…) ──
+const retraitVisible = ref(false)
+const retraitCible = ref(null)
+const retraitForm = reactive({ quantite: null, motif: '', commentaire: '' })
+const retraitEnCours = ref(false)
+const retraitError = ref('')
+
+function ouvrirRetrait(l) {
+  retraitCible.value = l
+  retraitForm.quantite = l.quantiteRestante
+  retraitForm.motif = ''
+  retraitForm.commentaire = ''
+  retraitError.value = ''
+  retraitVisible.value = true
+  peremptionsVisible.value = false
+}
+
+async function confirmerRetrait() {
+  if (!retraitCible.value || !retraitForm.quantite || !retraitForm.motif) {
+    retraitError.value = 'Renseignez la quantité et le motif.'
+    return
+  }
+  retraitEnCours.value = true
+  retraitError.value = ''
+  try {
+    await http.post(`/pharmacie/lots/${retraitCible.value.id}/retrait`, {
+      quantite: retraitForm.quantite,
+      motif: retraitForm.motif,
+      commentaire: retraitForm.commentaire || undefined,
+    })
+    toastSuccess('Retrait enregistré — stock mis à jour.')
+    retraitVisible.value = false
+    await chargerStocks()
+    await chargerInventaireLots()
+    await chargerPeremptions()
+    if (onglet.value === 'financier') await chargerFinancier()
+  } catch (e) {
+    retraitError.value = e.response?.data?.message || 'Retrait impossible.'
+  } finally {
+    retraitEnCours.value = false
+  }
+}
+
+// ── Points financiers de la pharmacie ──
+const financier = reactive({ recus: 0, vendus: 0, perdus: 0, correctifs: 0, restants: 0 })
+const financierDebut = ref('')
+const financierFin = ref('')
+const retraits = ref([])
+
+async function chargerFinancier() {
+  try {
+    const [f, r] = await Promise.all([
+      http.get('/pharmacie/financier', {
+        params: {
+          cliniqueId: cliniqueId.value,
+          debut: financierDebut.value || undefined,
+          fin: financierFin.value || undefined,
+        },
+      }),
+      http.get('/pharmacie/retraits', {
+        params: {
+          cliniqueId: cliniqueId.value,
+          debut: financierDebut.value || undefined,
+          fin: financierFin.value || undefined,
+        },
+      }),
+    ])
+    Object.assign(financier, f.data)
+    retraits.value = r.data ?? []
+  } catch {
+    /* valeurs à zéro */
+  }
+}
+
+function formatMontant(x) {
+  return `${Number(x ?? 0).toLocaleString('fr-FR')} FCFA`
+}
+
+// ── Détail d'un bloc financier (modale + impression) ──
+const detailFinancierVisible = ref(false)
+const detailFinancierTitre = ref('')
+const detailFinancierPeriode = ref('')
+const detailFinancierChargement = ref(false)
+const detailFinancierListe = ref([])
+const detailFinancierColonnes = ref([])
+const detailFinancierChamps = ref([])
+const detailFinancierType = ref('')
+
+const COLONNES_DETAIL = {
+  recus: {
+    titre: '📥 Médicaments reçus — détail',
+    colonnes: ['Date', 'Médicament', 'Lot', 'Quantité', 'Prix achat', 'Montant'],
+    champs: ['date', 'medicament', 'lot', 'quantite', 'prixAchat', 'montant'],
+  },
+  vendus: {
+    titre: '📤 Médicaments vendus — détail',
+    colonnes: ['Date', 'Patient', "N° d'ordre", 'Montant'],
+    champs: ['date', 'patient', 'numeroOrdre', 'montant'],
+  },
+  perdus: {
+    titre: '🗑️ Médicaments perdus — détail',
+    colonnes: ['Date', 'Médicament', 'Motif', 'Quantité', 'Lot', 'Montant', 'Par'],
+    champs: ['date', 'medicament', 'motif', 'quantite', 'lot', 'montant', 'par'],
+  },
+  correctifs: {
+    titre: '🧮 Correctifs d’inventaire — détail',
+    colonnes: ['Date', 'Médicament', 'Lot', 'Écart', 'Montant', 'Par'],
+    champs: ['date', 'medicament', 'lot', 'ecart', 'montant', 'par'],
+  },
+  restants: {
+    titre: '📦 Médicaments restants — détail',
+    colonnes: ['Médicament', 'Lot', 'Péremption', 'Quantité', 'Prix achat', 'Montant'],
+    champs: ['medicament', 'lot', 'peremption', 'quantite', 'prixAchat', 'montant'],
+  },
+}
+
+function libellePeriode() {
+  if (!financierDebut.value && !financierFin.value) return 'Toute la période'
+  return `Du ${financierDebut.value || 'début'} au ${financierFin.value || "aujourd'hui"}`
+}
+
+async function ouvrirDetailFinancier(type) {
+  detailFinancierType.value = type
+  const def = COLONNES_DETAIL[type]
+  detailFinancierTitre.value = def.titre
+  detailFinancierPeriode.value = type === 'restants' ? 'Stock actuel (hors période)' : libellePeriode()
+  detailFinancierColonnes.value = def.colonnes
+  detailFinancierChamps.value = def.champs
+  detailFinancierVisible.value = true
+  detailFinancierChargement.value = true
+  try {
+    const { data } = await http.get('/pharmacie/financier/detail', {
+      params: {
+        cliniqueId: cliniqueId.value,
+        type,
+        debut: financierDebut.value || undefined,
+        fin: financierFin.value || undefined,
+      },
+    })
+    detailFinancierListe.value = data ?? []
+  } catch {
+    detailFinancierListe.value = []
+  } finally {
+    detailFinancierChargement.value = false
+  }
+}
+
+function formatCellulePrint(v, champ) {
+  if (v == null) return '—'
+  if (champ === 'montant' || champ === 'prixAchat') return `${Number(v).toLocaleString('fr-FR')} F`
+  if (champ === 'date') return formatDate(v)
+  return v
+}
+
+// ── Exports Excel / PDF ──
+async function exporterRetraitsExcel() {
+  const lignes = retraits.value.map((r) => ({
+    'Date': formatDateHeure(r.createdAt),
+    'Médicament': `${r.medicament?.nom ?? ''} ${r.medicament?.dosage ?? ''}`.trim(),
+    'Motif': r.reference ?? 'Retrait',
+    'Quantité': r.quantite,
+    'Lot': r.lot?.numeroLot ?? '—',
+    'Par': r.utilisateur?.personnel
+      ? `${r.utilisateur.personnel.nom} ${r.utilisateur.personnel.prenom}`
+      : 'Système',
+    'Commentaire': r.commentaire ?? '',
+  }))
+  exporterXlsx(lignes, `retraits-pharmacie-${new Date().toISOString().slice(0, 10)}`)
+}
+
+async function exporterDetailExcel() {
+  const def = COLONNES_DETAIL[detailFinancierType.value]
+  const lignes = detailFinancierListe.value.map((l) => {
+    const ligne = {}
+    def.champs.forEach((c, i) => {
+      ligne[def.colonnes[i]] = formatCellulePrint(l[c], c)
+    })
+    return ligne
+  })
+  exporterXlsx(lignes, `detail-${detailFinancierType.value}-${new Date().toISOString().slice(0, 10)}`)
+}
+
+function exporterXlsx(lignes, nom) {
+  const feuille = XLSX.utils.json_to_sheet(lignes)
+  const classeur = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(classeur, feuille, 'Pharmacie')
+  XLSX.writeFile(classeur, `${nom}.xlsx`)
+  toastSuccess(`${lignes.length} ligne(s) exportée(s) en Excel.`)
+}
+
+// Zone d'impression (PDF) générique
+const printZone = ref(null)
+
+/** Total (montant) de la liste affichée dans la modale de détail. */
+const detailFinancierTotal = computed(() =>
+  detailFinancierListe.value.reduce((s, l) => s + Number(l.montant ?? 0), 0),
+)
+
+/** Colonnes numériques : leur somme apparaît dans la ligne TOTAL. */
+const CHAMPS_NUMERIQUES = ['quantite', 'ecart', 'montant', 'prixAchat']
+
+/** Somme de chaque colonne numérique du détail. */
+const detailFinancierSums = computed(() => {
+  const sommes = {}
+  for (const c of CHAMPS_NUMERIQUES) {
+    sommes[c] = detailFinancierListe.value.reduce((s, l) => s + Number(l[c] ?? 0), 0)
+  }
+  return sommes
+})
+
+/** Format d'une somme de colonne (montants en FCFA, quantités brutes). */
+function formatCelluleSomme(v, champ) {
+  if (champ === 'montant' || champ === 'prixAchat') return `${Number(v ?? 0).toLocaleString('fr-FR')} F`
+  return v > 0 ? `+${v}` : `${v}`
+}
+
+/** Attend le rendu de la zone d'impression avant window.print (sinon PDF vide). */
+async function imprimerZone(zone) {
+  printZone.value = zone
+  await nextTick()
+  setTimeout(() => window.print(), 350)
+}
+
+/** Sommes par colonne numérique d'une liste de lignes. */
+function sommesColonnes(lignes) {
+  const sommes = {}
+  for (const c of CHAMPS_NUMERIQUES) {
+    sommes[c] = lignes.reduce((s, l) => s + Number(l[c] ?? 0), 0)
+  }
+  return sommes
+}
+
+function imprimerRetraitsPdf() {
+  const def = COLONNES_DETAIL.perdus
+  const lignes = retraits.value.map((r) => ({
+    date: r.createdAt,
+    medicament: `${r.medicament?.nom ?? ''} ${r.medicament?.dosage ?? ''}`.trim(),
+    motif: r.reference ?? 'Retrait',
+    quantite: r.quantite,
+    lot: r.lot?.numeroLot ?? '—',
+    montant: Math.abs(r.quantite) * Number(r.lot?.prixAchat ?? 0),
+    par: r.utilisateur?.personnel
+      ? `${r.utilisateur.personnel.nom} ${r.utilisateur.personnel.prenom}`
+      : 'Système',
+  }))
+  imprimerZone({
+    titre: 'Rapport des retraits (périmés, pertes, casses…)',
+    periode: libellePeriode(),
+    colonnes: def.colonnes,
+    champs: def.champs,
+    lignes,
+    sommes: sommesColonnes(lignes),
+  })
+}
+
+function imprimerDetailPdf() {
+  const def = COLONNES_DETAIL[detailFinancierType.value]
+  imprimerZone({
+    titre: def.titre,
+    periode: detailFinancierPeriode.value,
+    colonnes: def.colonnes,
+    champs: def.champs,
+    lignes: detailFinancierListe.value,
+    sommes: { ...detailFinancierSums.value },
+  })
+}
+
+/** Impression du détail des péremptions ≤ 30 jours. */
+function imprimerPeremptionsPdf() {
+  const lignes = peremptions30.value.map((l) => ({
+    medicament: `${l.medicament?.nom ?? ''} ${l.medicament?.dosage ?? ''}`.trim(),
+    lot: l.numeroLot,
+    peremption: l.datePeremption,
+    quantite: l.quantiteRestante,
+  }))
+  imprimerZone({
+    titre: 'Lots dont la péremption arrive dans les 30 jours',
+    periode: new Date().toLocaleDateString('fr-FR'),
+    colonnes: ['Médicament', 'Lot', 'Péremption', 'Stock restant'],
+    champs: ['medicament', 'lot', 'peremption', 'quantite'],
+    lignes,
+    sommes: sommesColonnes(lignes),
+  })
+}
+
+/** Impression du détail des médicaments sous le seuil. */
+function imprimerStockBasPdf() {
+  const lignes = alertes.value.stockBas.map((m) => ({
+    medicament: `${m.nom ?? ''} ${m.dosage ?? ''}`.trim(),
+    stock: m.stock,
+    seuil: m.seuilAlerte ?? 0,
+    etat: m.stock <= 0 ? 'Rupture' : 'Sous stock',
+  }))
+  imprimerZone({
+    titre: 'Médicaments sous le seuil',
+    periode: new Date().toLocaleDateString('fr-FR'),
+    colonnes: ['Médicament', 'Stock', 'Seuil', 'État'],
+    champs: ['medicament', 'stock', 'seuil', 'etat'],
+    lignes,
+    sommes: sommesColonnes(lignes),
+  })
+}
+
+// ── Actualisation temps réel : toutes les 30 secondes ──
+let timerTempsReel = null
+function demarrerTempsReel() {
+  arreterTempsReel()
+  timerTempsReel = setInterval(() => {
+    chargerPeremptions()
+    chargerAlertes()
+    if (onglet.value === 'financier') chargerFinancier()
+    if (onglet.value === 'stocks') chargerStocks()
+  }, 30000)
+}
+function arreterTempsReel() {
+  if (timerTempsReel) {
+    clearInterval(timerTempsReel)
+    timerTempsReel = null
+  }
+}
+
 onMounted(() => {
   chargerStocks()
   chargerConsommables()
   chargerAlertes()
   chargerOrdonnancesAttente()
+  chargerPeremptions()
+  demarrerTempsReel()
 })
 onUnmounted(() => {
   clearTimeout(rechercheTimer)
   clearTimeout(stockTimer)
+  arreterTempsReel()
 })
 </script>
 
@@ -1508,5 +2198,125 @@ onUnmounted(() => {
   font-size: 13px;
   font-weight: 700;
   color: #134e4a;
+}
+.btn-alerte-peremption {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #b45309;
+  font-weight: 600;
+}
+.btn-alerte-stock {
+  background: #fef2f2;
+  border-color: #f87171;
+  color: #b91c1c;
+  font-weight: 600;
+}
+.btn-alerte-active {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+  font-weight: 800;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.35);
+}
+.btn-retrait {
+  margin-left: 6px;
+}
+.financier-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  margin: 10px 0 18px;
+}
+.financier-carte {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.financier-carte-total {
+  background: #ecfdf5;
+  border-color: #14b8a6;
+}
+.financier-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f766e;
+  margin-bottom: 6px;
+}
+.financier-montant {
+  font-size: 19px;
+  font-weight: 800;
+  color: #134e4a;
+}
+.financier-negatif {
+  color: #dc2626;
+}
+.financier-note {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+.financier-cliquable {
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.financier-cliquable:hover {
+  box-shadow: 0 4px 14px rgba(13, 116, 144, 0.18);
+  transform: translateY(-1px);
+}
+/* Zone d'impression PDF (rapport des retraits / détail d'un bloc) */
+.pharma-fin-a4 {
+  background: #fff;
+  color: #111;
+  padding: 16px 20px;
+  font-size: 12px;
+}
+.pharma-fin-a4 h2 {
+  font-size: 15px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+.pharma-fin-clinique {
+  font-size: 17px !important;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1.2px solid #111;
+  padding-bottom: 8px;
+  margin-bottom: 10px !important;
+}
+.pharma-fin-periode {
+  text-align: center;
+  font-size: 11px;
+  color: #475569;
+  margin-bottom: 12px;
+}
+.pharma-fin-a4 table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pharma-fin-a4 th,
+.pharma-fin-a4 td {
+  border: 1px solid #94a3b8;
+  padding: 5px 8px;
+  text-align: left;
+}
+.pharma-fin-a4 th {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+.pharma-fin-a4 tfoot td,
+.financier-total-lib {
+  font-weight: 800;
+  background: #f1f5f9;
+  text-align: right;
+}
+@media screen {
+  #pharma-fin-print {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+    width: 190mm;
+  }
 }
 </style>

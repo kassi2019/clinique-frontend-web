@@ -1376,6 +1376,11 @@ async function enregistrer() {
     const { data } = await http.post('/accueil/passages', payload)
     passageCree.value = data
     ticket.value = data
+    if (data.controleGratuit) {
+      toastSuccess(
+        `✅ Consultation de contrôle GRATUITE : le patient est revenu dans les 10 jours (dernier passage ${data.controleGratuit.numeroOrdre}). La consultation sort à 0 FCFA — les médicaments et examens restent payants.`,
+      )
+    }
     // Saisie libre auto-alimentée : les nouvelles valeurs rejoignent les listes déroulantes
     if (!patientExistant.value) {
       await alimenterListe('PROFESSION', form.profession)

@@ -432,6 +432,13 @@
                       Crédit
                     </span>
                     <span
+                      v-else-if="l.gratuit"
+                      class="badge badge-success"
+                      title="Consultation de contrôle : patient revenu dans les 10 jours pour le même service"
+                    >
+                      Gratuit (≤ 10 j)
+                    </span>
+                    <span
                       v-else-if="l.statut === 'CAS_SOCIAL'"
                       class="badge badge-muted"
                       title="Pris en charge en cas social (non remboursable)"
@@ -790,6 +797,7 @@
           N° {{ recuA4.numeroRecu }} — {{ formatDateHeure(recuA4.createdAt) }}
         </div>
         <table class="recu-a4-infos">
+          <tbody>
           <tr>
             <td class="recu-a4-lib">Patient</td>
             <td>
@@ -807,6 +815,7 @@
             <td class="recu-a4-lib">Mode</td>
             <td>{{ labelMode(recuA4.modePaiement) }}</td>
           </tr>
+          </tbody>
         </table>
         <table class="recu-a4-table">
           <thead>
