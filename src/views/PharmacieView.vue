@@ -868,14 +868,7 @@
             </div>
             <div class="field">
               <label>Fournisseur</label>
-              <input
-                v-model.trim="entreeForm.fournisseur"
-                list="liste-fournisseurs"
-                placeholder="Ex : COPHARMED, Laborex…"
-              />
-              <datalist id="liste-fournisseurs">
-                <option v-for="f in fournisseurs" :key="f.id" :value="f.libelle" />
-              </datalist>
+              <SelectSearch v-model="entreeForm.fournisseur" :options="fournisseurs.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : COPHARMED, Laborex…" />
               <small class="text-muted">Nouveau fournisseur ? Il sera ajouté automatiquement à la liste.</small>
             </div>
           </div>
@@ -1037,6 +1030,7 @@
 </template>
 
 <script setup>
+import SelectSearch from '../components/SelectSearch.vue'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Swal from 'sweetalert2'

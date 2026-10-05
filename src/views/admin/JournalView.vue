@@ -19,18 +19,7 @@
           title="Vide = tous les jours"
           @change="charger"
         />
-        <input
-          v-model.trim="entiteFiltre"
-          type="text"
-          list="journal-entites"
-          class="search-input"
-          style="max-width: 200px; flex: none"
-          placeholder="Module (ex. passages)…"
-          @change="charger"
-        />
-        <datalist id="journal-entites">
-          <option v-for="e in ENTITES_CONNUES" :key="e" :value="e" />
-        </datalist>
+        <SelectSearch v-model="entiteFiltre" :options="ENTITES_CONNUES.map((e) => ({ value: e, label: e }))" libre placeholder="Module (ex. passages)…" style="max-width: 200px; flex: none" @change="charger" />
         <SelectSearch
           v-model="utilisateurId"
           :options="optionsUtilisateurs"

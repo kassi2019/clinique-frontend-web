@@ -278,14 +278,11 @@
             <div class="form-row">
               <div class="field">
                 <label>Profession</label>
-                <input v-model.trim="formConsult.profession" />
+                <SelectSearch v-model="formConsult.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
               <div class="field">
                 <label>Nationalité</label>
-                <input v-model.trim="formConsult.nationalite" list="liste-nationalite" />
-                <datalist id="liste-nationalite">
-                  <option v-for="l in listesParams.NATIONALITE" :key="l.id" :value="l.libelle" />
-                </datalist>
+                <SelectSearch v-model="formConsult.nationalite" :options="listesParams.NATIONALITE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
               <div class="field">
                 <label>Contacts téléphoniques</label>
@@ -296,14 +293,11 @@
             <div class="form-row">
               <div class="field">
                 <label>Résidence habituelle</label>
-                <input v-model.trim="formConsult.residenceHabituelle" />
+                <SelectSearch v-model="formConsult.residenceHabituelle" :options="listesParams.RESIDENCE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
               <div class="field">
                 <label>Résidence actuelle</label>
-                <input v-model.trim="formConsult.residenceActuelle" list="liste-residence" />
-                <datalist id="liste-residence">
-                  <option v-for="l in listesParams.RESIDENCE" :key="l.id" :value="l.libelle" />
-                </datalist>
+                <SelectSearch v-model="formConsult.residenceActuelle" :options="listesParams.RESIDENCE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
             </div>
 
@@ -435,7 +429,7 @@
             </div>
             <div class="constantes-grid fiche-constantes">
               <label class="constante-item">Poids (kg) <input v-model.trim="formConsult.poids" /></label>
-              <label class="constante-item">Taille (m) <input v-model.trim="formConsult.taille" /></label>
+              <label class="constante-item">Taille (cm) <input v-model.trim="formConsult.taille" /></label>
               <label class="constante-item">
                 IMC (kg/m²)
                 <input
@@ -468,17 +462,11 @@
             <div class="form-row">
               <div class="field">
                 <label>Diagnostic retenu</label>
-                <input v-model.trim="formConsult.diagnostic" list="liste-diagnostic" placeholder="Ex : Paludisme simple" />
-                <datalist id="liste-diagnostic">
-                  <option v-for="l in listesParams.DIAGNOSTIC" :key="l.id" :value="l.libelle" />
-                </datalist>
+                <SelectSearch v-model="formConsult.diagnostic" :options="listesParams.DIAGNOSTIC.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : Paludisme simple" />
               </div>
               <div class="field">
                 <label>Autres pathologies associées</label>
-                <input v-model.trim="formConsult.pathologiesAssociees" list="liste-pathologie" />
-                <datalist id="liste-pathologie">
-                  <option v-for="l in listesParams.PATHOLOGIE" :key="l.id" :value="l.libelle" />
-                </datalist>
+                <SelectSearch v-model="formConsult.pathologiesAssociees" :options="listesParams.PATHOLOGIE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
             </div>
 
@@ -555,6 +543,31 @@
                 <input v-model.trim="formConsult.glycemieNonAjeun" />
               </div>
             </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Taux d'hémoglobine (g/dl)</label>
+                <input v-model.trim="formConsult.tauxHemoglobine" inputmode="decimal" placeholder="Ex : 11,5" />
+              </div>
+              <div class="field">
+                <label>Test de syphilis</label>
+                <div class="chips">
+                  <label v-for="o in ['positif', 'négatif', 'non réalisé']" :key="o" class="chip" :class="{ actif: formConsult.testSyphilis === o }">
+                    <input v-model="formConsult.testSyphilis" type="radio" :value="o" hidden /> {{ o }}
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <label>Test d'hépatite</label>
+                <div class="chips">
+                  <label v-for="o in ['positif', 'négatif', 'non réalisé']" :key="o" class="chip" :class="{ actif: formConsult.testHepatite === o }">
+                    <input v-model="formConsult.testHepatite" type="radio" :value="o" hidden /> {{ o }}
+                  </label>
+                </div>
+              </div>
+            </div>
+            <p v-if="testsOrdonnance.length" class="text-muted tests-ordonnance">
+              🧾 Inscrits automatiquement sur l'ordonnance à l'enregistrement : {{ testsOrdonnance.join(', ') }}
+            </p>
             <div class="field">
               <label>Autres examens</label>
               <textarea v-model.trim="formConsult.autresExamens" rows="2"></textarea>
@@ -601,10 +614,7 @@
                   </div>
                   <div class="field">
                     <label>Posologie</label>
-                    <input v-model.trim="ficheMedPoso" list="liste-posologie" placeholder="Ex : 1 comprimé 3x/j" />
-                    <datalist id="liste-posologie">
-                      <option v-for="l in listesParams.POSOLOGIE" :key="l.id" :value="l.libelle" />
-                    </datalist>
+                    <SelectSearch v-model="ficheMedPoso" :options="listesParams.POSOLOGIE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : 1 comprimé 3x/j" />
                   </div>
                 </div>
                 <div class="form-row">
@@ -958,7 +968,7 @@
             </div>
             <div class="field">
               <label>Profession</label>
-              <input v-model.trim="formCertificat.profession" />
+              <SelectSearch v-model="formCertificat.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
             </div>
           </div>
           <div class="form-row">
@@ -1262,10 +1272,7 @@
           <div class="form-row">
             <div class="field">
               <label>Posologie</label>
-              <input v-model.trim="ajoutPosologie" list="liste-posologie" placeholder="Ex : 1 comprimé 3x/j" />
-              <datalist id="liste-posologie">
-                <option v-for="l in listesParams.POSOLOGIE" :key="l.id" :value="l.libelle" />
-              </datalist>
+              <SelectSearch v-model="ajoutPosologie" :options="listesParams.POSOLOGIE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : 1 comprimé 3x/j" />
             </div>
             <div class="field">
               <label>Quantité</label>
@@ -1453,7 +1460,7 @@
         <h2 class="fiche-a4-section">EXAMEN CLINIQUE ET CONSTANTES PHYSIQUES DU PATIENT</h2>
         <p class="fiche-a4-ligne">Motifs de consultation : {{ formConsult.motif }}</p>
         <p class="fiche-a4-ligne">
-          Constantes physiques : Poids : {{ formConsult.poids }} kg &nbsp; Taille : {{ formConsult.taille }} m &nbsp;
+          Constantes physiques : Poids : {{ formConsult.poids }} kg &nbsp; Taille : {{ formConsult.taille }} cm &nbsp;
           IMC : {{ formConsult.imc }} kg/m² &nbsp; Z-score : {{ formConsult.zscore }}<br />
           Température : {{ formConsult.temperature }} °C &nbsp; Fréquence respiratoire : {{ formConsult.frequenceRespiratoire }} cycles/min<br />
           TA : {{ formConsult.tension }} mmHg &nbsp; Pouls : {{ formConsult.pouls }} batt/min<br />
@@ -1490,6 +1497,10 @@
         </p>
         <p class="fiche-a4-ligne">Code dépistage client : {{ formConsult.codeDepistage }}</p>
         <p class="fiche-a4-ligne">Glycémie : à jeun {{ formConsult.glycemieAjeun }} / non à jeun {{ formConsult.glycemieNonAjeun }}</p>
+        <p class="fiche-a4-ligne">
+          Taux d'hémoglobine : {{ formConsult.tauxHemoglobine }} g/dl &nbsp;&nbsp; Test de syphilis : {{ formConsult.testSyphilis }} &nbsp;&nbsp;
+          Test d'hépatite : {{ formConsult.testHepatite }}
+        </p>
         <p class="fiche-a4-ligne">Autres examens : {{ formConsult.autresExamens }}</p>
 
         <!-- Conduite à tenir -->
@@ -1963,12 +1974,29 @@ const ISSUES_SORTIE = [
 
 const TRANCHES_AGE = ['0–4 ans', '5–9 ans', '10–14 ans', '15–19 ans', '20–24 ans', '25–49 ans', '50 ans et plus']
 
-/** IMC calculé automatiquement (poids / taille²) — champ grisé de la fiche. */
+/**
+ * IMC calculé automatiquement : poids (kg) ÷ taille (m)² — champ grisé de la fiche.
+ * La taille est saisie en cm à l'accueil (ex. 165) ; une taille en m (1,65) reste acceptée.
+ */
 const imcCalcule = computed(() => {
-  const poids = Number(formConsult.poids)
-  const taille = Number(formConsult.taille)
+  const nombre = (v) => Number(String(v ?? '').replace(',', '.'))
+  const poids = nombre(formConsult.poids)
+  let taille = nombre(formConsult.taille)
   if (!poids || !taille) return ''
+  if (taille > 3) taille = taille / 100
   return (poids / (taille * taille)).toFixed(1)
+})
+
+/** Tests cochés dans la fiche qui seront inscrits sur l'ordonnance (règle du serveur). */
+const testsOrdonnance = computed(() => {
+  const fait = (v) => ['positif', 'négatif'].includes(String(v ?? '').toLowerCase())
+  const t = []
+  if (fait(formConsult.tdrPaludisme)) t.push('Test de diagnostic rapide')
+  if (formConsult.cdipRealise === true) t.push('Test de VIH')
+  if (String(formConsult.tauxHemoglobine ?? '').trim()) t.push("Taux d'hémoglobine")
+  if (fait(formConsult.testSyphilis)) t.push('Test de syphilis')
+  if (fait(formConsult.testHepatite)) t.push("Test d'hépatite")
+  return t
 })
 
 /** Texte des prescriptions pour l'impression de la fiche (conduite à tenir). */
@@ -2026,6 +2054,7 @@ const ROUTES_LISTES = {
   DIAGNOSTIC: '/diagnostics',
   PATHOLOGIE: '/pathologies',
   POSOLOGIE: '/posologies',
+  PROFESSION: '/professions',
 }
 
 const listesParams = reactive({
@@ -2034,6 +2063,7 @@ const listesParams = reactive({
   DIAGNOSTIC: [],
   PATHOLOGIE: [],
   POSOLOGIE: [],
+  PROFESSION: [],
 })
 
 async function chargerListesParams(cliniqueId) {
@@ -2297,8 +2327,8 @@ async function chargerDetail() {
       imc: c.imc ?? '',
       zscore: c.zscore ?? '',
       frequenceRespiratoire: c.frequenceRespiratoire ?? '',
-      perimetreBrachial: c.perimetreBrachial ?? '',
-      perimetreCranien: c.perimetreCranien ?? '',
+      perimetreBrachial: c.perimetreBrachial || cons.perimetreBrachial || '',
+      perimetreCranien: c.perimetreCranien || cons.perimetreCranien || '',
       rechercheTB: c.rechercheTB ?? '',
       pathologiesAssociees: c.pathologiesAssociees ?? '',
       tdrPaludisme: c.tdrPaludisme ?? '',
@@ -2310,6 +2340,9 @@ async function chargerDetail() {
       codeDepistage: c.codeDepistage ?? '',
       glycemieAjeun: c.glycemieAjeun ?? '',
       glycemieNonAjeun: c.glycemieNonAjeun ?? '',
+      tauxHemoglobine: c.tauxHemoglobine ?? '',
+      testSyphilis: c.testSyphilis ?? '',
+      testHepatite: c.testHepatite ?? '',
       autresExamens: c.autresExamens ?? '',
       conduiteTenir: c.conduiteTenir ?? '',
       issueSortie: c.issueSortie ?? '',
@@ -2387,6 +2420,9 @@ async function sauvegarderFiche() {
       codeDepistage: vider(f.codeDepistage),
       glycemieAjeun: vider(f.glycemieAjeun),
       glycemieNonAjeun: vider(f.glycemieNonAjeun),
+      tauxHemoglobine: vider(f.tauxHemoglobine),
+      testSyphilis: vider(f.testSyphilis),
+      testHepatite: vider(f.testHepatite),
       autresExamens: vider(f.autresExamens),
       conduiteTenir: vider(f.conduiteTenir) || textePrescriptions.value || undefined,
       issueSortie: vider(f.issueSortie),
@@ -2416,6 +2452,8 @@ async function sauvegarderFiche() {
     alimenterListe('PATHOLOGIE', f.pathologiesAssociees)
     alimenterListe('NATIONALITE', f.nationalite)
     alimenterListe('RESIDENCE', f.residenceActuelle)
+    alimenterListe('RESIDENCE', f.residenceHabituelle)
+    alimenterListe('PROFESSION', f.profession)
     await chargerDetail()
   } catch (e) {
     toastError(e.response?.data?.message || 'Erreur lors de l\'enregistrement.')

@@ -349,16 +349,7 @@
               </label>
               <!-- Choix = liste de suggestions + saisie libre (comme les datalists de l'app) -->
               <template v-if="c.type === 'choix'">
-                <input
-                  v-model="ficheValeurs[c.code]"
-                  type="text"
-                  class="search-raw"
-                  :list="`fiche-choix-${c.code}`"
-                  placeholder="— choisir ou saisir —"
-                />
-                <datalist :id="`fiche-choix-${c.code}`">
-                  <option v-for="o in c.options" :key="o" :value="o"></option>
-                </datalist>
+                <SelectSearch v-model="ficheValeurs[c.code]" :options="(c.options ?? []).map((o) => ({ value: o, label: o }))" libre brut placeholder="— choisir ou saisir —" />
               </template>
               <input
                 v-else-if="c.type === 'date'"

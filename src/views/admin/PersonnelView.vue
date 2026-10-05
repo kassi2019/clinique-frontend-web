@@ -168,15 +168,7 @@
             </div>
             <div class="field">
               <label>Fonction *</label>
-              <input
-                v-model.trim="form.fonction"
-                list="liste-fonctions"
-                required
-                placeholder="Médecin, agent d'accueil…"
-              />
-              <datalist id="liste-fonctions">
-                <option v-for="f in fonctions" :key="f.id" :value="f.libelle" />
-              </datalist>
+              <SelectSearch v-model="form.fonction" :options="fonctions.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Médecin, agent d'accueil…" />
               <p class="text-muted" style="font-size: 11px; margin-top: 3px">
                 Nouvelle fonction ? Saisissez-la : elle sera ajoutée automatiquement à la liste.
               </p>

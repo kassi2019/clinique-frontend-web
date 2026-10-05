@@ -10,6 +10,7 @@
         ref="inputRecherche"
         v-model="filtre"
         class="select-search-input"
+        :class="{ 'search-raw': brut }"
         type="text"
         placeholder="Saisir pour rechercher…"
         @keydown.down.prevent="descendre"
@@ -18,7 +19,16 @@
         @keydown.esc="ouvert = false"
       />
       <ul class="select-search-options">
-        <li v-if="optionsFiltrees.length === 0" class="select-search-vide">
+        <li
+          v-if="valeurLibre"
+          class="select-search-option select-search-ajout"
+          :class="{ actif: indexActif === optionsFiltrees.length }"
+          @mouseenter="indexActif = optionsFiltrees.length"
+          @click="choisir({ value: valeurLibre, label: valeurLibre })"
+        >
+          ＋ Ajouter « {{ valeurLibre }} »
+        </li>
+        <li v-if="optionsFiltrees.length === 0 && !valeurLibre" class="select-search-vide">
           Aucun résultat
         </li>
         <li
@@ -43,6 +53,10 @@ const props = defineProps({
   modelValue: { type: [Number, String, null], default: null },
   options: { type: Array, default: () => [] }, // [{ value, label }]
   placeholder: { type: String, default: '— Choisir —' },
+  // Saisie libre : propose « ＋ Ajouter » quand la valeur tapée n'existe pas dans la liste
+  libre: { type: Boolean, default: false },
+  // Pas de mise en majuscules automatique de la saisie (valeurs médicales)
+  brut: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'change'])
@@ -70,7 +84,18 @@ const optionsFiltrees = computed(() => {
 
 const labelChoisi = computed(() => {
   const o = props.options.find((x) => x.value === props.modelValue)
-  return o ? o.label : ''
+  if (o) return o.label
+  // Valeur libre déjà enregistrée (absente de la liste)
+  return props.libre && props.modelValue ? String(props.modelValue) : ''
+})
+
+/** Texte tapé proposé en ajout (mode libre) s'il ne correspond exactement à aucune option. */
+const valeurLibre = computed(() => {
+  if (!props.libre) return ''
+  const t = filtre.value.trim()
+  if (!t) return ''
+  const n = normaliser(t)
+  return props.options.some((o) => normaliser(o.label) === n) ? '' : t
 })
 
 function basculer() {
@@ -92,10 +117,12 @@ function choisir(o) {
 function choisirIndex() {
   const o = optionsFiltrees.value[indexActif.value]
   if (o) choisir(o)
+  else if (valeurLibre.value) choisir({ value: valeurLibre.value, label: valeurLibre.value })
 }
 
 function descendre() {
-  indexActif.value = Math.min(indexActif.value + 1, optionsFiltrees.value.length - 1)
+  const max = optionsFiltrees.value.length - (valeurLibre.value ? 0 : 1)
+  indexActif.value = Math.min(indexActif.value + 1, max)
 }
 
 function monter() {
@@ -190,6 +217,10 @@ onUnmounted(() => document.removeEventListener('click', onClicExterieur))
 .select-search-option.actif {
   background: var(--primary-light);
   color: var(--primary-dark);
+}
+.select-search-ajout {
+  color: var(--primary);
+  font-weight: 600;
 }
 .select-search-vide {
   padding: 10px 12px;

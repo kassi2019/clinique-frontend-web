@@ -408,25 +408,21 @@
                 </select>
               </div>
               <div class="field">
-                <label>Ville</label>
-                <input v-model.trim="form.ville" list="liste-residence" placeholder="Ex : Abidjan…" />
-                <datalist id="liste-residence">
-                  <option v-for="r in listesParams.RESIDENCE" :key="r.id" :value="r.libelle" />
-                </datalist>
+                <label>Résidence</label>
+                <SelectSearch
+                  v-model="form.ville"
+                  :options="optionsListe('RESIDENCE', form.ville)"
+                  libre
+                  placeholder="— Choisir la résidence —"
+                />
               </div>
               <div class="field">
                 <label>Quartier</label>
-                <input v-model.trim="form.quartier" list="liste-quartier" placeholder="Ex : Yopougon…" />
-                <datalist id="liste-quartier">
-                  <option v-for="q in listesParams.QUARTIER" :key="q.id" :value="q.libelle" />
-                </datalist>
+                <SelectSearch v-model="form.quartier" :options="listesParams.QUARTIER.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : Yopougon…" />
               </div>
               <div class="field champ-large">
                 <label>Profession *</label>
-                <input v-model.trim="form.profession" list="liste-profession" required placeholder="Ex : commerçant…" />
-                <datalist id="liste-profession">
-                  <option v-for="p in listesParams.PROFESSION" :key="p.id" :value="p.libelle" />
-                </datalist>
+                <SelectSearch v-model="form.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : commerçant…" />
               </div>
               <div class="field champ-large">
                 <label>Téléphone</label>
@@ -453,11 +449,13 @@
               </select>
             </div>
             <div class="field">
-              <label>Motif</label>
-              <input v-model.trim="form.motif" list="liste-motif" placeholder="Ex : fièvre, suivi grossesse…" />
-              <datalist id="liste-motif">
-                <option v-for="m in listesParams.MOTIF" :key="m.id" :value="m.libelle" />
-              </datalist>
+              <label>Motif de consultation</label>
+              <SelectSearch
+                v-model="form.motif"
+                :options="optionsListe('MOTIF', form.motif)"
+                  libre
+                placeholder="— Choisir le motif —"
+              />
             </div>
           </div>
           <div class="form-row">
@@ -728,16 +726,21 @@
               </select>
             </div>
             <div class="field">
-              <label>Ville</label>
-              <input v-model.trim="formEdit.ville" list="liste-residence" />
+              <label>Résidence</label>
+              <SelectSearch
+                v-model="formEdit.ville"
+                :options="optionsListe('RESIDENCE', formEdit.ville)"
+                  libre
+                placeholder="— Choisir la résidence —"
+              />
             </div>
             <div class="field">
               <label>Quartier</label>
-              <input v-model.trim="formEdit.quartier" list="liste-quartier" />
+              <SelectSearch v-model="formEdit.quartier" :options="listesParams.QUARTIER.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
             </div>
             <div class="field">
               <label>Profession *</label>
-              <input v-model.trim="formEdit.profession" list="liste-profession" required />
+              <SelectSearch v-model="formEdit.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
             </div>
             <div class="field">
               <label>Téléphone</label>
@@ -763,8 +766,13 @@
               </select>
             </div>
             <div class="field">
-              <label>Motif</label>
-              <input v-model.trim="formEdit.motif" list="liste-motif" />
+              <label>Motif de consultation</label>
+              <SelectSearch
+                v-model="formEdit.motif"
+                :options="optionsListe('MOTIF', formEdit.motif)"
+                  libre
+                placeholder="— Choisir le motif —"
+              />
             </div>
           </div>
           <div v-if="formEdit.typePatient === 'EXTERNE'" class="form-row">
@@ -979,6 +987,18 @@ async function chargerListesParams(cliniqueId) {
   } catch {
     /* listes vides */
   }
+}
+
+/**
+ * Options d'une liste déroulante (résidence, motif) ; la valeur déjà enregistrée
+ * reste affichée même si elle ne figure plus dans la liste paramétrée.
+ */
+function optionsListe(code, valeurCourante) {
+  const options = listesParams[code].map((x) => ({ value: x.libelle, label: x.libelle }))
+  if (valeurCourante && !options.some((o) => o.value === valeurCourante)) {
+    options.unshift({ value: valeurCourante, label: valeurCourante })
+  }
+  return options
 }
 
 /** Ajoute silencieusement une valeur saisie librement à sa liste dédiée. */

@@ -1,9 +1,6 @@
 <template>
   <div class="maternite-page">
     <!-- Liste des résidences : partagée par les onglets CPN et CPON (toujours dans le DOM) -->
-    <datalist id="liste-residence">
-      <option v-for="r in listesParams.RESIDENCE" :key="r.id" :value="r.libelle" />
-    </datalist>
 
     <!-- En-tête -->
     <header class="maternite-header">
@@ -252,17 +249,11 @@
             <div class="form-row">
               <div class="field">
                 <label>Profession</label>
-                <input v-model.trim="formCpn.profession" list="liste-profession" />
-                <datalist id="liste-profession">
-                  <option v-for="p in listesParams.PROFESSION" :key="p.id" :value="p.libelle" />
-                </datalist>
+                <SelectSearch v-model="formCpn.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
               <div class="field">
                 <label>Nationalité</label>
-                <input v-model.trim="formCpn.nationalite" list="liste-nationalite" />
-                <datalist id="liste-nationalite">
-                  <option v-for="n in listesParams.NATIONALITE" :key="n.id" :value="n.libelle" />
-                </datalist>
+                <SelectSearch v-model="formCpn.nationalite" :options="listesParams.NATIONALITE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
               <div class="field">
                 <label>Statut conjugal</label>
@@ -287,11 +278,11 @@
               </div>
               <div class="field">
                 <label>Résidence habituelle</label>
-                <input v-model.trim="formCpn.residenceHabituelle" list="liste-residence" />
+                <SelectSearch v-model="formCpn.residenceHabituelle" :options="listesParams.RESIDENCE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
               <div class="field">
                 <label>Résidence actuelle</label>
-                <input v-model.trim="formCpn.residenceActuelle" list="liste-residence" />
+                <SelectSearch v-model="formCpn.residenceActuelle" :options="listesParams.RESIDENCE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
             </div>
             <div class="form-row">
@@ -516,8 +507,8 @@
               </div>
             </div>
             <div class="form-row">
-              <div class="field"><label>Résidence habituelle</label><input v-model.trim="formCpon.residenceHabituelle" list="liste-residence" /></div>
-              <div class="field"><label>Résidence actuelle</label><input v-model.trim="formCpon.residenceActuelle" list="liste-residence" /></div>
+              <div class="field"><label>Résidence habituelle</label><SelectSearch v-model="formCpon.residenceHabituelle" :options="listesParams.RESIDENCE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" /></div>
+              <div class="field"><label>Résidence actuelle</label><SelectSearch v-model="formCpon.residenceActuelle" :options="listesParams.RESIDENCE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" /></div>
               <div class="field"><label>Contacts téléphoniques</label><input v-model.trim="formCpon.telephone" /></div>
             </div>
 
@@ -1311,10 +1302,7 @@
         </div>
         <div class="field">
           <label>Posologie</label>
-          <input v-model.trim="ajoutPosologie" list="liste-posologie" placeholder="Ex : 1 comprimé matin et soir" />
-          <datalist id="liste-posologie">
-            <option v-for="p in posologies" :key="p.id" :value="p.libelle" />
-          </datalist>
+          <SelectSearch v-model="ajoutPosologie" :options="posologies.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : 1 comprimé matin et soir" />
         </div>
         <div class="form-row">
           <div class="field"><label>Quantité</label><input v-model="ajoutQuantite" /></div>
