@@ -340,7 +340,11 @@
             </div>
             <div class="field">
               <label>Autres populations à haut risque</label>
-              <input v-model.trim="formConsult.populationsRisque" />
+              <div class="chips">
+                <label v-for="o in ['Oui', 'Non']" :key="o" class="chip" :class="{ actif: formConsult.populationsRisque === o }">
+                  <input v-model="formConsult.populationsRisque" type="radio" :value="o" hidden /> {{ o }}
+                </label>
+              </div>
             </div>
 
             <!-- ══ 2. Antécédents ══ -->
@@ -397,12 +401,25 @@
             </div>
             <div class="form-row">
               <div class="field">
-                <label>Antécédents médicaux (autres)</label>
-                <input v-model.trim="formConsult.antecedentsMedicaux" />
+                <label>Antécédents médicaux (maladies)</label>
+                <SelectSearch v-model="formConsult.antecedentsMedicaux" :options="listesParams.ANTECEDENT.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
               <div class="field">
                 <label>Antécédents chirurgicaux</label>
-                <input v-model.trim="formConsult.antecedentsChirurgicaux" />
+                <div class="chips">
+                  <label class="chip" :class="{ actif: formConsult.chirurgie === true }">
+                    <input v-model="formConsult.chirurgie" type="radio" :value="true" hidden /> Oui
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.chirurgie === false }">
+                    <input v-model="formConsult.chirurgie" type="radio" :value="false" hidden /> Non
+                  </label>
+                </div>
+                <input
+                  v-if="formConsult.chirurgie === true"
+                  v-model.trim="formConsult.antecedentsChirurgicaux"
+                  style="margin-top: 6px"
+                  placeholder="Préciser (intervention, année…)"
+                />
               </div>
               <div class="field">
                 <label>DDR</label>
@@ -425,7 +442,7 @@
             <h3 class="section-title">Examen clinique et constantes physiques</h3>
             <div class="field">
               <label>Motifs de consultation</label>
-              <input v-model.trim="formConsult.motif" placeholder="Ex : fièvre, douleurs abdominales…" />
+              <SelectSearch v-model="formConsult.motif" :options="listesParams.MOTIF.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou saisir le motif —" />
             </div>
             <div class="constantes-grid fiche-constantes">
               <label class="constante-item">Poids (kg) <input v-model.trim="formConsult.poids" /></label>
@@ -458,16 +475,6 @@
             <div class="field">
               <label>Examen physique</label>
               <textarea v-model.trim="formConsult.observation" rows="2"></textarea>
-            </div>
-            <div class="form-row">
-              <div class="field">
-                <label>Diagnostic retenu</label>
-                <SelectSearch v-model="formConsult.diagnostic" :options="listesParams.DIAGNOSTIC.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : Paludisme simple" />
-              </div>
-              <div class="field">
-                <label>Autres pathologies associées</label>
-                <SelectSearch v-model="formConsult.pathologiesAssociees" :options="listesParams.PATHOLOGIE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
-              </div>
             </div>
 
             <h4 class="section-title">Examens complémentaires</h4>
@@ -570,12 +577,37 @@
             </p>
             <div class="field">
               <label>Autres examens</label>
-              <textarea v-model.trim="formConsult.autresExamens" rows="2"></textarea>
+              <SelectSearch v-model="formConsult.autresExamens" :options="listesParams.EXAMEN.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
+            </div>
+            <!-- Le diagnostic se retient après les examens -->
+            <div class="form-row">
+              <div class="field">
+                <label>Diagnostic retenu</label>
+                <SelectSearch v-model="formConsult.diagnostic" :options="listesParams.DIAGNOSTIC.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : Paludisme simple" />
+              </div>
+              <div class="field">
+                <label>Autres pathologies associées</label>
+                <SelectSearch v-model="formConsult.pathologiesAssociees" :options="listesParams.PATHOLOGIE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
+              </div>
             </div>
 
             <!-- ══ 4. Prescription de médicaments (intégrée à la fiche) ══ -->
             <h3 class="section-title">Prescription de médicaments</h3>
             <div class="field">
+              <label>Prescrire des médicaments ?</label>
+              <div class="chips">
+                  <label class="chip" :class="{ actif: formConsult.prescriptionMedicaments === true }">
+                    <input v-model="formConsult.prescriptionMedicaments" type="radio" :value="true" hidden /> Oui
+                  </label>
+                  <label class="chip" :class="{ actif: formConsult.prescriptionMedicaments === false }">
+                    <input v-model="formConsult.prescriptionMedicaments" type="radio" :value="false" hidden /> Non
+                  </label>
+                </div>
+            </div>
+            <div class="field" :class="{ 'bloc-inactif': formConsult.prescriptionMedicaments !== true }">
+              <p v-if="formConsult.prescriptionMedicaments !== true" class="text-muted small-note">
+                Choisissez « Oui » pour prescrire des médicaments.
+              </p>
               <div v-if="consultation" class="prescriptions-fiche">
                 <table v-if="(consultation.medicaments ?? []).length > 0" class="prescriptions-fiche-table">
                   <tbody>
@@ -583,6 +615,7 @@
                       <td>
                         <strong>{{ p.medicamentNom }}</strong>
                         <span class="text-muted" v-if="p.forme"> ({{ p.forme }})</span>
+                        <span v-if="p.prixUnitaire != null" class="prix-ligne"> — {{ formatPrix(p.prixUnitaire) }} F</span>
                         <div class="text-muted small-note">
                           {{ [p.posologie, p.quantite, p.duree].filter(Boolean).join(' · ') || '—' }}
                         </div>
@@ -685,23 +718,14 @@
                 <label>Fin M.O.</label>
                 <input v-model="formConsult.moFin" type="datetime-local" />
               </div>
-            </div>
-
-            <!-- ══ Hospitalisation (§13) : prescription + chambre + facturation à l'entrée ══ -->
-            <div class="form-row">
               <div class="field">
-                <label>Hospitaliser le patient ?</label>
-                <div class="chips">
-                  <label class="chip" :class="{ actif: formConsult.hospitalisation === true }">
-                    <input v-model="formConsult.hospitalisation" type="radio" :value="true" hidden /> Oui
-                  </label>
-                  <label class="chip" :class="{ actif: formConsult.hospitalisation === false }">
-                    <input v-model="formConsult.hospitalisation" type="radio" :value="false" hidden /> Non
-                  </label>
-                </div>
+                <label>Chambre / lit</label>
+                <SelectSearch v-model="formConsult.litId" :options="optionsLitsLibres" placeholder="— Choisir un lit libre —" />
               </div>
             </div>
-            <template v-if="formConsult.hospitalisation">
+
+            <!-- ══ Hospitalisation (§13) : issue « Hospitalisé(e) » → chambre + facturation à l'entrée ══ -->
+            <template v-if="formConsult.issueSortie === 'HOSPITALISE'">
               <div class="form-row">
                 <div class="field">
                   <label>Type d'hospitalisation</label>
@@ -1432,7 +1456,10 @@
           Type de population :
           <span v-for="o in TYPES_POPULATION" :key="o">{{ caseCoche(formConsult.typePopulation === o) }} {{ o }} &nbsp;</span>
         </p>
-        <p class="fiche-a4-ligne">Autres populations à haut risque : {{ formConsult.populationsRisque }}</p>
+        <p class="fiche-a4-ligne">
+          Autres populations à haut risque : {{ caseCoche(formConsult.populationsRisque === 'Oui') }} Oui
+          {{ caseCoche(formConsult.populationsRisque === 'Non') }} Non
+        </p>
         <p class="fiche-a4-ligne">Contacts téléphoniques : {{ formConsult.telephone }}</p>
         <p class="fiche-a4-ligne">
           Protection sociale :
@@ -1447,7 +1474,10 @@
           DIABÈTE : {{ caseCoche(formConsult.diabete === true) }} Oui {{ caseCoche(formConsult.diabete === false) }} Non<br />
           Autres : {{ formConsult.antecedentsMedicaux }}
         </p>
-        <p class="fiche-a4-ligne">Chirurgicaux : {{ formConsult.antecedentsChirurgicaux }}</p>
+        <p class="fiche-a4-ligne">
+          Chirurgicaux : {{ caseCoche(formConsult.chirurgie === true) }} Oui {{ caseCoche(formConsult.chirurgie === false) }} Non
+          <span v-if="formConsult.chirurgie === true"> — {{ formConsult.antecedentsChirurgicaux }}</span>
+        </p>
         <p class="fiche-a4-ligne">Gynéco-obstétricaux : DDR : {{ formConsult.ddr }} &nbsp;&nbsp;
           Grossesse en cours : {{ caseCoche(formConsult.grossesseEnCours === true) }} Oui {{ caseCoche(formConsult.grossesseEnCours === false) }} Non</p>
         <p class="fiche-a4-ligne">
@@ -1522,7 +1552,8 @@
         <p class="fiche-a4-ligne" v-if="formConsult.issueSortie === 'MO'">
           Si M.O. préciser la durée : {{ formConsult.moDureeHeures }} h {{ formConsult.moDureeMinutes }} mn<br />
           Date et heure de début M.O. : {{ formConsult.moDebut }} &nbsp;&nbsp;
-          Date et heure de fin M.O. : {{ formConsult.moFin }}
+          Date et heure de fin M.O. : {{ formConsult.moFin }}<br />
+          Chambre / lit : {{ optionsLitsLibres.find((o) => o.value === formConsult.litId)?.label ?? '—' }}
         </p>
 
         <!-- Signature et cachet -->
@@ -1663,47 +1694,80 @@
     <!-- ============ Certificat d'arrêt de travail (modèle officiel, A4) ============ -->
     <div v-if="zoneImpression === 'certificat'" id="certificat-print">
       <div class="certificat-a4">
-        <div class="certificat-entete">
-          <img :src="logoClinique" alt="Logo" class="certificat-logo" />
-          <div class="certificat-entete-texte">
-            <div class="certificat-clinique">{{ cliniqueNom }}</div>
-            <div v-if="cliniqueTel" class="certificat-tel">Tel: {{ cliniqueTel }}</div>
+        <!-- En-tête (comme l'original) : logo, nom de la clinique, téléphone -->
+        <header class="cert-entete">
+          <img :src="logoParametre || logoCertificat" alt="Logo" class="cert-logo" />
+          <div class="cert-entete-texte">
+            <div class="cert-clinique">{{ cliniqueNom }}</div>
+            <div class="cert-coord">Tel : {{ cliniqueTel || TEL_CERTIFICAT }}</div>
           </div>
+          <!-- Numéro du certificat enregistré (CERT-0001…) -->
+          <div class="cert-logo-equilibre cert-numero">
+            <span v-if="numeroCertificat">N° {{ numeroCertificat }}</span>
+          </div>
+        </header>
+
+        <h1 class="cert-titre">Certificat d'arrêt de travail</h1>
+
+        <div class="cert-corps">
+          <p>
+            Je soussigné(e), <span class="cert-val">{{ formCertificat.medecin || 'Dr ……………………………' }}</span>,
+            Médecin traitant au <span class="cert-val">{{ cliniqueNom }}</span>, certifie avoir examiné ce jour :
+          </p>
+
+          <p class="cert-ident">
+            <span v-for="(c, i) in ['Mme', 'Mlle', 'M.']" :key="c">
+              <span :class="formCertificat.civilite === c ? 'cert-civ-choisie' : 'cert-civ'">{{ c }}</span>
+              <span v-if="i < 2" class="cert-civ"> / </span>
+            </span>
+            : <span class="cert-val cert-nom">{{ formCertificat.nomPatient || '…………………………………………' }}</span>
+          </p>
+
+          <p class="cert-ident cert-deux-colonnes">
+            <span>
+              Né(e) le :
+              <span class="cert-val">{{
+                /^\d{4}-\d{2}-\d{2}/.test(formCertificat.dateNaissance || '')
+                  ? formatDateFr(formCertificat.dateNaissance)
+                  : formCertificat.dateNaissance || '……………………'
+              }}</span>
+            </span>
+            <span>Profession : <span class="cert-val">{{ formCertificat.profession || '……………………' }}</span></span>
+          </p>
+
+          <p>
+            Après examen clinique, l'état de santé de l'intéressé(e) nécessite un arrêt de travail de :
+            <span class="cert-val">{{ formCertificat.dureeJours || '……' }}</span>
+            (<span class="cert-val">{{ nombreEnLettres(Number(formCertificat.dureeJours) || 0) }}</span>) jours.
+          </p>
+
+          <p>
+            Période de l'arrêt : du <span class="cert-val">{{ formatDateFr(formCertificat.debut) }}</span>
+            au <span class="cert-val">{{ formatDateFr(formCertificat.fin) }}</span>, sous réserve de l'évolution
+            de son état de santé et en l'absence de toute complication.
+          </p>
+
+          <p>
+            Cet arrêt de travail est prescrit afin de permettre au patient de bénéficier du repos nécessaire à son
+            rétablissement.
+          </p>
+
+          <p>
+            En foi de quoi, le présent certificat est délivré à l'intéressé(e) pour servir et valoir ce que de droit.
+          </p>
         </div>
-        <h1 class="certificat-titre">CERTIFICAT D'ARRÊT DE TRAVAIL</h1>
-        <p class="certificat-corps">
-          Je soussigné(e), <strong class="certificat-valeur">{{ formCertificat.medecin || 'Dr ……………………' }}</strong>,
-          Médecin traitant au <strong class="certificat-valeur">{{ auth.user?.clinique?.nom || 'Centre Médical Espoir de Bloléquin' }}</strong>,
-          certifie avoir examiné ce jour :
-        </p>
-        <p class="certificat-corps">
-          {{ formCertificat.civilite }} : <strong class="certificat-valeur">{{ formCertificat.nomPatient || '………………………………………………' }}</strong><br />
-          Né(e) le : <strong class="certificat-valeur">{{ formCertificat.dateNaissance || '………………' }}</strong>&nbsp;&nbsp;&nbsp;
-          Profession : <strong class="certificat-valeur">{{ formCertificat.profession || '………………………………' }}</strong>
-        </p>
-        <p class="certificat-corps">
-          Après examen clinique, l'état de santé de l'intéressé(e) nécessite un arrêt de travail de :
-          <strong class="certificat-valeur">{{ formCertificat.dureeJours }}</strong>
-          (<strong class="certificat-valeur">{{ nombreEnLettres(Number(formCertificat.dureeJours) || 0) }}</strong>) jours.
-        </p>
-        <p class="certificat-corps">
-          Période de l'arrêt : du <strong class="certificat-valeur">{{ formatDateFr(formCertificat.debut) }}</strong>
-          au <strong class="certificat-valeur">{{ formatDateFr(formCertificat.fin) }}</strong>,
-          sous réserve de l'évolution de son état de santé et en l'absence de toute complication.
-        </p>
-        <p class="certificat-corps">
-          Cet arrêt de travail est prescrit afin de permettre au patient de bénéficier du repos nécessaire à son rétablissement.
-        </p>
-        <p class="certificat-corps">
-          En foi de quoi, le présent certificat est délivré à l'intéressé(e) pour servir et valoir ce que de droit.
-        </p>
-        <p class="certificat-corps">
-          Fait à <strong class="certificat-valeur">{{ formCertificat.lieu }}</strong>,
-          le <strong class="certificat-valeur">{{ formatDateFr(formCertificat.dateJour) }}</strong>
-        </p>
-        <div class="certificat-signature">
-          <div class="certificat-cachet">Signature et cachet</div>
-          <div class="certificat-medecin">LE MÉDECIN TRAITANT</div>
+
+        <!-- Date, puis signature à droite (comme l'original) -->
+        <div class="cert-fin">
+          <p class="cert-fait">
+            Fait à <span class="cert-val">{{ lieuCertificat }}</span>,
+            le <span class="cert-val">{{ formatDateFr(formCertificat.dateJour) }}</span>
+          </p>
+          <div class="cert-medecin">
+            <div class="cert-medecin-titre">LE MÉDECIN TRAITANT</div>
+            <div class="cert-medecin-nom">{{ formCertificat.medecin }}</div>
+            <div class="cert-cachet"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1718,6 +1782,12 @@ import http from '../api/http'
 import { marquerValeurs } from '../utils/texteFiche'
 import { toastError, toastSuccess } from '../utils/notifications'
 import logoClinique from '../assets/logoclinique.jpeg'
+// Certificat d'arrêt : logo, lieu et téléphone du modèle officiel (CERTIFICAT ARRET T.docx)
+import logoCertificat from '../assets/logo-certificat.jpeg'
+const LIEU_CERTIFICAT = 'Bloléquin'
+const TEL_CERTIFICAT = '27 24 45 26 01'
+/** Logo paramétré (Paramétrage → Paramètres → image de connexion), sinon logo du modèle. */
+const logoParametre = ref('')
 import SelectSearch from '../components/SelectSearch.vue'
 import ReferenceFiche from '../components/ReferenceFiche.vue'
 
@@ -1848,6 +1918,15 @@ function nombreEnLettres(n) {
   return String(n)
 }
 
+/** Date de naissance déduite de l'âge (aujourd'hui − âge), comme à l'Accueil. */
+function naissanceDepuisAge(age) {
+  const n = parseInt(age, 10)
+  if (isNaN(n) || n < 0 || n > 150) return ''
+  const d = new Date()
+  d.setFullYear(d.getFullYear() - n)
+  return d.toISOString().slice(0, 10)
+}
+
 function initCertificat() {
   const p = detail.value?.passage?.patient
   const personnel = auth.user?.personnel
@@ -1858,13 +1937,15 @@ function initCertificat() {
   Object.assign(formCertificat, {
     civilite: p?.sexe === 'M' ? 'M.' : 'Mme',
     nomPatient: p ? `${p.nom} ${p.prenom}` : '',
-    dateNaissance: p?.dateNaissance ? p.dateNaissance.slice(0, 10) : '',
+    // Comme le modèle : « Né(e) le ». Patient enregistré avec l'âge seulement →
+    // date déduite de l'âge (même règle qu'à l'Accueil), modifiable par le médecin.
+    dateNaissance: p?.dateNaissance ? p.dateNaissance.slice(0, 10) : naissanceDepuisAge(p?.age),
     profession: p?.profession ?? '',
     dureeJours: formCertificat.dureeJours || 7,
     debut: iso(aujourdHui),
     fin: iso(fin),
     medecin: personnel ? `Dr ${personnel.nom} ${personnel.prenom}` : '',
-    lieu: auth.user?.clinique?.adresse || auth.user?.clinique?.nom || 'Bloléquin',
+    lieu: LIEU_CERTIFICAT,
     dateJour: iso(aujourdHui),
   })
 }
@@ -1885,6 +1966,21 @@ watch(onglet, (o) => {
 })
 
 const certificatsEnregistres = ref([])
+/**
+ * « Fait à » : Bloléquin par défaut. Les anciens certificats reprenaient le nom
+ * ou l'adresse de la clinique (« Centre médical… », « Abidjan… ») : remplacés.
+ */
+const lieuCertificat = computed(() => {
+  const l = (formCertificat.lieu || '').trim()
+  const c = auth.user?.clinique
+  if (!l || l === (c?.nom || '').trim() || l === (c?.adresse || '').trim() || /centre m[ée]dical/i.test(l)) {
+    return LIEU_CERTIFICAT
+  }
+  return l
+})
+
+/** Numéro du certificat imprimé (CERT-0001…), affiché en haut à droite. */
+const numeroCertificat = ref('')
 const certificatEnCours = ref(false)
 
 /** Charge les certificats déjà établis pour cette consultation. */
@@ -1903,7 +1999,10 @@ function rechargerCertificat(c) {
   Object.assign(formCertificat, {
     civilite: c.civilite,
     nomPatient: c.nomPatient,
-    dateNaissance: c.dateNaissance ?? '',
+    dateNaissance:
+      c.dateNaissance ||
+      detail.value?.passage?.patient?.dateNaissance?.slice(0, 10) ||
+      naissanceDepuisAge(detail.value?.passage?.patient?.age),
     profession: c.profession ?? '',
     dureeJours: c.dureeJours,
     debut: c.debut ? c.debut.slice(0, 10) : '',
@@ -1912,12 +2011,13 @@ function rechargerCertificat(c) {
     lieu: c.lieu ?? '',
     dateJour: new Date(c.createdAt).toISOString().slice(0, 10),
   })
+  numeroCertificat.value = c.numero ?? ''
   onglet.value = 'certificat'
   lancerImpression('certificat')
 }
 
 async function imprimerCertificat() {
-  initCertificat()
+  // Le formulaire n'est PAS réinitialisé ici : on imprime ce que le médecin a saisi
   // Enregistrement du certificat (numéro séquentiel, horodaté, médecin tracé)
   certificatEnCours.value = true
   try {
@@ -1927,7 +2027,7 @@ async function imprimerCertificat() {
       const { data } = await http.post(`/consultations/passages/${passageCourant.value.id}`, {})
       consultation.value = data
     }
-    await http.post(`/consultations/${consultation.value.id}/certificat-arret`, {
+    const { data: cert } = await http.post(`/consultations/${consultation.value.id}/certificat-arret`, {
       civilite: formCertificat.civilite,
       nomPatient: formCertificat.nomPatient || detail.value?.passage?.patient?.nom || '',
       dateNaissance: formCertificat.dateNaissance || undefined,
@@ -1936,8 +2036,9 @@ async function imprimerCertificat() {
       debut: formCertificat.debut,
       fin: formCertificat.fin,
       medecin: formCertificat.medecin,
-      lieu: formCertificat.lieu || undefined,
+      lieu: lieuCertificat.value,
     })
+    numeroCertificat.value = cert?.numero ?? ''
     await chargerCertificats()
     toastSuccess('Certificat enregistré — prêt pour l’impression.')
   } catch (e) {
@@ -1965,7 +2066,9 @@ const OUI_NON_NA = ['Oui', 'Non', 'NA']
 const STATUTS_CONJUGAUX = ['Marié(e)', 'Concubinage', 'Célibataire', 'Séparé(e)', 'Veuf/Veuve', 'Autre']
 const TYPES_POPULATION = ['Population générale', 'TS', 'OEV', 'HSH', 'PC']
 const PROTECTIONS_SOCIALES = ['Non assuré', 'CMU', 'Assurance privée (AP)', 'CMU + AP', 'Indigent']
+// Une seule issue à la fois (l'hospitalisation en fait partie)
 const ISSUES_SORTIE = [
+  { value: 'DOMICILE', label: 'Retour à domicile' },
   { value: 'HOSPITALISE', label: 'Hospitalisé(e)' },
   { value: 'MO', label: 'M.O.' },
   { value: 'REFERE_INTERNE', label: 'Référé(e) en interne' },
@@ -1986,6 +2089,11 @@ const imcCalcule = computed(() => {
   if (taille > 3) taille = taille / 100
   return (poids / (taille * taille)).toFixed(1)
 })
+
+/** Prix affiché sur l'ordonnance (tests automatiques), ex. 1 500. */
+function formatPrix(v) {
+  return String(Math.round(Number(v))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
 
 /** Tests cochés dans la fiche qui seront inscrits sur l'ordonnance (règle du serveur). */
 const testsOrdonnance = computed(() => {
@@ -2055,6 +2163,9 @@ const ROUTES_LISTES = {
   PATHOLOGIE: '/pathologies',
   POSOLOGIE: '/posologies',
   PROFESSION: '/professions',
+  MOTIF: '/motifs',
+  ANTECEDENT: '/antecedents-medicaux',
+  EXAMEN: '/autres-examens',
 }
 
 const listesParams = reactive({
@@ -2064,6 +2175,9 @@ const listesParams = reactive({
   PATHOLOGIE: [],
   POSOLOGIE: [],
   PROFESSION: [],
+  MOTIF: [],
+  ANTECEDENT: [],
+  EXAMEN: [],
 })
 
 async function chargerListesParams(cliniqueId) {
@@ -2307,6 +2421,8 @@ async function chargerDetail() {
       observation: c.observation ?? '',
       diagnostic: c.diagnostic ?? '',
       hospitalisation: c.hospitalisation ?? false,
+      chirurgie: c.chirurgie ?? (c.antecedentsChirurgicaux ? true : null),
+      prescriptionMedicaments: c.prescriptionMedicaments ?? ((c.medicaments ?? []).length > 0 ? true : null),
       hospitalisationDuree: c.hospitalisationDuree ?? '',
       typeHospitalisation: c.typeHospitalisation ?? '',
       hospitalisationDureeJours: c.hospitalisationDureeJours ?? null,
@@ -2345,7 +2461,7 @@ async function chargerDetail() {
       testHepatite: c.testHepatite ?? '',
       autresExamens: c.autresExamens ?? '',
       conduiteTenir: c.conduiteTenir ?? '',
-      issueSortie: c.issueSortie ?? '',
+      issueSortie: c.issueSortie || (c.hospitalisation ? 'HOSPITALISE' : ''),
       casPresumeTB: c.casPresumeTB ?? '',
       moDureeHeures: c.moDureeHeures ?? null,
       moDureeMinutes: c.moDureeMinutes ?? null,
@@ -2386,18 +2502,21 @@ async function sauvegarderFiche() {
       motif: vider(f.motif),
       observation: vider(f.observation),
       diagnostic: vider(f.diagnostic),
-      hospitalisation: f.hospitalisation,
+      // Hospitalisation = issue « Hospitalisé(e) » (une seule issue à la fois)
+      hospitalisation: f.issueSortie === 'HOSPITALISE',
+      chirurgie: f.chirurgie ?? undefined,
+      prescriptionMedicaments: f.prescriptionMedicaments ?? undefined,
       hospitalisationDuree: vider(f.hospitalisationDuree),
       typeHospitalisation: vider(f.typeHospitalisation),
       hospitalisationDureeJours: f.hospitalisationDureeJours ?? undefined,
-      litId: f.litId ?? undefined,
+      litId: ['HOSPITALISE', 'MO'].includes(f.issueSortie) ? f.litId ?? undefined : null,
       modeEntree: vider(f.modeEntree),
       modeEntreeAutre: vider(f.modeEntreeAutre),
       traitementAnterieur: vider(f.traitementAnterieur),
       hta: f.hta,
       diabete: f.diabete,
       antecedentsMedicaux: vider(f.antecedentsMedicaux),
-      antecedentsChirurgicaux: vider(f.antecedentsChirurgicaux),
+      antecedentsChirurgicaux: f.chirurgie === false ? null : vider(f.antecedentsChirurgicaux),
       ddr: vider(f.ddr),
       grossesseEnCours: f.grossesseEnCours,
       tabac: f.tabac,
@@ -2454,6 +2573,9 @@ async function sauvegarderFiche() {
     alimenterListe('RESIDENCE', f.residenceActuelle)
     alimenterListe('RESIDENCE', f.residenceHabituelle)
     alimenterListe('PROFESSION', f.profession)
+    alimenterListe('MOTIF', f.motif)
+    alimenterListe('ANTECEDENT', f.antecedentsMedicaux)
+    alimenterListe('EXAMEN', f.autresExamens)
     await chargerDetail()
   } catch (e) {
     toastError(e.response?.data?.message || 'Erreur lors de l\'enregistrement.')
@@ -2728,6 +2850,11 @@ function formatDateHeure(d) {
 }
 
 onMounted(async () => {
+  // Logo de la clinique paramétré (même image que la page de connexion)
+  http
+    .get('/auth/config-public')
+    .then(({ data }) => (logoParametre.value = data?.loginImage || ''))
+    .catch(() => {})
   chargerPrestations()
   chargerLits()
   chargerFile()
@@ -3035,6 +3162,14 @@ onUnmounted(() => {
   }
 }
 
+.bloc-inactif .prescriptions-fiche {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.prix-ligne {
+  font-weight: 700;
+  color: var(--primary);
+}
 .section-title {
   font-size: 13px;
   font-weight: 700;
@@ -3496,85 +3631,128 @@ onUnmounted(() => {
 .certificat-a4 {
   width: 182mm;
   max-width: 100%;
+  min-height: 262mm; /* toute la page A4 (marges d'impression déduites) */
   margin: 0 auto;
   background: #fff;
   padding: 10mm 12mm;
-  font-family: 'Times New Roman', 'Segoe UI', serif;
+  font-family: Arial, Helvetica, sans-serif; /* police du modèle Word */
   color: #111;
-  font-size: 13px;
-  line-height: 1.7;
-}
-.certificat-entete {
+  font-size: 15px;
+  line-height: 1.8;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+  text-transform: none;
+}
+.cert-entete {
+  display: flex;
   align-items: center;
-  gap: 2px;
-  margin-bottom: 8mm;
+  gap: 14px;
+  padding-bottom: 4mm;
+  border-bottom: 3px double #0d6e63;
 }
-.certificat-logo {
-  width: 74px;
-  height: 74px;
-  object-fit: cover;
-  border-radius: 12px;
+.cert-logo,
+.cert-logo-equilibre {
+  width: 30mm;
+  height: 28mm;
+  flex-shrink: 0;
 }
-.certificat-entete-texte {
+.cert-logo {
+  object-fit: contain;
+}
+.cert-numero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.cert-entete-texte {
+  flex: 1;
   text-align: center;
 }
-.certificat-clinique {
-  font-size: 14px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.certificat-tel {
-  font-size: 11px;
-}
-.certificat-titre {
-  text-align: center;
-  font-size: 16px;
-  font-weight: 800;
+.cert-clinique {
+  font-size: 19px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
-  margin: 0 0 14px;
-  text-decoration: underline;
+  color: #0d6e63;
+  line-height: 1.3;
 }
-.certificat-corps {
+.cert-coord {
+  font-size: 13px;
   font-weight: 700;
-  margin: 10px 0;
+  margin-top: 1mm;
+}
+.cert-titre {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 16mm 0 12mm;
+}
+.cert-corps {
+  font-weight: 700; /* le modèle Word est entièrement en gras */
+}
+.cert-corps p {
+  margin: 0 0 7mm;
   text-align: justify;
-  hyphens: auto;
 }
-.certificat-valeur {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+.cert-ident {
+  padding-left: 6mm;
 }
-.certificat-signature {
-  margin-top: 26mm;
+.cert-deux-colonnes {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  gap: 8mm;
 }
-.certificat-cachet {
-  border: 1px solid #111;
-  border-radius: 6px;
-  width: 150px;
-  height: 55px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: #555;
-  font-style: italic;
+.cert-val {
+  font-weight: 800;
+  color: #0b4f47;
+}
+.cert-nom {
+  font-size: 16px;
+  letter-spacing: 0.3px;
+}
+.cert-civ {
+  color: #9aa5a3;
   font-weight: 400;
 }
-.certificat-medecin {
+.cert-civ-choisie {
   font-weight: 800;
-  text-align: right;
+}
+.cert-fin {
+  margin-top: auto; /* signature repoussée en bas de page */
+  padding-top: 8mm;
+  font-weight: 700;
+}
+.cert-fait {
+  margin: 0 0 8mm;
+}
+.cert-medecin {
+  margin-left: auto;
+  width: 78mm;
+  text-align: center;
+}
+.cert-medecin-titre {
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.cert-medecin-nom {
+  font-weight: 400;
+  margin-top: 1mm;
+}
+.cert-cachet {
+  height: 38mm; /* place pour la signature et le cachet */
 }
 @media print {
   .certificat-a4 {
     width: 100%;
     padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
 .modal-a4 {

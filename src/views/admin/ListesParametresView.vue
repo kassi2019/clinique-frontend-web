@@ -143,6 +143,8 @@ const CATEGORIES = {
   professions: { code: 'PROFESSION', icone: '💼', libelle: 'Professions des patients', route: '/professions' },
   motifs: { code: 'MOTIF', icone: '📋', libelle: 'Motifs de consultation', route: '/motifs' },
   quartiers: { code: 'QUARTIER', icone: '🏘️', libelle: 'Quartiers', route: '/quartiers' },
+  antecedents: { code: 'ANTECEDENT', icone: '📜', libelle: 'Antécédents médicaux (maladies)', route: '/antecedents-medicaux' },
+  examens: { code: 'EXAMEN', icone: '🧪', libelle: 'Autres examens', route: '/autres-examens' },
 }
 
 const categorie = computed(() => CATEGORIES[route.params.code] ?? CATEGORIES.nationalites)

@@ -3,46 +3,63 @@
     <div class="select-search-field" @click="basculer">
       <span v-if="labelChoisi" class="select-search-value">{{ labelChoisi }}</span>
       <span v-else class="select-search-placeholder">{{ placeholder }}</span>
-      <span class="select-search-arrow">▾</span>
+      <span class="select-search-arrow">{{ ouvert ? '▴' : '▾' }}</span>
     </div>
-    <div v-if="ouvert" class="select-search-dropdown">
-      <input
-        ref="inputRecherche"
-        v-model="filtre"
-        class="select-search-input"
-        :class="{ 'search-raw': brut }"
-        type="text"
-        placeholder="Saisir pour rechercher…"
-        @keydown.down.prevent="descendre"
-        @keydown.up.prevent="monter"
-        @keydown.enter.prevent="choisirIndex"
-        @keydown.esc="ouvert = false"
-      />
-      <ul class="select-search-options">
-        <li
-          v-if="valeurLibre"
-          class="select-search-option select-search-ajout"
-          :class="{ actif: indexActif === optionsFiltrees.length }"
-          @mouseenter="indexActif = optionsFiltrees.length"
-          @click="choisir({ value: valeurLibre, label: valeurLibre })"
-        >
-          ＋ Ajouter « {{ valeurLibre }} »
-        </li>
-        <li v-if="optionsFiltrees.length === 0 && !valeurLibre" class="select-search-vide">
-          Aucun résultat
-        </li>
-        <li
-          v-for="(o, i) in optionsFiltrees"
-          :key="o.value ?? 'vide'"
-          class="select-search-option"
-          :class="{ actif: i === indexActif }"
-          @mouseenter="indexActif = i"
-          @click="choisir(o)"
-        >
-          {{ o.label }}
-        </li>
-      </ul>
-    </div>
+    <!--
+      La liste s'affiche au-dessus de toute la page (téléportée dans <body>) :
+      elle n'est plus coupée par une modale, un cadre ou un en-tête fixe, et
+      s'ouvre vers le haut quand la place manque en bas de l'écran.
+    -->
+    <Teleport to="body">
+      <div
+        v-if="ouvert"
+        ref="panneau"
+        class="select-search-dropdown"
+        :class="{ 'vers-le-haut': versLeHaut }"
+        :style="stylePanneau"
+      >
+        <input
+          ref="inputRecherche"
+          v-model="filtre"
+          class="select-search-input"
+          :class="{ 'search-raw': brut }"
+          type="text"
+          :placeholder="libre ? 'Rechercher ou saisir une nouvelle valeur…' : 'Saisir pour rechercher…'"
+          @keydown.down.prevent="descendre"
+          @keydown.up.prevent="monter"
+          @keydown.enter.prevent="choisirIndex"
+          @keydown.esc="fermer"
+          @keydown.tab="fermer"
+        />
+        <ul ref="liste" class="select-search-options" :style="{ maxHeight: hauteurListe + 'px' }">
+          <li
+            v-if="valeurLibre"
+            class="select-search-option select-search-ajout"
+            :class="{ actif: indexActif === optionsFiltrees.length }"
+            :data-index="optionsFiltrees.length"
+            @mouseenter="indexActif = optionsFiltrees.length"
+            @click="choisir({ value: valeurLibre, label: valeurLibre })"
+          >
+            ＋ Ajouter « {{ valeurLibre }} »
+          </li>
+          <li v-if="optionsFiltrees.length === 0 && !valeurLibre" class="select-search-vide">
+            Aucun résultat
+          </li>
+          <li
+            v-for="(o, i) in optionsFiltrees"
+            :key="o.value ?? 'vide'"
+            class="select-search-option"
+            :class="{ actif: i === indexActif, choisi: o.value === modelValue }"
+            :data-index="i"
+            @mouseenter="indexActif = i"
+            @click="choisir(o)"
+          >
+            <span class="select-search-coche">{{ o.value === modelValue ? '✓' : '' }}</span>
+            <span class="select-search-libelle">{{ o.label }}</span>
+          </li>
+        </ul>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -62,10 +79,17 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'change'])
 
 const racine = ref(null)
+const panneau = ref(null)
+const liste = ref(null)
 const inputRecherche = ref(null)
 const ouvert = ref(false)
 const filtre = ref('')
 const indexActif = ref(0)
+
+// Position du panneau (coordonnées écran, recalculées au défilement)
+const stylePanneau = ref({})
+const versLeHaut = ref(false)
+const hauteurListe = ref(260)
 
 /** Normalise pour une recherche insensible aux accents et à la casse. */
 function normaliser(t) {
@@ -98,20 +122,57 @@ const valeurLibre = computed(() => {
   return props.options.some((o) => normaliser(o.label) === n) ? '' : t
 })
 
+/** Place le panneau sous le champ (ou au-dessus s'il manque de place en bas). */
+function positionner() {
+  const champ = racine.value?.querySelector('.select-search-field')
+  if (!champ) return
+  const r = champ.getBoundingClientRect()
+  const marge = 8
+  const hauteurRecherche = 44
+  const espaceBas = window.innerHeight - r.bottom - marge
+  const espaceHaut = r.top - marge
+  versLeHaut.value = espaceBas < 220 && espaceHaut > espaceBas
+  const espace = versLeHaut.value ? espaceHaut : espaceBas
+  hauteurListe.value = Math.max(120, Math.min(300, espace - hauteurRecherche - 8))
+
+  const largeur = Math.min(Math.max(r.width, 240), window.innerWidth - 2 * marge)
+  const gauche = Math.min(Math.max(r.left, marge), window.innerWidth - largeur - marge)
+  stylePanneau.value = versLeHaut.value
+    ? { left: gauche + 'px', width: largeur + 'px', bottom: window.innerHeight - r.top + 4 + 'px' }
+    : { left: gauche + 'px', width: largeur + 'px', top: r.bottom + 4 + 'px' }
+}
+
+function ouvrir() {
+  ouvert.value = true
+  filtre.value = ''
+  // Positionne la sélection sur la valeur déjà choisie
+  const i = props.options.findIndex((o) => o.value === props.modelValue)
+  indexActif.value = i >= 0 ? i : 0
+  positionner()
+  window.addEventListener('scroll', positionner, true)
+  window.addEventListener('resize', positionner)
+  nextTick(() => {
+    inputRecherche.value?.focus()
+    rendreVisible()
+  })
+}
+
+function fermer() {
+  ouvert.value = false
+  filtre.value = ''
+  window.removeEventListener('scroll', positionner, true)
+  window.removeEventListener('resize', positionner)
+}
+
 function basculer() {
-  ouvert.value = !ouvert.value
-  if (ouvert.value) {
-    filtre.value = ''
-    indexActif.value = 0
-    nextTick(() => inputRecherche.value?.focus())
-  }
+  if (ouvert.value) fermer()
+  else ouvrir()
 }
 
 function choisir(o) {
   emit('update:modelValue', o.value)
   emit('change', o.value)
-  ouvert.value = false
-  filtre.value = ''
+  fermer()
 }
 
 function choisirIndex() {
@@ -120,23 +181,37 @@ function choisirIndex() {
   else if (valeurLibre.value) choisir({ value: valeurLibre.value, label: valeurLibre.value })
 }
 
+/** Fait défiler la liste pour garder l'option active visible (clavier). */
+function rendreVisible() {
+  nextTick(() => {
+    const el = liste.value?.querySelector(`[data-index="${indexActif.value}"]`)
+    el?.scrollIntoView({ block: 'nearest' })
+  })
+}
+
 function descendre() {
   const max = optionsFiltrees.value.length - (valeurLibre.value ? 0 : 1)
   indexActif.value = Math.min(indexActif.value + 1, max)
+  rendreVisible()
 }
 
 function monter() {
   indexActif.value = Math.max(indexActif.value - 1, 0)
+  rendreVisible()
 }
 
 function onClicExterieur(e) {
-  if (racine.value && !racine.value.contains(e.target)) {
-    ouvert.value = false
-  }
+  if (!ouvert.value) return
+  const dansChamp = racine.value?.contains(e.target)
+  const dansPanneau = panneau.value?.contains(e.target)
+  if (!dansChamp && !dansPanneau) fermer()
 }
 
 onMounted(() => document.addEventListener('click', onClicExterieur))
-onUnmounted(() => document.removeEventListener('click', onClicExterieur))
+onUnmounted(() => {
+  document.removeEventListener('click', onClicExterieur)
+  fermer()
+})
 </script>
 
 <style scoped>
@@ -150,77 +225,106 @@ onUnmounted(() => document.removeEventListener('click', onClicExterieur))
   justify-content: space-between;
   gap: 8px;
   padding: 8px 12px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border-champ);
   border-radius: var(--radius);
   background: var(--surface);
   cursor: pointer;
   min-height: 38px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
+.select-search-field:hover {
+  border-color: var(--primary);
+}
 .select-search.open .select-search-field {
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(13, 116, 144, 0.15);
+  box-shadow: 0 0 0 3px rgba(13, 116, 144, 0.18);
 }
 .select-search-value {
   color: var(--text);
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .select-search-placeholder {
-  color: #94a3b8;
+  color: #64748b;
 }
 .select-search-arrow {
-  color: var(--text-muted);
-  font-size: 11px;
+  color: var(--primary);
+  font-size: 12px;
   flex-shrink: 0;
 }
+
+/* Panneau affiché au-dessus de toute la page (position écran) */
 .select-search-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  z-index: 60;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  position: fixed;
+  z-index: 3000;
+  background: #fff;
+  border: 1.5px solid var(--primary);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.28);
   overflow: hidden;
+  font-size: 14px;
+  text-transform: none;
 }
 .select-search-input {
   width: 100%;
-  padding: 9px 12px;
+  padding: 10px 12px;
   border: none;
-  border-bottom: 1px solid var(--border);
-  font-size: 13.5px;
+  border-bottom: 1px solid #d5e2df;
+  font-size: 14px;
   font-family: inherit;
   outline: none;
-  background: var(--bg);
+  background: #f5faf9;
+  box-sizing: border-box;
 }
 .select-search-options {
   list-style: none;
-  max-height: 200px;
   overflow-y: auto;
   margin: 0;
-  padding: 0;
+  padding: 4px 0;
 }
 .select-search-option {
-  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
   cursor: pointer;
-  border-bottom: 1px solid var(--border);
-  font-size: 13.5px;
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.35;
 }
-.select-search-option:last-child {
-  border-bottom: none;
+.select-search-option + .select-search-option {
+  border-top: 1px solid #eef3f2;
+}
+.select-search-coche {
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--primary);
+  font-weight: 800;
+}
+.select-search-libelle {
+  flex: 1;
+  white-space: normal;
+  word-break: break-word;
+}
+.select-search-option.choisi {
+  font-weight: 700;
+  color: var(--primary-dark);
 }
 .select-search-option:hover,
 .select-search-option.actif {
-  background: var(--primary-light);
-  color: var(--primary-dark);
+  background: var(--primary);
+  color: #fff;
+}
+.select-search-option:hover .select-search-coche,
+.select-search-option.actif .select-search-coche {
+  color: #fff;
 }
 .select-search-ajout {
   color: var(--primary);
-  font-weight: 600;
+  font-weight: 700;
+  background: #eef8f6;
 }
 .select-search-vide {
   padding: 10px 12px;

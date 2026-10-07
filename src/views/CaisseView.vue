@@ -13,10 +13,11 @@
         <div class="header-actions">
           <span class="date-pill">{{ todayLabel }}</span>
           <button
+            v-if="peutBasculer"
             class="btn btn-outline btn-sm btn-bascule"
             @click="router.push({ name: 'pharmacie' })"
           >
-            💊 Pharmacie
+            ⚡ Basculer vers Pharmacie
           </button>
           <button
             class="btn btn-outline btn-sm btn-back"
@@ -879,6 +880,11 @@ const cliniqueNom = computed(
   () => auth.user?.clinique?.nom || "Gestion Clinique",
 );
 const estAdmin = computed(() => auth.user?.role?.code === "ADMINISTRATEUR");
+// Bascule Caisse ⇄ Pharmacie (comme Accueil ⇄ Constante) : agents Caisse /
+// Pharmacie et administrateur uniquement.
+const peutBasculer = computed(
+  () => ["CAI", "PHA"].includes(auth.user?.personnel?.service?.code) || estAdmin.value,
+);
 
 const todayLabel = computed(() =>
   new Date().toLocaleDateString("fr-FR", {
@@ -1473,12 +1479,13 @@ onUnmounted(() => {
   text-transform: capitalize;
 }
 .btn-bascule {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.55);
+  color: #1b3a1e;
+  background: linear-gradient(135deg, #b5dc5f, #8bc34a);
+  border-color: rgba(255, 255, 255, 0.35);
   font-weight: 700;
 }
 .btn-bascule:hover {
-  background: rgba(255, 255, 255, 0.18);
+  filter: brightness(1.06);
 }
 .btn-back {
   color: #fff;

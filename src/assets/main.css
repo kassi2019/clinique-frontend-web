@@ -279,6 +279,41 @@ tbody tr:hover {
   background: var(--surface);
 }
 
+/* ---------- Listes déroulantes natives : bien visibles partout ---------- */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 38px;
+  padding: 8px 34px 8px 12px;
+  border: 1.5px solid var(--border-champ);
+  border-radius: var(--radius);
+  background-color: var(--surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%230d7490' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+select:hover {
+  border-color: var(--primary);
+}
+select:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+  border-color: var(--primary);
+}
+select:disabled {
+  background-color: #e9edf1;
+  cursor: not-allowed;
+}
+select option {
+  color: #1e293b;
+  background: #fff;
+  font-size: 14px;
+}
+
 /* ---------- Actions de table ---------- */
 .actions {
   display: flex;

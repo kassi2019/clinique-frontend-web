@@ -28,8 +28,12 @@
           >
             ⚠️ Stock bas : <strong>{{ alertes.stockBas.length }}</strong>
           </button>
-          <button class="btn btn-outline btn-sm btn-bascule" @click="router.push({ name: 'caisse' })">
-            💰 Caisse
+          <button
+            v-if="peutBasculer"
+            class="btn btn-outline btn-sm btn-bascule"
+            @click="router.push({ name: 'caisse' })"
+          >
+            ⚡ Basculer vers Caisse
           </button>
           <button class="btn btn-outline btn-sm btn-back" @click="router.push({ name: 'home' })">
             ← Modules
@@ -1041,6 +1045,13 @@ import * as XLSX from 'xlsx'
 
 const auth = useAuthStore()
 const router = useRouter()
+// Bascule Pharmacie ⇄ Caisse (comme Accueil ⇄ Constante) : agents Caisse /
+// Pharmacie et administrateur uniquement.
+const peutBasculer = computed(
+  () =>
+    ['CAI', 'PHA'].includes(auth.user?.personnel?.service?.code) ||
+    auth.user?.role?.code === 'ADMINISTRATEUR',
+)
 
 const cliniqueId = computed(() => auth.user?.clinique?.id ?? null)
 const cliniqueNom = computed(() => auth.user?.clinique?.nom || 'Gestion Clinique')
@@ -1926,12 +1937,13 @@ onUnmounted(() => {
   text-transform: capitalize;
 }
 .btn-bascule {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.55);
+  color: #1b3a1e;
+  background: linear-gradient(135deg, #b5dc5f, #8bc34a);
+  border-color: rgba(255, 255, 255, 0.35);
   font-weight: 700;
 }
 .btn-bascule:hover {
-  background: rgba(255, 255, 255, 0.18);
+  filter: brightness(1.06);
 }
 .btn-back {
   color: #fff;

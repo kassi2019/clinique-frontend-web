@@ -113,6 +113,8 @@ const navItems = [
       { to: { name: 'admin-listes', params: { code: 'posologies' } }, label: 'Posologies', icon: '💊' },
       { to: { name: 'admin-listes', params: { code: 'diagnostics' } }, label: 'Diagnostics retenus', icon: '🩺' },
       { to: { name: 'admin-listes', params: { code: 'pathologies' } }, label: 'Pathologies associées', icon: '🦠' },
+      { to: { name: 'admin-listes', params: { code: 'antecedents' } }, label: 'Antécédents médicaux', icon: '📜' },
+      { to: { name: 'admin-listes', params: { code: 'examens' } }, label: 'Autres examens', icon: '🧪' },
     ],
   },
   {

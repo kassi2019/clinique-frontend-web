@@ -1172,28 +1172,32 @@ function naissanceDepuisAge(ageStr) {
 
 /** Âge saisi → la date de naissance est renseignée automatiquement. */
 watch(() => form.age, (age) => {
-  if (age !== '' && age !== null && !form.dateNaissance) {
+  // Mise à jour à chaque frappe (« 3 » puis « 35 ») tant que la date ne correspond pas à l'âge
+  if (age !== '' && age !== null && ageDepuisNaissance(form.dateNaissance) !== String(age)) {
     form.dateNaissance = naissanceDepuisAge(age)
   }
 })
 
 /** Date de naissance saisie → l'âge est calculé automatiquement. */
 watch(() => form.dateNaissance, (dn) => {
-  if (dn) {
-    form.age = ageDepuisNaissance(dn)
+  const age = ageDepuisNaissance(dn)
+  if (dn && age !== '' && String(form.age) !== age) {
+    form.age = age
   }
 })
 
 /** Même calcul automatique dans la modale de modification. */
 watch(() => formEdit.age, (age) => {
-  if (age !== '' && age !== null && !formEdit.dateNaissance) {
+  // Mise à jour à chaque frappe (« 3 » puis « 35 ») tant que la date ne correspond pas à l'âge
+  if (age !== '' && age !== null && ageDepuisNaissance(formEdit.dateNaissance) !== String(age)) {
     formEdit.dateNaissance = naissanceDepuisAge(age)
   }
 })
 
 watch(() => formEdit.dateNaissance, (dn) => {
-  if (dn) {
-    formEdit.age = ageDepuisNaissance(dn)
+  const age = ageDepuisNaissance(dn)
+  if (dn && age !== '' && String(formEdit.age) !== age) {
+    formEdit.age = age
   }
 })
 
