@@ -51,6 +51,10 @@
         <button class="tab-btn" :class="{ active: onglet === 'stocks' }" @click="onglet = 'stocks'; chargerStocks()">
           Stocks
         </button>
+        <button class="tab-btn" :class="{ active: onglet === 'credits' }" @click="onglet = 'credits'; chargerCreditsPharma()">
+          🎫 Crédits & cas sociaux
+          <span v-if="creditsPharma.credits.length" class="tab-count">{{ creditsPharma.credits.length }}</span>
+        </button>
         <button class="tab-btn" :class="{ active: onglet === 'financier' }" @click="onglet = 'financier'; chargerFinancier()">
           💰 Points financiers
         </button>
@@ -64,7 +68,7 @@
             v-model="recherche"
             class="search-input"
             type="text"
-            placeholder="Rechercher par code dossier patient, nom ou N° d'ordre…"
+            placeholder="Rechercher par N° d'ordonnance, nom et prénoms, code patient ou N° d'ordre…"
             @input="onRecherche"
           />
         </div>
@@ -132,7 +136,7 @@
           <li v-for="p in resultats" :key="p.id">
             <strong>{{ p.patient.nom }} {{ p.patient.prenom }}</strong>
             <span>{{ p.numeroOrdre }} · code {{ p.patient.code }}</span>
-            <div v-for="c in p.consultations" :key="c.id" class="ordo-line" @click="choisirOrdonnance(c, p)">
+            <div v-for="c in p.ordonnances" :key="c.id" class="ordo-line" @click="choisirOrdonnance(c, p)">
               💊 Ordonnance {{ c.numeroOrdonnance ? `n° ${c.numeroOrdonnance} — ` : '' }}du {{ formatDate(c.valideeLe || p.createdAt) }}
               ({{ c.medicaments.length }} médicament(s)) — {{ c.ordonnanceStatut === 'TRAITEE' ? 'traitée' : 'en attente' }}
             </div>
@@ -141,6 +145,15 @@
 
         <div v-if="ordonnance" class="ordonnance-detail">
           <div class="fiche-info">
+            <div class="fiche-ligne">
+              <span class="fiche-label">Ordonnance</span>
+              <span>
+                <strong>{{ ordonnance.ordonnance?.numero }}</strong>
+                <span class="badge" :class="ordonnance.ordonnance?.statut === 'TRAITEE' ? 'badge-success' : 'badge-warning'">
+                  {{ ordonnance.ordonnance?.statut === 'TRAITEE' ? 'Traitée' : 'En attente' }}
+                </span>
+              </span>
+            </div>
             <div class="fiche-ligne">
               <span class="fiche-label">Patient</span>
               <strong>{{ ordonnance.consultation.patient.nom }} {{ ordonnance.consultation.patient.prenom }}</strong>
@@ -214,10 +227,24 @@
             </table>
           </div>
 
+          <div v-if="ordonnance.assurance" class="assurance-pharma">
+            🛡️ <strong>{{ ordonnance.assurance.assurance }}</strong> — {{ ordonnance.assurance.formule }}
+            <span v-if="ordonnance.assurance.numeroAssure"> · N° assuré {{ ordonnance.assurance.numeroAssure }}</span>
+            <span v-if="ordonnance.assurance.taux > 0"> · médicaments couverts à <strong>{{ ordonnance.assurance.taux }} %</strong></span>
+            <span v-else class="text-muted"> · aucun taux « médicaments » paramétré pour cette formule (le patient paie 100 %)</span>
+          </div>
           <div class="recap">
             <div class="recap-item">
-              <span>Total à payer</span>
+              <span>Total des médicaments</span>
               <strong>{{ totalOrdonnance.toLocaleString('fr-FR') }} FCFA</strong>
+            </div>
+            <div v-if="partAssuranceOrdonnance > 0" class="recap-item">
+              <span>Part assurance ({{ ordonnance.assurance.taux }} %)</span>
+              <strong class="part-assurance">− {{ partAssuranceOrdonnance.toLocaleString('fr-FR') }} FCFA</strong>
+            </div>
+            <div v-if="partAssuranceOrdonnance > 0" class="recap-item">
+              <span>Reste à payer par le patient</span>
+              <strong>{{ (totalOrdonnance - partAssuranceOrdonnance).toLocaleString('fr-FR') }} FCFA</strong>
             </div>
             <div class="dispense-actions">
               <select v-model="modePaiement" class="mode-select">
@@ -228,9 +255,25 @@
               <button
                 class="btn btn-primary"
                 :disabled="dispenseEnCours || totalOrdonnance === 0"
-                @click="dispenser"
+                @click="dispenser()"
               >
                 {{ dispenseEnCours ? 'Dispensation…' : '💊 Dispenser & encaisser' }}
+              </button>
+              <button
+                class="btn btn-outline btn-credit"
+                :disabled="dispenseEnCours || totalOrdonnance === 0"
+                title="Crédit : les médicaments sont remis, le patient paie plus tard"
+                @click="dispenserSansPaiement('CREDIT')"
+              >
+                🎫 Crédit
+              </button>
+              <button
+                class="btn btn-outline btn-cas-social"
+                :disabled="dispenseEnCours || totalOrdonnance === 0"
+                title="Cas social : prise en charge non remboursable (patient indigent)"
+                @click="dispenserSansPaiement('CAS_SOCIAL')"
+              >
+                🤝 Cas social
               </button>
               <button class="btn btn-outline btn-sm" @click="ordonnance = null; resultats = []">
                 ✕ Autre ordonnance
@@ -267,7 +310,14 @@
                       .join(', ') }}
                   </td>
                   <td>{{ d.montantTotal.toLocaleString('fr-FR') }} FCFA</td>
-                  <td>{{ d.paiement?.numeroRecu || '—' }}</td>
+                  <td>
+                    {{ d.paiement?.numeroRecu || '—' }}
+                    <span v-if="d.paiement?.type === 'CREDIT'" class="badge badge-warning">
+                      {{ d.paiement.regleLe ? 'Crédit réglé' : 'Crédit' }}
+                    </span>
+                    <span v-else-if="d.paiement?.type === 'CAS_SOCIAL'" class="badge badge-muted">Cas social</span>
+                    <span v-if="Number(d.paiement?.montantAssurance) > 0" class="badge badge-success">Assurance</span>
+                  </td>
                   <td>
                     <span class="badge" :class="d.statut === 'CLOTUREE' ? 'badge-success' : 'badge-warning'">
                       {{ d.statut === 'CLOTUREE' ? 'Clôturée' : 'En cours' }}
@@ -286,6 +336,70 @@
               </tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <!-- ============ CRÉDITS & CAS SOCIAUX ============ -->
+      <section v-else-if="onglet === 'credits'" class="card">
+        <div class="card-header">
+          <h2>🎫 Crédits en cours à la pharmacie</h2>
+          <button class="btn btn-outline btn-sm" @click="chargerCreditsPharma">🔄 Actualiser</button>
+        </div>
+        <div v-if="creditsPharma.credits.length === 0" class="empty-state">Aucun crédit en cours. ✅</div>
+        <template v-else>
+          <p class="small-note">
+            Total à encaisser : <strong>{{ creditsPharma.totalCredits.toLocaleString('fr-FR') }} FCFA</strong>
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th><th>Reçu</th><th>Patient</th><th>Ordonnance</th><th>Motif</th>
+                  <th>Total</th><th>Part assurance</th><th>Reste dû</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="c in creditsPharma.credits" :key="c.id">
+                  <td>{{ formatDateHeure(c.createdAt) }}</td>
+                  <td>{{ c.numeroRecu }}</td>
+                  <td>
+                    <strong>{{ c.patient.nom }} {{ c.patient.prenom }}</strong>
+                    <span class="text-muted"> ({{ c.patient.code }})</span>
+                    <div v-if="c.patient.telephone" class="text-muted">📞 {{ c.patient.telephone }}</div>
+                  </td>
+                  <td>{{ c.numeroOrdonnance || '—' }}</td>
+                  <td>{{ c.motif || '—' }}</td>
+                  <td>{{ c.montantTotal.toLocaleString('fr-FR') }} F</td>
+                  <td>{{ c.montantAssurance ? c.montantAssurance.toLocaleString('fr-FR') + ' F' : '—' }}</td>
+                  <td><strong>{{ c.montantPatient.toLocaleString('fr-FR') }} F</strong></td>
+                  <td>
+                    <button class="btn btn-primary btn-sm" @click="encaisserCreditPharma(c)">💵 Encaisser</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
+        <h3 class="section-title">🤝 Cas sociaux pris en charge</h3>
+        <div v-if="creditsPharma.casSociaux.length === 0" class="text-muted small-note">Aucun cas social enregistré.</div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Date</th><th>Reçu</th><th>Patient</th><th>Ordonnance</th><th>Motif</th><th>Montant pris en charge</th><th>Par</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="c in creditsPharma.casSociaux" :key="c.id">
+                <td>{{ formatDateHeure(c.createdAt) }}</td>
+                <td>{{ c.numeroRecu }}</td>
+                <td><strong>{{ c.patient.nom }} {{ c.patient.prenom }}</strong> <span class="text-muted">({{ c.patient.code }})</span></td>
+                <td>{{ c.numeroOrdonnance || '—' }}</td>
+                <td>{{ c.motif || '—' }}</td>
+                <td>{{ (c.montantTotal - c.montantAssurance).toLocaleString('fr-FR') }} F</td>
+                <td>{{ c.par }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -354,6 +468,9 @@
               @click="validerInventaireGlobal"
             >
               ✅ Valider tout l'inventaire ({{ nbSaisies }})
+            </button>
+            <button class="btn btn-outline btn-sm" title="Récapitulatif des lots comptés, à imprimer en A4" @click="ouvrirFicheInventaire">
+              🖨️ Fiche d'inventaire
             </button>
           </div>
           <div v-else class="toolbar">
@@ -767,8 +884,128 @@
       </div>
     </div>
 
+    <!-- Modale : fiche d'inventaire (récapitulatif imprimable A4) -->
+    <div v-if="ficheInvVisible" class="modal-backdrop">
+      <div class="modal modal-lg fiche-inv-modal">
+        <h2>🖨️ Fiche d'inventaire</h2>
+        <div class="toolbar">
+          <label class="fiche-inv-date">Du
+            <input v-model="ficheInvDebut" type="date" class="search-input" @change="chargerFicheInventaire" />
+          </label>
+          <label class="fiche-inv-date">au
+            <input v-model="ficheInvFin" type="date" class="search-input" @change="chargerFicheInventaire" />
+          </label>
+          <button class="btn btn-outline btn-sm" @click="chargerFicheInventaire">🔄 Actualiser</button>
+        </div>
+        <div v-if="ficheInvChargement" class="empty-state">Chargement…</div>
+        <div v-else-if="ficheInv.lignes.length === 0" class="empty-state">
+          Aucun lot compté sur cette période. Validez d'abord l'inventaire, puis revenez ici.
+        </div>
+        <template v-else>
+          <div class="fiche-inv-resume">
+            <span><strong>{{ ficheInv.resume.lotsComptes }}</strong> lot(s) compté(s)</span>
+            <span><strong>{{ ficheInv.resume.lotsConformes }}</strong> conforme(s)</span>
+            <span><strong>{{ ficheInv.resume.lotsAvecEcart }}</strong> avec écart</span>
+            <span>Manquants : <strong>{{ ficheInv.resume.manquants }}</strong></span>
+            <span>Excédents : <strong>+{{ ficheInv.resume.excedents }}</strong></span>
+            <span>Valeur des écarts : <strong>{{ ficheInv.resume.valeurEcarts.toLocaleString('fr-FR') }} F</strong></span>
+          </div>
+          <div class="table-wrap fiche-inv-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Médicament</th><th>Lot</th><th>Péremption</th><th>Stock théorique</th>
+                  <th>Stock compté</th><th>Écart</th><th>Valeur de l'écart</th><th>Compté par</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="l in ficheInv.lignes" :key="l.id">
+                  <td><strong>{{ l.medicament }}</strong></td>
+                  <td>{{ l.lot }}</td>
+                  <td>{{ l.peremption ? formatDate(l.peremption) : '—' }}</td>
+                  <td>{{ l.stockAvant ?? '—' }}</td>
+                  <td>{{ l.stockApres ?? '—' }}</td>
+                  <td>
+                    <span class="badge" :class="l.ecart === 0 ? 'badge-success' : l.ecart > 0 ? 'badge-warning' : 'badge-danger'">
+                      {{ l.ecart > 0 ? '+' : '' }}{{ l.ecart }}
+                    </span>
+                  </td>
+                  <td>{{ l.valeurEcart.toLocaleString('fr-FR') }} F</td>
+                  <td>{{ l.par }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="ficheInvVisible = false">✖ Fermer</button>
+          <button class="btn btn-primary" :disabled="ficheInv.lignes.length === 0" @click="imprimerFicheInventaire">
+            🖨️ Imprimer (A4)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zone d'impression : fiche d'inventaire (A4) -->
+    <div v-if="printZone?.type === 'inventaire'" id="pharma-fin-print">
+      <div class="pharma-fin-a4">
+        <h2 class="pharma-fin-clinique">{{ cliniqueNom }}</h2>
+        <h2>FICHE D'INVENTAIRE — PHARMACIE</h2>
+        <p class="pharma-fin-periode">{{ printZone.periode }}</p>
+        <table class="fiche-inv-resume-print">
+          <tbody>
+            <tr>
+              <td>Lots comptés : <strong>{{ ficheInv.resume.lotsComptes }}</strong></td>
+              <td>Conformes : <strong>{{ ficheInv.resume.lotsConformes }}</strong></td>
+              <td>Avec écart : <strong>{{ ficheInv.resume.lotsAvecEcart }}</strong></td>
+            </tr>
+            <tr>
+              <td>Quantités manquantes : <strong>{{ ficheInv.resume.manquants }}</strong></td>
+              <td>Quantités en excédent : <strong>+{{ ficheInv.resume.excedents }}</strong></td>
+              <td>Valeur des écarts : <strong>{{ ficheInv.resume.valeurEcarts.toLocaleString('fr-FR') }} F</strong></td>
+            </tr>
+            <tr>
+              <td colspan="3">Inventaire réalisé par : <strong>{{ ficheInv.resume.agents.join(', ') }}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+        <table>
+          <thead>
+            <tr>
+              <th>N°</th><th>Médicament</th><th>Lot</th><th>Péremption</th><th>Stock théorique</th>
+              <th>Stock compté</th><th>Écart</th><th>Valeur de l'écart</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(l, i) in ficheInv.lignes" :key="l.id">
+              <td>{{ i + 1 }}</td>
+              <td>{{ l.medicament }}</td>
+              <td>{{ l.lot }}</td>
+              <td>{{ l.peremption ? formatDate(l.peremption) : '—' }}</td>
+              <td>{{ l.stockAvant ?? '—' }}</td>
+              <td>{{ l.stockApres ?? '—' }}</td>
+              <td><strong>{{ l.ecart > 0 ? '+' : '' }}{{ l.ecart }}</strong></td>
+              <td>{{ l.valeurEcart.toLocaleString('fr-FR') }} F</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="6" class="pharma-fin-total">TOTAL DES ÉCARTS</td>
+              <td>{{ ficheInv.resume.manquants + ficheInv.resume.excedents }}</td>
+              <td>{{ ficheInv.resume.valeurEcarts.toLocaleString('fr-FR') }} F</td>
+            </tr>
+          </tfoot>
+        </table>
+        <div class="fiche-inv-signatures">
+          <div>Le responsable de la pharmacie<span>Nom, signature et date</span></div>
+          <div>Le contrôleur / gestionnaire<span>Nom, signature et date</span></div>
+        </div>
+        <p class="fiche-inv-pied">Imprimé le {{ formatDateHeure(new Date()) }}</p>
+      </div>
+    </div>
+
     <!-- Zone d'impression (PDF) : rapport des retraits ou détail d'un bloc -->
-    <div v-if="printZone" id="pharma-fin-print">
+    <div v-else-if="printZone" id="pharma-fin-print">
       <div class="pharma-fin-a4">
         <h2 class="pharma-fin-clinique">{{ cliniqueNom }}</h2>
         <h2>{{ printZone.titre }}</h2>
@@ -1021,6 +1258,19 @@
         </div>
         <div class="recu-sep"></div>
         <div class="recu-total">TOTAL : {{ recuPharma.paiement.montantTotal.toLocaleString('fr-FR') }} FCFA</div>
+        <div v-if="recuPharma.paiement.montantAssurance > 0" class="recu-infos">
+          <div>
+            Assurance {{ recuPharma.paiement.assurance || '' }} ({{ recuPharma.paiement.tauxAssurance }} %) :
+            − {{ recuPharma.paiement.montantAssurance.toLocaleString('fr-FR') }} FCFA
+          </div>
+        </div>
+        <div v-if="recuPharma.paiement.type === 'CAS_SOCIAL'" class="recu-total">CAS SOCIAL — PRIS EN CHARGE</div>
+        <div v-else-if="recuPharma.paiement.type === 'CREDIT'" class="recu-total">
+          CRÉDIT — RESTE DÛ : {{ recuPharma.paiement.montantPatient.toLocaleString('fr-FR') }} FCFA
+        </div>
+        <div v-else-if="recuPharma.paiement.montantAssurance > 0" class="recu-total">
+          NET PAYÉ : {{ recuPharma.paiement.montantPatient.toLocaleString('fr-FR') }} FCFA
+        </div>
         <div class="recu-infos">
           <div>Mode : {{ labelMode(recuPharma.paiement.modePaiement) }}</div>
           <div>Caissière : {{ auth.user?.personnel?.prenom }} {{ auth.user?.personnel?.nom }}</div>
@@ -1085,6 +1335,66 @@ const totalOrdonnance = computed(() => {
   }, 0)
 })
 
+/** Part prise en charge par l'assurance du patient (taux « médicaments » de sa formule). */
+const partAssuranceOrdonnance = computed(() => {
+  const taux = ordonnance.value?.assurance?.taux ?? 0
+  return Math.round((totalOrdonnance.value * taux) / 100)
+})
+
+// ── Crédits & cas sociaux de la pharmacie ──
+const creditsPharma = ref({ credits: [], casSociaux: [], totalCredits: 0 })
+
+async function chargerCreditsPharma() {
+  try {
+    const { data } = await http.get('/pharmacie/credits', { params: { cliniqueId: cliniqueId.value } })
+    creditsPharma.value = data
+  } catch {
+    creditsPharma.value = { credits: [], casSociaux: [], totalCredits: 0 }
+  }
+}
+
+/** Remise des médicaments sans encaissement : crédit (payé plus tard) ou cas social. */
+async function dispenserSansPaiement(type) {
+  const casSocial = type === 'CAS_SOCIAL'
+  const reponse = await Swal.fire({
+    title: casSocial ? '🤝 Cas social' : '🎫 Crédit pharmacie',
+    text: casSocial
+      ? 'Les médicaments sont remis et pris en charge par la clinique (non remboursable).'
+      : 'Les médicaments sont remis maintenant. Le patient paiera sa part plus tard.',
+    input: 'text',
+    inputLabel: 'Motif (obligatoire)',
+    inputValue: casSocial ? 'Patient indigent' : 'Argent pas encore disponible',
+    showCancelButton: true,
+    confirmButtonText: 'Confirmer',
+    cancelButtonText: 'Annuler',
+    inputValidator: (v) => (!v?.trim() ? 'Indiquez le motif.' : undefined),
+  })
+  if (!reponse.isConfirmed) return
+  await dispenser({ type, motif: reponse.value.trim() })
+}
+
+async function encaisserCreditPharma(c) {
+  const reponse = await Swal.fire({
+    title: `Encaisser ${c.montantPatient.toLocaleString('fr-FR')} FCFA ?`,
+    text: `${c.patient.nom} ${c.patient.prenom} — reçu ${c.numeroRecu}`,
+    input: 'select',
+    inputOptions: { ESPECES: '💵 Espèces', MOBILE_MONEY: '📱 Mobile Money', CARTE: '💳 Carte bancaire' },
+    inputValue: 'ESPECES',
+    showCancelButton: true,
+    confirmButtonText: 'Encaisser',
+    cancelButtonText: 'Annuler',
+    confirmButtonColor: '#16a34a',
+  })
+  if (!reponse.isConfirmed) return
+  try {
+    await http.post(`/pharmacie/paiements/${c.id}/regler`, { modePaiement: reponse.value })
+    toastSuccess(`Crédit ${c.numeroRecu} encaissé.`)
+    await chargerCreditsPharma()
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Encaissement impossible.')
+  }
+}
+
 function onRecherche() {
   clearTimeout(rechercheTimer)
   rechercheTimer = setTimeout(async () => {
@@ -1105,7 +1415,8 @@ function onRecherche() {
 
 async function choisirOrdonnance(c) {
   try {
-    const { data } = await http.get(`/pharmacie/consultations/${c.id}`)
+    // `c.id` = identifiant de l'ORDONNANCE (une consultation peut en porter plusieurs)
+    const { data } = await http.get(`/pharmacie/ordonnances/${c.id}`)
     ordonnance.value = data
     resultats.value = []
     recherche.value = ''
@@ -1140,7 +1451,9 @@ async function ouvrirOrdonnanceListe(o) {
   await choisirOrdonnance({ id: o.id })
 }
 
-async function dispenser() {
+async function dispenser(reglement) {
+  // `reglement` = { type, motif } pour un crédit ou un cas social (sinon paiement comptant)
+  const sansPaiement = reglement?.type === 'CREDIT' || reglement?.type === 'CAS_SOCIAL'
   if (!ordonnance.value) return
   const lignes = ordonnance.value.prescriptions
     .filter((p) => p.medicament && quantites[p.id] > 0)
@@ -1152,20 +1465,27 @@ async function dispenser() {
   dispenseEnCours.value = true
   try {
     const { data } = await http.post(
-      `/pharmacie/dispensations/${ordonnance.value.consultation.id}`,
+      `/pharmacie/ordonnances/${ordonnance.value.ordonnance.id}/dispenser`,
       { lignes },
     )
     const { data: paiement } = await http.post(
       `/pharmacie/dispensations/${data.id}/payer`,
-      { modePaiement: modePaiement.value },
+      sansPaiement
+        ? { modePaiement: modePaiement.value, type: reglement.type, motif: reglement.motif }
+        : { modePaiement: modePaiement.value },
     )
     recuPharma.value = paiement
-    toastSuccess(`Dispensation encaissée : ${paiement.paiement.numeroRecu}`)
+    toastSuccess(
+      sansPaiement
+        ? `${reglement.type === 'CAS_SOCIAL' ? 'Cas social' : 'Crédit'} enregistré : ${paiement.paiement.numeroRecu}`
+        : `Dispensation encaissée : ${paiement.paiement.numeroRecu}`,
+    )
+    chargerCreditsPharma()
     if (paiement.impression?.ok) {
       toastSuccess(`Reçu imprimé : ${paiement.impression.message}`)
     }
     chargerOrdonnancesAttente()
-    await choisirOrdonnance(ordonnance.value.consultation)
+    await choisirOrdonnance(ordonnance.value.ordonnance)
   } catch (e) {
     toastError(e.response?.data?.message || 'Erreur lors de la dispensation.')
   } finally {
@@ -1272,6 +1592,52 @@ async function validerInventaireGlobal() {
   } catch (e) {
     toastError(e.response?.data?.message || 'Inventaire impossible.')
   }
+}
+
+// ── Fiche d'inventaire (récapitulatif imprimable) ──
+const aujourdhuiIso = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const ficheInvVisible = ref(false)
+const ficheInvChargement = ref(false)
+const ficheInvDebut = ref(aujourdhuiIso())
+const ficheInvFin = ref(aujourdhuiIso())
+const FICHE_INV_VIDE = {
+  lignes: [],
+  resume: { lotsComptes: 0, lotsConformes: 0, lotsAvecEcart: 0, manquants: 0, excedents: 0, valeurEcarts: 0, agents: [] },
+}
+const ficheInv = ref(FICHE_INV_VIDE)
+
+async function chargerFicheInventaire() {
+  ficheInvChargement.value = true
+  try {
+    const { data } = await http.get('/pharmacie/inventaires/fiche', {
+      params: { cliniqueId: cliniqueId.value, debut: ficheInvDebut.value, fin: ficheInvFin.value },
+    })
+    ficheInv.value = data
+  } catch (e) {
+    ficheInv.value = FICHE_INV_VIDE
+    toastError(e.response?.data?.message || "Fiche d'inventaire indisponible.")
+  } finally {
+    ficheInvChargement.value = false
+  }
+}
+
+function ouvrirFicheInventaire() {
+  ficheInvVisible.value = true
+  chargerFicheInventaire()
+}
+
+function imprimerFicheInventaire() {
+  const jour = (iso) => iso.split('-').reverse().join('/')
+  imprimerZone({
+    type: 'inventaire',
+    periode:
+      ficheInvDebut.value === ficheInvFin.value
+        ? `Inventaire du ${jour(ficheInvDebut.value)}`
+        : `Inventaire du ${jour(ficheInvDebut.value)} au ${jour(ficheInvFin.value)}`,
+  })
 }
 
 async function validerInventaireLot(l) {
@@ -1856,6 +2222,7 @@ onMounted(() => {
   chargerConsommables()
   chargerAlertes()
   chargerOrdonnancesAttente()
+  chargerCreditsPharma()
   chargerPeremptions()
   demarrerTempsReel()
 })
@@ -2269,6 +2636,106 @@ onUnmounted(() => {
 .financier-cliquable:hover {
   box-shadow: 0 4px 14px rgba(13, 116, 144, 0.18);
   transform: translateY(-1px);
+}
+/* Assurance, crédit et cas social à la pharmacie */
+.assurance-pharma {
+  margin: 10px 0;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  color: #1e3a8a;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+}
+.part-assurance {
+  color: #1d4ed8;
+}
+.btn-credit {
+  color: #b45309;
+  border-color: #f59e0b;
+}
+.btn-cas-social {
+  color: #475569;
+  border-color: #94a3b8;
+}
+.tab-count {
+  margin-left: 6px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  background: #f59e0b;
+  border-radius: 999px;
+}
+/* Fiche d'inventaire : aperçu à l'écran et feuille A4 */
+.fiche-inv-modal {
+  max-width: 1100px;
+}
+.fiche-inv-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.fiche-inv-date input {
+  max-width: 160px;
+  flex: none;
+}
+.fiche-inv-resume {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+.fiche-inv-table {
+  max-height: 52vh;
+  overflow-y: auto;
+}
+.fiche-inv-resume-print {
+  margin-bottom: 12px;
+}
+.fiche-inv-resume-print td {
+  background: #f8fafc;
+}
+.fiche-inv-signatures {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  margin-top: 28px;
+  page-break-inside: avoid;
+}
+.fiche-inv-signatures div {
+  flex: 1;
+  min-height: 90px;
+  padding: 8px 10px;
+  font-weight: 700;
+  border: 1px solid #94a3b8;
+}
+.fiche-inv-signatures span {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 400;
+  color: #64748b;
+}
+.fiche-inv-pied {
+  margin-top: 10px;
+  font-size: 10px;
+  color: #64748b;
+  text-align: right;
+}
+/* À l'impression, l'écran lui-même est retiré : ses lignes masquées gardaient leurs
+   marges internes, qui s'additionnaient et ajoutaient une page blanche. */
+@media print {
+  .pharmacie-header,
+  .pharmacie-content,
+  .modal-backdrop {
+    display: none !important;
+  }
 }
 /* Zone d'impression PDF (rapport des retraits / détail d'un bloc) */
 .pharma-fin-a4 {

@@ -351,7 +351,21 @@
             <h3 class="section-title">Antécédents</h3>
             <div class="field">
               <label>Traitement médicamenteux antérieur / en cours</label>
-              <input v-model.trim="formConsult.traitementAnterieur" />
+              <div class="chips">
+                <label class="chip" :class="{ actif: formConsult.traitementAnterieurOuiNon === true }">
+                  <input v-model="formConsult.traitementAnterieurOuiNon" type="radio" :value="true" hidden /> Oui
+                </label>
+                <label class="chip" :class="{ actif: formConsult.traitementAnterieurOuiNon === false }">
+                  <input v-model="formConsult.traitementAnterieurOuiNon" type="radio" :value="false" hidden /> Non
+                </label>
+              </div>
+              <!-- Le commentaire n'apparaît que si le médecin répond « Oui » -->
+              <input
+                v-if="formConsult.traitementAnterieurOuiNon === true"
+                v-model.trim="formConsult.traitementAnterieur"
+                class="mt-6"
+                placeholder="Préciser le traitement (médicaments, doses, durée)…"
+              />
             </div>
             <div class="form-row">
               <div class="field">
@@ -580,12 +594,17 @@
               <!-- Liste déroulante à cases à cocher : tous les examens cochés sont enregistrés (« A ; B ; C ») -->
               <SelectSearch
                 :model-value="autresExamensListe"
-                :options="examensProposes.map((ex) => ({ value: ex, label: ex }))"
+                :options="examensProposes.map((ex) => ({ value: ex, label: libelleExamenPropose(ex) }))"
                 multiple
                 libre
                 placeholder="— Cocher un ou plusieurs examens —"
                 @update:model-value="(v) => (formConsult.autresExamens = v.join(' ; '))"
               />
+              <p class="text-muted small-note">
+                🧾 À l'enregistrement, chaque examen coché est ajouté automatiquement à la prescription d'examens
+                (onglet « Examens ») : 🔬 laboratoire et 🩻 imagerie partent à la caisse puis au service, les autres
+                sont notés « hors clinique ».
+              </p>
             </div>
             <!-- Le diagnostic se retient après les examens -->
             <div class="form-row">
@@ -672,7 +691,7 @@
                     <button
                       type="button"
                       class="btn btn-primary btn-sm"
-                      style="width: auto; white-space: nowrap"
+                      style="align-self: flex-start; width: auto; white-space: nowrap"
                       :disabled="ficheMedEnCours"
                       @click="ajouterMedicamentFiche"
                     >
@@ -808,8 +827,30 @@
             💊 Enregistrez d'abord la fiche de consultation pour prescrire des médicaments.
           </div>
           <template v-else>
-          <div v-if="consultation.medicaments.length === 0" class="text-muted small-note">
-            Aucun médicament prescrit.
+          <!-- Plusieurs ordonnances indépendantes par consultation -->
+          <div class="ordo-barre">
+            <button
+              v-for="o in ordonnancesConsult"
+              :key="o.id"
+              class="ordo-puce"
+              :class="{ actif: o.id === ordonnanceActiveId, traitee: o.statut === 'TRAITEE' }"
+              :title="o.statut === 'TRAITEE' ? 'Déjà délivrée par la pharmacie (non modifiable)' : 'En attente à la pharmacie'"
+              @click="ordonnanceActiveId = o.id"
+            >
+              💊 {{ o.numero }}
+              <span class="ordo-puce-etat">{{ o.statut === 'TRAITEE' ? 'délivrée' : 'en attente' }}</span>
+              <span class="ordo-puce-nb">{{ nbMedicamentsOrdonnance(o.id) }}</span>
+            </button>
+            <button class="btn btn-outline btn-sm" :disabled="creationOrdonnance" @click="nouvelleOrdonnance">
+              ＋ Nouvelle ordonnance
+            </button>
+          </div>
+          <p v-if="ordonnanceActive?.statut === 'TRAITEE'" class="text-muted small-note">
+            🔒 L'ordonnance {{ ordonnanceActive.numero }} a déjà été délivrée par la pharmacie : elle n'est plus modifiable.
+            Pour prescrire d'autres médicaments, créez une <strong>nouvelle ordonnance</strong>.
+          </p>
+          <div v-if="medicamentsOrdonnance.length === 0" class="text-muted small-note">
+            Aucun médicament sur cette ordonnance.
           </div>
           <div v-else class="table-wrap">
             <table>
@@ -823,20 +864,29 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="p in consultation.medicaments" :key="p.id">
+                <tr v-for="p in medicamentsOrdonnance" :key="p.id">
                   <td><strong>{{ p.medicamentNom }}</strong><span v-if="p.forme" class="text-muted"> ({{ p.forme }})</span></td>
                   <td>{{ p.posologie || '—' }}</td>
                   <td>{{ p.quantite || '—' }}</td>
                   <td>{{ p.duree || '—' }}</td>
                   <td>
-                    <button class="btn btn-danger btn-sm" title="Retirer" @click="retirerMedicament(p)">✕</button>
+                    <button
+                      v-if="ordonnanceActive?.statut !== 'TRAITEE'"
+                      class="btn btn-danger btn-sm"
+                      title="Retirer"
+                      @click="retirerMedicament(p)"
+                    >✕</button>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <button class="btn btn-outline btn-sm btn-add" :disabled="!consultation" @click="ouvrirAjoutMedicament">
-            + Ajouter un médicament
+          <button
+            class="btn btn-outline btn-sm btn-add"
+            :disabled="!consultation || ordonnanceActive?.statut === 'TRAITEE'"
+            @click="ouvrirAjoutMedicament"
+          >
+            + Ajouter un médicament{{ ordonnanceActive ? ` à ${ordonnanceActive.numero}` : '' }}
           </button>
 
           <!-- Ordonnance -->
@@ -932,7 +982,10 @@
                     <span v-if="l.statut === 'NON_PRESCRITE'" class="badge badge-muted">Pas prescrit</span>
                     <span v-else-if="l.statut === 'EN_ATTENTE'" class="badge badge-warning">Prescrit — à payer</span>
                     <span v-else-if="l.statut === 'EXTERNE'" class="badge badge-muted" title="Examen réalisé hors clinique — non facturable">
-                      Prescrit (externe)
+                      Hors clinique
+                    </span>
+                    <span v-if="l.resultatExterne" class="badge badge-success" title="Le résultat scanné est joint au dossier">
+                      📎 Résultat joint
                     </span>
                     <span v-else class="badge badge-success">Payé</span>
                   </td>
@@ -952,8 +1005,41 @@
                     >
                       ✍️ Prescrire
                     </button>
+                    <!-- Examen fait hors clinique : le médecin joint le résultat scanné -->
                     <button
-                      v-if="(l.statut === 'EN_ATTENTE' || l.statut === 'EXTERNE') && consultation"
+                      v-if="l.statut === 'EXTERNE' && !l.resultatExterne"
+                      class="btn btn-primary btn-sm"
+                      title="Joindre le résultat scanné (image ou PDF) rapporté par le patient"
+                      @click="ouvrirJoindreResultat(l)"
+                    >
+                      📎 Joindre le résultat
+                    </button>
+                    <button
+                      v-if="l.statut === 'EN_ATTENTE' && ['EXAMEN_LABO', 'IMAGERIE'].includes(l.prestation?.type) && !resultatExamen(l)"
+                      class="btn btn-outline btn-sm"
+                      title="Le patient a fait cet examen ailleurs : joindre son résultat (l'examen ne sera plus à payer à la caisse)"
+                      @click="ouvrirJoindreResultat(l)"
+                    >
+                      📎 Fait ailleurs
+                    </button>
+                    <button
+                      v-if="l.resultatExterne"
+                      class="btn btn-outline btn-sm"
+                      title="Voir le document joint"
+                      @click="voirResultatExterne(l.id, l.libelle, true)"
+                    >
+                      👁️ Voir le résultat
+                    </button>
+                    <button
+                      v-if="l.resultatExterne"
+                      class="btn btn-outline btn-sm"
+                      title="Remplacer le document ou corriger ses informations"
+                      @click="ouvrirJoindreResultat(l)"
+                    >
+                      🔄 Remplacer
+                    </button>
+                    <button
+                      v-if="(l.statut === 'EN_ATTENTE' || l.statut === 'EXTERNE') && consultation && !l.resultatExterne"
                       class="btn btn-danger btn-sm"
                       title="Retirer la prescription"
                       @click="retirerExamen(l)"
@@ -1064,7 +1150,37 @@
           <div v-if="historiquePatient.length === 0" class="empty-state">
             Aucune consultation antérieure pour ce patient.
           </div>
-          <div v-else class="table-wrap">
+          <!-- Synthèse du dossier : tout ce qui est déjà connu du patient, tous passages confondus -->
+          <div v-if="historiquePatient.length > 0" class="synthese-dossier">
+            <div class="synthese-bloc">
+              <h3>🩺 Antécédents médicaux</h3>
+              <p v-if="syntheseDossier.antecedents.length === 0" class="text-muted">Aucun antécédent renseigné.</p>
+              <ul v-else>
+                <li v-for="a in syntheseDossier.antecedents" :key="a">{{ a }}</li>
+              </ul>
+            </div>
+            <div class="synthese-bloc">
+              <h3>📌 Diagnostics déjà retenus</h3>
+              <p v-if="syntheseDossier.diagnostics.length === 0" class="text-muted">Aucun diagnostic enregistré.</p>
+              <ul v-else>
+                <li v-for="d in syntheseDossier.diagnostics" :key="d.libelle">
+                  <strong>{{ d.libelle }}</strong>
+                  <span class="text-muted"> — {{ d.nb > 1 ? d.nb + ' fois, dernier le ' : 'le ' }}{{ formatDateFr(d.date) }}</span>
+                </li>
+              </ul>
+            </div>
+            <div class="synthese-bloc">
+              <h3>🧬 Pathologies associées déjà diagnostiquées</h3>
+              <p v-if="syntheseDossier.pathologies.length === 0" class="text-muted">Aucune pathologie associée.</p>
+              <ul v-else>
+                <li v-for="d in syntheseDossier.pathologies" :key="d.libelle">
+                  <strong>{{ d.libelle }}</strong>
+                  <span class="text-muted"> — {{ d.nb > 1 ? d.nb + ' fois, dernier le ' : 'le ' }}{{ formatDateFr(d.date) }}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div v-if="historiquePatient.length > 0" class="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -1124,59 +1240,238 @@
       </div>
     </main>
 
-    <!-- Modale : détail d'une consultation passée (ce que le patient a reçu) -->
-    <div v-if="historiqueDetail" class="modal-backdrop">
-      <div class="modal modal-lg">
-        <h2>
-          📚 Passage {{ historiqueDetail.passage?.numeroOrdre || '—' }} — {{ formatDateFr(historiqueDetail.createdAt) }}
-        </h2>
-        <div class="fiche-info">
-          <div class="fiche-ligne">
-            <span class="fiche-label">Patient</span>
-            <strong>{{ detail?.passage?.patient?.nom }} {{ detail?.passage?.patient?.prenom }}</strong>
+    <!-- Historique : détail d'un passage — grande fenêtre à onglets, chaque onglet = une feuille A4 imprimable -->
+    <div v-if="historiqueDetail" class="apercu-voile"></div>
+    <div v-if="historiqueDetail" class="apercu-barre hist-barre">
+      <span>
+        📚 Passage {{ historiqueDetail.passage?.numeroOrdre || '—' }} — {{ formatDateFr(historiqueDetail.createdAt) }} —
+        {{ detail?.passage?.patient?.nom }} {{ detail?.passage?.patient?.prenom }}
+      </span>
+      <div class="hist-onglets">
+        <button
+          v-for="o in histOnglets"
+          :key="o.cle"
+          class="hist-onglet"
+          :class="{ actif: histOnglet === o.cle }"
+          @click="histOnglet = o.cle"
+        >
+          {{ o.label }}<span v-if="o.nb != null" class="hist-onglet-nb">{{ o.nb }}</span>
+        </button>
+      </div>
+      <div class="apercu-barre-actions">
+        <button v-if="histExamenVu" class="btn btn-outline btn-sm btn-back" @click="histExamenVu = null">← Liste des examens</button>
+        <button v-if="histFeuilleVisible" class="btn btn-primary btn-sm" @click="lancerImpression('historique')">🖨️ Imprimer (A4)</button>
+        <button class="btn btn-outline btn-sm btn-back" @click="historiqueDetail = null">✖ Fermer</button>
+      </div>
+    </div>
+
+    <!-- Examens hors clinique : simple tableau à l'écran (pas de feuille A4), avec le bouton pour joindre le résultat -->
+    <div v-if="historiqueDetail && histOnglet === 'externes'" class="hist-panneau">
+      <h2>📎 Examens réalisés hors clinique</h2>
+      <p class="text-muted small-note">
+        Le patient rapporte le résultat d'un examen fait ailleurs : joignez ici le document scanné (image ou PDF).
+      </p>
+      <div v-if="!histExternes.length" class="empty-state">
+        Aucun examen hors clinique pour ce passage. Ajoutez-en un ci-dessous pour y joindre le résultat.
+      </div>
+      <div v-else class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Examen</th>
+              <th>Date de l'examen</th>
+              <th>Réalisé à</th>
+              <th>Conclusion</th>
+              <th>Résultat</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="e in histExternes" :key="e.id">
+              <td>
+                <strong>{{ e.libelle }}</strong>
+                <div v-if="e.statut === 'EN_ATTENTE'" class="text-muted">Prescrit à la clinique, non réalisé ici</div>
+              </td>
+              <td>{{ e.resultatExterne?.dateExamen ? formatDateFr(e.resultatExterne.dateExamen) : '—' }}</td>
+              <td>{{ e.resultatExterne?.lieu || '—' }}</td>
+              <td class="hist-texte">{{ e.resultatExterne?.conclusion || '—' }}</td>
+              <td>
+                <span v-if="e.resultatExterne" class="badge badge-success" :title="e.resultatExterne.nomFichier">✓ Joint</span>
+                <span v-else class="badge badge-warning">Non joint</span>
+              </td>
+              <td class="hist-actions">
+                <!-- Le patient rapporte souvent le résultat à une visite suivante : on le joint d'ici -->
+                <button v-if="!e.resultatExterne" class="btn btn-primary btn-sm" @click="joindreDepuisHistorique(e)">
+                  📎 Joindre le résultat
+                </button>
+                <template v-else>
+                  <button class="btn btn-outline btn-sm" @click="voirResultatExterne(e.id, e.libelle, true)">👁️ Voir</button>
+                  <button class="btn btn-outline btn-sm" @click="ouvrirJoindreResultat(e)">🔄 Remplacer</button>
+                </template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Examen fait ailleurs et non listé : le médecin l'ajoute puis joint le résultat -->
+      <div class="hist-ajout">
+        <input
+          v-model.trim="nouvelExamenExterne"
+          class="search-input"
+          placeholder="Autre examen fait hors clinique (ex : SCANNER THORACIQUE)…"
+          @keyup.enter="ajouterExamenExterneHistorique"
+        />
+        <button
+          class="btn btn-outline btn-sm"
+          :disabled="!nouvelExamenExterne || ajoutExterneEnCours"
+          @click="ajouterExamenExterneHistorique"
+        >
+          ＋ Ajouter et joindre le résultat
+        </button>
+      </div>
+    </div>
+
+    <!-- Onglets 2 et 3 : tableau des examens du passage, avec le bouton « Voir le résultat » -->
+    <div v-if="historiqueDetail && ['labo', 'imagerie'].includes(histOnglet) && !histExamenVu" class="hist-panneau">
+      <h2>{{ histOnglet === 'labo' ? '🔬 Examens de laboratoire' : "🩻 Examens d'imagerie" }}</h2>
+      <p class="text-muted small-note">
+        Tous les examens prescrits sur ce passage. Cliquez sur « Voir le résultat » pour afficher le compte rendu et l'imprimer.
+      </p>
+      <div v-if="!histTableauExamens.length" class="empty-state">
+        Aucun examen {{ histOnglet === 'labo' ? 'de laboratoire' : "d'imagerie" }} prescrit ni réalisé pour ce passage.
+      </div>
+      <div v-else class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Examen</th>
+              <th>État</th>
+              <th>Date</th>
+              <th>Validé par</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="x in histTableauExamens" :key="x.cle">
+              <td><strong>{{ x.libelle }}</strong></td>
+              <td><span class="badge" :class="x.classe">{{ x.etat }}</span></td>
+              <td>{{ x.date ? formatDateFr(x.date) : '—' }}</td>
+              <td>{{ x.validePar || '—' }}</td>
+              <td class="hist-actions">
+                <button v-if="x.resultat" class="btn btn-primary btn-sm" @click="histExamenVu = x.resultat">
+                  👁️ Voir le résultat
+                </button>
+                <span v-else class="text-muted">Pas encore de résultat</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div v-if="histFeuilleVisible" id="hist-print">
+      <div class="ordo-ex-a4 hist-a4">
+        <div class="fiche-a4-head">
+          <h1>{{ cliniqueNom }}</h1>
+          <p v-if="cliniqueAdresse">{{ cliniqueAdresse }}</p>
+        </div>
+        <div class="fiche-a4-titre">{{ histOnglets.find((o) => o.cle === histOnglet)?.titre }}</div>
+
+        <!-- En-tête commun : identité du patient et du passage -->
+        <div class="ordo-ex-infos">
+          <div class="fiche-a4-ligne">
+            <span class="ordo-ex-label">Patient</span>
+            <span>
+              <strong>{{ detail?.passage?.patient?.nom }} {{ detail?.passage?.patient?.prenom }}</strong>
+              ({{ detail?.passage?.patient?.age ?? '—' }} ans, {{ detail?.passage?.patient?.sexe ?? '—' }})
+            </span>
           </div>
-          <div class="fiche-ligne">
-            <span class="fiche-label">Service</span>
+          <div class="fiche-a4-ligne">
+            <span class="ordo-ex-label">Code dossier patient</span>
+            <span>{{ detail?.passage?.patient?.code }}</span>
+          </div>
+          <div class="fiche-a4-ligne">
+            <span class="ordo-ex-label">N° de passage</span>
+            <span>{{ historiqueDetail.passage?.numeroOrdre || '—' }} — {{ formatDateFr(historiqueDetail.createdAt) }}</span>
+          </div>
+          <div class="fiche-a4-ligne">
+            <span class="ordo-ex-label">Service</span>
             <span>{{ historiqueDetail.passage?.service?.nom || '—' }}</span>
           </div>
-          <div class="fiche-ligne">
-            <span class="fiche-label">Médecin</span>
-            <span>
-              <template v-if="historiqueDetail.medecin?.personnel">
-                Dr {{ historiqueDetail.medecin.personnel.nom }} {{ historiqueDetail.medecin.personnel.prenom }}
-              </template>
-              <template v-else>—</template>
-            </span>
+          <div class="fiche-a4-ligne">
+            <span class="ordo-ex-label">Médecin</span>
+            <span>{{ histMedecin }}</span>
           </div>
         </div>
 
-        <p v-if="historiqueDetail.motif" class="historique-diag"><strong>Motif :</strong> {{ historiqueDetail.motif }}</p>
-        <p v-if="historiqueDetail.diagnostic" class="historique-diag"><strong>Diagnostic :</strong> {{ historiqueDetail.diagnostic }}</p>
+        <!-- ══ Onglet 1 : résultat de la consultation ══ -->
+        <template v-if="histOnglet === 'consultation'">
+          <h2 class="fiche-a4-section">CONSTANTES</h2>
+          <p class="fiche-a4-ligne">
+            Poids : {{ historiqueDetail.passage?.poids ?? '—' }} kg &nbsp;&nbsp; Taille : {{ historiqueDetail.passage?.taille || '—' }} cm
+            &nbsp;&nbsp; Température : {{ historiqueDetail.passage?.temperature ?? '—' }} °C &nbsp;&nbsp; Pouls : {{ historiqueDetail.passage?.pouls ?? '—' }}
+          </p>
+          <p class="fiche-a4-ligne">
+            TA bras gauche : {{ historiqueDetail.passage?.tensionGauche || '—' }} &nbsp;&nbsp; TA bras droit : {{ historiqueDetail.passage?.tensionDroite || '—' }}
+            &nbsp;&nbsp; IMC : {{ historiqueDetail.imc || '—' }}
+          </p>
 
-        <!-- Ordonnance : médicaments reçus -->
-        <div class="cr-section">
-          <strong>💊 Ordonnance :</strong>
-          <template v-if="historiqueDetail.medicaments?.length">
-            <div v-for="m in historiqueDetail.medicaments" :key="m.id" class="historique-med">
-              • {{ m.nom }} — {{ m.posologie || '—' }} ({{ m.quantite || '—' }}, {{ m.duree || '—' }})
-            </div>
-          </template>
-          <template v-else>Aucun médicament prescrit.</template>
-        </div>
+          <h2 class="fiche-a4-section">ANTÉCÉDENTS</h2>
+          <p class="fiche-a4-ligne">Traitement médicamenteux antérieur / en cours : {{ historiqueDetail.traitementAnterieur || '—' }}</p>
+          <p class="fiche-a4-ligne">
+            HTA : {{ ouiNon(historiqueDetail.hta) }} &nbsp;&nbsp; Diabète : {{ ouiNon(historiqueDetail.diabete) }}
+            &nbsp;&nbsp; Tabac : {{ ouiNon(historiqueDetail.tabac) }} &nbsp;&nbsp; Alcool : {{ ouiNon(historiqueDetail.alcool) }}
+          </p>
+          <p class="fiche-a4-ligne">Antécédents médicaux : {{ historiqueDetail.antecedentsMedicaux || '—' }}</p>
+          <p class="fiche-a4-ligne">
+            Antécédents chirurgicaux : {{ ouiNon(historiqueDetail.chirurgie) }}
+            <template v-if="historiqueDetail.antecedentsChirurgicaux"> — {{ historiqueDetail.antecedentsChirurgicaux }}</template>
+          </p>
 
-        <!-- Examens de laboratoire avec résultats -->
-        <div v-if="historiqueDetail.passage?.examensLabo?.length" class="cr-section">
-          <strong>🔬 Examens de laboratoire et résultats :</strong>
-          <div v-for="e in historiqueDetail.passage.examensLabo" :key="e.id" class="historique-examen">
-            <span class="badge" :class="e.statut === 'VALIDE' ? 'badge-success' : 'badge-warning'">
-              {{ e.libelle }} — {{ e.statut === 'VALIDE' ? 'Validé' : 'En cours' }}
-            </span>
-            <table v-if="e.lignes?.length" class="resultat-table">
+          <h2 class="fiche-a4-section">EXAMEN CLINIQUE</h2>
+          <p class="fiche-a4-ligne">Motif de consultation : {{ historiqueDetail.motif || '—' }}</p>
+          <p class="fiche-a4-ligne">Examen physique : {{ historiqueDetail.observation || '—' }}</p>
+
+          <h2 class="fiche-a4-section">EXAMENS COMPLÉMENTAIRES</h2>
+          <p class="fiche-a4-ligne">
+            TDR paludisme : {{ historiqueDetail.tdrPaludisme || '—' }} &nbsp;&nbsp; Goutte épaisse : {{ historiqueDetail.goutteEpaisse || '—' }}
+            &nbsp;&nbsp; Test VIH réalisé : {{ ouiNon(historiqueDetail.cdipRealise) }}
+          </p>
+          <p class="fiche-a4-ligne">
+            Taux d'hémoglobine : {{ historiqueDetail.tauxHemoglobine || '—' }} &nbsp;&nbsp; Syphilis : {{ historiqueDetail.testSyphilis || '—' }}
+            &nbsp;&nbsp; Hépatite : {{ historiqueDetail.testHepatite || '—' }}
+          </p>
+          <p class="fiche-a4-ligne">
+            Glycémie : à jeun {{ historiqueDetail.glycemieAjeun || '—' }} / non à jeun {{ historiqueDetail.glycemieNonAjeun || '—' }}
+          </p>
+          <p class="fiche-a4-ligne">Autres examens demandés : {{ historiqueDetail.autresExamens || '—' }}</p>
+
+          <h2 class="fiche-a4-section">DIAGNOSTIC</h2>
+          <p class="fiche-a4-ligne">Diagnostic retenu : <strong>{{ historiqueDetail.diagnostic || '—' }}</strong></p>
+          <p class="fiche-a4-ligne">Autres pathologies associées : {{ historiqueDetail.pathologiesAssociees || '—' }}</p>
+
+          <h2 class="fiche-a4-section">ISSUE DE LA CONSULTATION</h2>
+          <p class="fiche-a4-ligne">
+            {{ LIBELLES_ISSUE[historiqueDetail.issueSortie] || historiqueDetail.issueSortie || 'Retour à domicile' }}
+            <template v-if="historiqueDetail.hospitalisation">
+              — Hospitalisation
+              <template v-if="historiqueDetail.hospitalisationDureeJours">({{ historiqueDetail.hospitalisationDureeJours }} jour(s))</template>
+            </template>
+          </p>
+        </template>
+
+        <!-- ══ Onglet 2 : résultat de l'examen de laboratoire choisi dans le tableau ══ -->
+        <template v-else-if="histOnglet === 'labo'">
+          <div v-if="histExamenVu?.type === 'labo'" class="hist-bloc">
+            <h2 class="fiche-a4-section">
+              {{ histExamenVu.item.libelle }} — {{ histExamenVu.item.statut === 'VALIDE' ? 'validé' : 'en cours' }}
+            </h2>
+            <table v-if="histExamenVu.item.lignes?.length" class="ordo-ex-table">
               <thead>
                 <tr><th>Paramètre</th><th>Résultat</th><th>Unité</th><th>Normes</th></tr>
               </thead>
               <tbody>
-                <tr v-for="lg in e.lignes" :key="lg.id">
+                <tr v-for="lg in histExamenVu.item.lignes" :key="lg.id">
                   <td>{{ lg.parametre || '—' }}</td>
                   <td><strong>{{ lg.valeur || '—' }}</strong></td>
                   <td>{{ lg.unite || '—' }}</td>
@@ -1184,39 +1479,149 @@
                 </tr>
               </tbody>
             </table>
-            <p v-if="e.conclusion" class="historique-conclusion">
-              <strong>Conclusion :</strong> {{ e.conclusion }}
+            <p v-else class="fiche-a4-ligne">Résultats non encore saisis.</p>
+            <p v-if="histExamenVu.item.conclusion" class="fiche-a4-ligne">
+              <strong>Conclusion :</strong> {{ histExamenVu.item.conclusion }}
+            </p>
+            <p v-if="histExamenVu.item.validePar?.personnel" class="fiche-a4-ligne hist-valide">
+              Validé par {{ histExamenVu.item.validePar.personnel.nom }} {{ histExamenVu.item.validePar.personnel.prenom }}
+              <template v-if="histExamenVu.item.valideLe"> le {{ formatDateFr(histExamenVu.item.valideLe) }}</template>
             </p>
           </div>
-        </div>
+        </template>
 
-        <!-- Examens d'imagerie -->
-        <div v-if="historiqueDetail.passage?.examensImagerie?.length" class="cr-section">
-          <strong>🩻 Examens d'imagerie :</strong>
-          <div v-for="e in historiqueDetail.passage.examensImagerie" :key="e.id" class="historique-examen">
-            <span class="badge" :class="e.statut === 'VALIDE' ? 'badge-success' : 'badge-warning'">
-              {{ e.libelle }} — {{ e.statut === 'VALIDE' ? 'Validé' : 'En cours' }}
-            </span>
-            <p v-if="e.resultat" class="historique-conclusion"><strong>Résultat :</strong> {{ e.resultat }}</p>
-            <p v-if="e.conclusion" class="historique-conclusion"><strong>Conclusion :</strong> {{ e.conclusion }}</p>
+        <!-- ══ Onglet 3 : résultat de l'examen d'imagerie choisi dans le tableau ══ -->
+        <template v-else-if="histOnglet === 'imagerie'">
+          <div v-if="histExamenVu?.type === 'imagerie'" class="hist-bloc">
+            <h2 class="fiche-a4-section">
+              {{ histExamenVu.item.libelle }} — {{ histExamenVu.item.statut === 'VALIDE' ? 'validé' : 'en cours' }}
+            </h2>
+            <p v-if="histExamenVu.item.indication" class="fiche-a4-ligne"><strong>Indication :</strong> {{ histExamenVu.item.indication }}</p>
+            <p v-if="histExamenVu.item.technique" class="fiche-a4-ligne"><strong>Technique :</strong> {{ histExamenVu.item.technique }}</p>
+            <p v-if="histExamenVu.item.resultat" class="fiche-a4-ligne hist-texte"><strong>Résultat :</strong> {{ histExamenVu.item.resultat }}</p>
+            <p v-if="histExamenVu.item.conclusion" class="fiche-a4-ligne hist-texte"><strong>Conclusion :</strong> {{ histExamenVu.item.conclusion }}</p>
+            <p v-if="histExamenVu.item.validePar?.personnel" class="fiche-a4-ligne hist-valide">
+              Validé par {{ histExamenVu.item.validePar.personnel.nom }} {{ histExamenVu.item.validePar.personnel.prenom }}
+              <template v-if="histExamenVu.item.valideLe"> le {{ formatDateFr(histExamenVu.item.valideLe) }}</template>
+            </p>
           </div>
-        </div>
-
-        <!-- Fiches d'échographie -->
-        <div v-if="historiqueDetail.passage?.fichesExamenImagerie?.length" class="cr-section">
-          <strong>📄 Fiches d'échographie :</strong>
-          <div v-for="f in historiqueDetail.passage.fichesExamenImagerie" :key="f.id" class="historique-examen">
-            <span class="badge badge-muted">{{ f.libelleType }} — {{ formatDateFr(f.createdAt) }}</span>
-            <p class="resultat-fiche-texte" v-html="marquerValeurs(f.texte, f.valeurs)"></p>
+          <div v-else-if="histExamenVu?.type === 'fiche'" class="hist-bloc">
+            <h2 class="fiche-a4-section">{{ histExamenVu.item.libelleType }} — {{ formatDateFr(histExamenVu.item.createdAt) }}</h2>
+            <p class="fiche-a4-ligne hist-texte" v-html="marquerValeurs(histExamenVu.item.texte, histExamenVu.item.valeurs)"></p>
           </div>
-        </div>
+        </template>
 
-        <div class="modal-actions">
-          <button class="btn btn-outline" @click="historiqueDetail = null">✖ Fermer</button>
+        <!-- ══ Onglet 4 : ordonnance ══ -->
+        <template v-else>
+          <p v-if="!histMedicaments.length" class="hist-vide">Aucun médicament prescrit lors de ce passage.</p>
+          <div v-for="g in histOrdonnances" :key="g.cle" class="hist-bloc">
+            <h2 class="fiche-a4-section">
+              {{ g.numero ? `Ordonnance N° ${g.numero}` : 'Ordonnance' }}
+              <template v-if="g.statut"> — {{ g.statut === 'TRAITEE' ? 'délivrée par la pharmacie' : 'non délivrée' }}</template>
+            </h2>
+            <table class="ordo-ex-table">
+              <thead>
+                <tr><th>Médicament</th><th>Posologie</th><th>Quantité</th><th>Durée</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="m in g.medicaments" :key="m.id">
+                  <td>
+                    <strong>{{ m.medicamentNom }}</strong>
+                    <template v-if="m.forme"> ({{ m.forme }})</template>
+                  </td>
+                  <td>{{ m.posologie || '—' }}</td>
+                  <td>{{ m.quantite || '—' }}</td>
+                  <td>{{ m.duree || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
+        <div class="ordo-ex-sign">
+          <div class="ordo-ex-sign-date">Imprimé le {{ formatDate(new Date()) }}</div>
+          <div class="ordo-ex-sign-doc">
+            <p>Le médecin : {{ histMedecin }}</p>
+            <div class="fiche-a4-cachet">Signature et cachet</div>
+          </div>
         </div>
       </div>
     </div>
 
+    <!-- Modale : joindre le résultat scanné d'un examen hors clinique -->
+    <div v-if="ligneJoindre" class="modal-backdrop doc-externe-voile">
+      <div class="modal">
+        <h2>📎 Résultat de l'examen — {{ ligneJoindre.libelle }}</h2>
+        <p class="text-muted small-note">
+          Scannez le résultat rapporté par le patient (ou prenez-le en photo), puis choisissez le fichier.
+          Formats acceptés : image (JPG, PNG) ou PDF, 7 Mo maximum.
+        </p>
+        <p v-if="ligneJoindre.statut === 'EN_ATTENTE'" class="alert-info-examen">
+          ℹ️ Cet examen était prescrit à la clinique. En joignant un résultat, il sera marqué
+          <strong>« fait hors clinique »</strong> et ne sera plus à payer à la caisse.
+        </p>
+        <div class="field">
+          <label>Fichier du résultat {{ ligneJoindre.resultatExterne ? '(laisser vide pour garder le document actuel)' : '*' }}</label>
+          <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" @change="onFichierResultat" />
+          <span v-if="formJoindre.nomFichier" class="text-muted">
+            ✓ {{ formJoindre.nomFichier }} ({{ formJoindre.tailleLisible }})
+          </span>
+          <span v-else-if="ligneJoindre.resultatExterne" class="text-muted">
+            Document actuel : {{ ligneJoindre.resultatExterne.nomFichier }}
+          </span>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Date de l'examen</label>
+            <input v-model="formJoindre.dateExamen" type="date" />
+          </div>
+          <div class="field">
+            <label>Réalisé à (laboratoire, centre…)</label>
+            <input v-model.trim="formJoindre.lieu" placeholder="Ex : CHU de Cocody" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Conclusion / résultat principal</label>
+          <textarea v-model.trim="formJoindre.conclusion" rows="3" placeholder="Résumé du résultat (facultatif)"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="ligneJoindre = null">✖ Annuler</button>
+          <button class="btn btn-primary" :disabled="joindreEnCours" @click="enregistrerResultatExterne">
+            {{ joindreEnCours ? 'Enregistrement…' : '💾 Enregistrer le fichier' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Visionneuse du document joint (au-dessus de tout, y compris de l'historique) -->
+    <div v-if="documentExterne" class="modal-backdrop doc-externe-voile">
+      <div class="modal doc-externe">
+        <h2>📎 {{ documentExterne.libelle }}</h2>
+        <p class="text-muted small-note">
+          {{ documentExterne.nomFichier }}
+          <template v-if="documentExterne.dateExamen"> · examen du {{ formatDateFr(documentExterne.dateExamen) }}</template>
+          <template v-if="documentExterne.lieu"> · {{ documentExterne.lieu }}</template>
+        </p>
+        <p v-if="documentExterne.conclusion" class="historique-diag">Conclusion : {{ documentExterne.conclusion }}</p>
+        <div class="doc-externe-zone">
+          <img v-if="documentExterne.typeMime.startsWith('image/')" :src="documentExterne.url" :alt="documentExterne.libelle" />
+          <iframe v-else :src="documentExterne.url" title="Résultat de l'examen"></iframe>
+        </div>
+        <div class="modal-actions">
+          <button
+            v-if="documentExterne.supprimable"
+            class="btn btn-danger"
+            title="Supprimer le document joint"
+            @click="supprimerResultatExterne"
+          >
+            🗑️ Supprimer
+          </button>
+          <a class="btn btn-outline" :href="documentExterne.url" :download="documentExterne.nomFichier">⬇️ Télécharger</a>
+          <button class="btn btn-outline" @click="ouvrirDocumentExterne">🖨️ Ouvrir / imprimer</button>
+          <button class="btn btn-primary" @click="fermerDocumentExterne">✖ Fermer</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Modale : résultat d'examen (labo / imagerie) -->
     <div v-if="resultatVisible" class="modal-backdrop">
@@ -1339,6 +1744,7 @@
             <div class="ordo-a4-date">
               <div>Date : {{ formatDate(new Date()) }}</div>
               <div>N° ordre : {{ ordonnance?.passage?.numeroOrdre }}</div>
+              <div v-if="ordonnance?.numero">Ordonnance : {{ ordonnance.numero }}</div>
             </div>
           </div>
           <h2 class="ordo-a4-title">ORDONNANCE MÉDICALE</h2>
@@ -1476,7 +1882,7 @@
 
         <!-- Antécédents -->
         <h2 class="fiche-a4-section">ANTÉCÉDENTS</h2>
-        <p class="fiche-a4-ligne">Traitement médicamenteux antérieur / en cours : {{ formConsult.traitementAnterieur }}</p>
+        <p class="fiche-a4-ligne">Traitement médicamenteux antérieur / en cours : {{ traitementAnterieurTexte(formConsult.traitementAnterieurOuiNon, formConsult.traitementAnterieur) || '' }}</p>
         <p class="fiche-a4-ligne">
           Médicaux : HTA : {{ caseCoche(formConsult.hta === true) }} Oui {{ caseCoche(formConsult.hta === false) }} Non &nbsp;&nbsp;
           DIABÈTE : {{ caseCoche(formConsult.diabete === true) }} Oui {{ caseCoche(formConsult.diabete === false) }} Non<br />
@@ -1652,6 +2058,7 @@
           <div class="ordo-a4-date">
             <div>Date : {{ formatDate(new Date()) }}</div>
             <div>N° ordre : {{ ordonnance.passage.numeroOrdre }}</div>
+            <div v-if="ordonnance.numero">Ordonnance : {{ ordonnance.numero }}</div>
           </div>
         </div>
         <h2 class="ordo-a4-title">ORDONNANCE MÉDICALE</h2>
@@ -2176,6 +2583,20 @@ const ROUTES_LISTES = {
   EXAMEN: '/autres-examens',
 }
 
+// ── Traitement antérieur : Oui / Non + commentaire dans un seul champ texte ──
+// Enregistré « NON », ou le commentaire saisi (« OUI » si le commentaire est vide).
+function traitementAnterieurChoix(texte) {
+  const t = (texte ?? '').trim()
+  if (!t) return null
+  return t.toUpperCase() !== 'NON'
+}
+function traitementAnterieurTexte(choix, commentaire) {
+  if (choix === false) return 'NON'
+  const c = (commentaire ?? '').trim()
+  if (choix === true) return c || 'OUI'
+  return c || null
+}
+
 // ── Autres examens : plusieurs valeurs dans un seul champ texte « A ; B ; C » ──
 function separerExamens(texte) {
   return (texte ?? '')
@@ -2185,9 +2606,40 @@ function separerExamens(texte) {
 }
 const autresExamensListe = computed(() => separerExamens(formConsult.autresExamens))
 // Examens de la liste + ceux saisis à la main sur cette fiche (restent cochés)
+/** Normalise un libellé d'examen pour les comparaisons (accents, casse, espaces). */
+function cleExamen(t) {
+  return (t ?? '')
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+/** Examens du catalogue (laboratoire / imagerie) : ils partent en prescription à l'enregistrement. */
+const examensCatalogue = computed(() =>
+  prestationsCatalogue.value.filter((p) => p.actif && ['EXAMEN_LABO', 'IMAGERIE'].includes(p.type)),
+)
+function libelleExamenPropose(ex) {
+  const p = examensCatalogue.value.find((c) => cleExamen(c.libelle) === cleExamen(ex))
+  if (!p) return ex
+  return `${p.type === 'IMAGERIE' ? '🩻' : '🔬'} ${ex}`
+}
+// Examens proposés : catalogue labo / imagerie, liste paramétrée, puis ceux saisis à la main sur cette fiche
 const examensProposes = computed(() => {
-  const liste = listesParams.EXAMEN.map((x) => x.libelle)
-  return [...liste, ...autresExamensListe.value.filter((ex) => !liste.includes(ex))]
+  const vus = new Set()
+  const liste = []
+  for (const ex of [
+    ...examensCatalogue.value.map((p) => p.libelle),
+    ...listesParams.EXAMEN.map((x) => x.libelle),
+    ...autresExamensListe.value,
+  ]) {
+    const k = cleExamen(ex)
+    if (!k || vus.has(k)) continue
+    vus.add(k)
+    liste.push(ex)
+  }
+  return liste
 })
 
 const listesParams = reactive({
@@ -2252,7 +2704,7 @@ function caseCoche(valeur) {
 
 // Zone d'impression active : UNE seule à la fois (évite que la fiche ou
 // l'ordonnance sortent quand on imprime le certificat, et inversement).
-const zoneImpression = ref(null) // 'fiche' | 'ordonnance' | 'examens' | 'certificat'
+const zoneImpression = ref(null) // 'fiche' | 'ordonnance' | 'examens' | 'certificat' | 'historique'
 
 async function lancerImpression(zone) {
   zoneImpression.value = zone
@@ -2304,10 +2756,363 @@ const fichesPassage = computed(() => detail.value?.passage?.fiches ?? [])
 /** Consultations antérieures du patient (historique enrichi : médicaments + examens + fiches). */
 const historiquePatient = computed(() => detail.value?.historique ?? [])
 
+/**
+ * Synthèse du dossier, tous passages confondus : antécédents connus, diagnostics
+ * déjà retenus et pathologies associées (sans doublon, avec la date du dernier).
+ */
+const syntheseDossier = computed(() => {
+  const liste = historiquePatient.value // du plus récent au plus ancien
+  const cle = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim()
+  const cumuler = (valeurs) => {
+    const vus = new Map()
+    for (const { libelle, date } of valeurs) {
+      const k = cle(libelle)
+      if (!k) continue
+      const e = vus.get(k)
+      if (e) e.nb += 1
+      else vus.set(k, { libelle, date, nb: 1 }) // 1re rencontre = passage le plus récent
+    }
+    return [...vus.values()]
+  }
+  const antecedents = new Map()
+  const noter = (texte) => {
+    const k = cle(texte)
+    if (k && !antecedents.has(k)) antecedents.set(k, texte)
+  }
+  for (const h of liste) {
+    if (h.hta === true) noter('HTA')
+    if (h.diabete === true) noter('Diabète')
+    if (h.tabac === true) noter('Tabac')
+    if (h.alcool === true) noter('Alcool')
+    ;(h.antecedentsMedicaux ?? '').split(/[;,]/).forEach((a) => noter(a.trim()))
+    if (h.antecedentsChirurgicaux?.trim()) noter(`Chirurgie : ${h.antecedentsChirurgicaux.trim()}`)
+    const traitement = (h.traitementAnterieur ?? '').trim()
+    if (traitement && !['OUI', 'NON'].includes(traitement.toUpperCase())) noter(`Traitement en cours : ${traitement}`)
+  }
+  return {
+    antecedents: [...antecedents.values()],
+    diagnostics: cumuler(
+      liste.filter((h) => h.diagnostic?.trim()).map((h) => ({ libelle: h.diagnostic.trim(), date: h.createdAt })),
+    ),
+    pathologies: cumuler(
+      liste.flatMap((h) =>
+        (h.pathologiesAssociees ?? '')
+          .split(/[;,]/)
+          .map((x) => x.trim())
+          .filter(Boolean)
+          .map((libelle) => ({ libelle, date: h.createdAt })),
+      ),
+    ),
+  }
+})
+
 /** Détail d'une consultation passée affiché en modale (ordonnance, examens, résultats). */
 const historiqueDetail = ref(null)
 
+// Onglets de la fenêtre d'historique (une feuille A4 imprimable par onglet)
+const histOnglet = ref('consultation')
+const histLabo = computed(() => historiqueDetail.value?.passage?.examensLabo ?? [])
+const histImagerie = computed(() => historiqueDetail.value?.passage?.examensImagerie ?? [])
+const histFiches = computed(() => historiqueDetail.value?.passage?.fichesExamenImagerie ?? [])
+const histMedicaments = computed(() => historiqueDetail.value?.medicaments ?? [])
+/** Médicaments de l'historique regroupés par ordonnance. */
+const histOrdonnances = computed(() => {
+  const meds = histMedicaments.value
+  const groupes = (historiqueDetail.value?.ordonnances ?? [])
+    .map((o) => ({
+      cle: o.id,
+      numero: o.numero,
+      statut: o.statut,
+      medicaments: meds.filter((m) => m.ordonnanceId === o.id),
+    }))
+    .filter((g) => g.medicaments.length > 0)
+  const sans = meds.filter((m) => !groupes.some((g) => g.medicaments.includes(m)))
+  if (sans.length) groupes.push({ cle: 'sans', numero: null, statut: null, medicaments: sans })
+  return groupes
+})
+// Examens prescrits hors clinique sur ce passage (avec le document joint, s'il y en a un)
+// Valeurs saisies pour dire « rien » dans « Autres examens » : ce ne sont pas des examens
+const EXAMENS_VIDES = ['RAS', 'NEANT', 'AUCUN', 'AUCUNE', 'NON', 'NA', '-', '/']
+// Examens prescrits sur le passage (labo / imagerie) : réalisés ici ou non
+const histLignesExamens = computed(() => historiqueDetail.value?.passage?.prestations ?? [])
+const examenRealiseIci = (l) => !!(l.examenLabo || l.examenImagerie)
+/** Prescrits, pas faits hors clinique, et sans résultat saisi par le service. */
+const histPrescritsLabo = computed(() =>
+  histLignesExamens.value.filter(
+    (l) => l.prestation?.type === 'EXAMEN_LABO' && l.statut !== 'EXTERNE' && !examenRealiseIci(l),
+  ),
+)
+// Une fiche d'échographie du passage vaut compte rendu : on ne signale alors rien « non réalisé »
+const histPrescritsImagerie = computed(() =>
+  histFiches.value.length
+    ? []
+    : histLignesExamens.value.filter(
+        (l) => l.prestation?.type === 'IMAGERIE' && l.statut !== 'EXTERNE' && !examenRealiseIci(l),
+      ),
+)
+// Examen dont le résultat est affiché sur la feuille A4 (choisi dans le tableau des onglets 2 et 3)
+const histExamenVu = ref(null) // { type: 'labo' | 'imagerie' | 'fiche', item }
+watch(histOnglet, () => {
+  histExamenVu.value = null
+})
+/** La feuille A4 : compte rendu de consultation, ordonnance, ou résultat d'un examen choisi. */
+const histFeuilleVisible = computed(
+  () =>
+    !!historiqueDetail.value &&
+    (['consultation', 'ordonnance'].includes(histOnglet.value) || !!histExamenVu.value),
+)
+const nomValidateur = (e) =>
+  e.validePar?.personnel ? `${e.validePar.personnel.nom} ${e.validePar.personnel.prenom}` : ''
+/** Lignes du tableau de l'onglet labo ou imagerie : examens réalisés, puis prescrits non réalisés. */
+const histTableauExamens = computed(() => {
+  const realise = (type, e) => ({
+    cle: `${type}-${e.id}`,
+    libelle: e.libelle,
+    etat: e.statut === 'VALIDE' ? 'Résultat validé' : 'Résultat en cours',
+    classe: e.statut === 'VALIDE' ? 'badge-success' : 'badge-warning',
+    date: e.valideLe || e.createdAt,
+    validePar: nomValidateur(e),
+    resultat: { type, item: e },
+  })
+  const prescrit = (l) => ({
+    cle: `ligne-${l.id}`,
+    libelle: l.libelle,
+    etat: etatExamenPrescrit(l),
+    classe: 'badge-muted',
+    date: l.createdAt,
+    validePar: '',
+    resultat: null,
+  })
+  if (histOnglet.value === 'labo') {
+    return [...histLabo.value.map((e) => realise('labo', e)), ...histPrescritsLabo.value.map(prescrit)]
+  }
+  return [
+    ...histImagerie.value.map((e) => realise('imagerie', e)),
+    ...histFiches.value.map((f) => ({
+      cle: `fiche-${f.id}`,
+      libelle: f.libelleType,
+      etat: "Fiche d'échographie",
+      classe: 'badge-success',
+      date: f.createdAt,
+      validePar: '',
+      resultat: { type: 'fiche', item: f },
+    })),
+    ...histPrescritsImagerie.value.map(prescrit),
+  ]
+})
+
+function etatExamenPrescrit(l) {
+  return l.statut === 'EN_ATTENTE'
+    ? 'Prescrit — en attente de paiement à la caisse'
+    : 'Payé — en attente de réalisation par le service'
+}
+
+const histExternes = computed(() => {
+  // Faits hors clinique, ou prescrits ici mais ni payés ni réalisés (le patient a pu les faire ailleurs)
+  const lignes = histLignesExamens.value.filter(
+    (l) => l.statut === 'EXTERNE' || (l.statut === 'EN_ATTENTE' && !examenRealiseIci(l)),
+  )
+  // Examens demandés dans la fiche, absents du catalogue de la clinique et pas encore
+  // enregistrés comme ligne : ils sont listés aussi, pour pouvoir y joindre le résultat.
+  const demandes = separerExamens(historiqueDetail.value?.autresExamens)
+    .filter((ex) => !EXAMENS_VIDES.includes(cleExamen(ex)))
+    .filter((ex) => !examensCatalogue.value.some((c) => cleExamen(c.libelle) === cleExamen(ex)))
+    .filter((ex) => !lignes.some((l) => cleExamen(l.libelle) === cleExamen(ex)))
+    .map((ex) => ({ id: `demande-${ex}`, libelle: ex, resultatExterne: null, aCreer: true }))
+  return [...lignes, ...demandes]
+})
+const histOnglets = computed(() => [
+  { cle: 'consultation', label: '🩺 Résultat de la consultation', titre: 'Compte rendu de consultation' },
+  {
+    cle: 'labo',
+    label: '🔬 Examens labo',
+    titre: "Résultat d'examen de laboratoire",
+    nb: histLabo.value.length + histPrescritsLabo.value.length,
+  },
+  {
+    cle: 'imagerie',
+    label: '🩻 Examens imagerie',
+    titre: "Résultat d'examen d'imagerie",
+    nb: histImagerie.value.length + histFiches.value.length + histPrescritsImagerie.value.length,
+  },
+  { cle: 'ordonnance', label: '💊 Ordonnance', titre: 'Ordonnance médicale', nb: histMedicaments.value.length },
+  {
+    cle: 'externes',
+    label: '📎 Examens hors clinique',
+    titre: 'Examens réalisés hors clinique',
+    nb: histExternes.value.length,
+  },
+])
+// Ajout d'un examen hors clinique depuis l'historique (sur le passage affiché)
+const nouvelExamenExterne = ref('')
+const ajoutExterneEnCours = ref(false)
+
+/** Enregistre l'examen comme « hors clinique » sur le passage de l'historique, puis ouvre la fenêtre du fichier. */
+async function creerExamenExterneHistorique(libelle) {
+  ajoutExterneEnCours.value = true
+  try {
+    const { data } = await http.post(`/consultations/${historiqueDetail.value.id}/examens/ajouter`, { libelle })
+    await rafraichirApresDocument(data.id)
+    ouvrirJoindreResultat({ id: data.id, libelle: data.libelle, resultatExterne: null })
+    return true
+  } catch (e) {
+    toastError(e.response?.data?.message || "Impossible d'ajouter cet examen.")
+    return false
+  } finally {
+    ajoutExterneEnCours.value = false
+  }
+}
+
+async function ajouterExamenExterneHistorique() {
+  const libelle = nouvelExamenExterne.value.trim()
+  if (!libelle || ajoutExterneEnCours.value) return
+  if (await creerExamenExterneHistorique(libelle)) nouvelExamenExterne.value = ''
+}
+
+/** Bouton « Joindre » du tableau : un examen seulement noté dans la fiche est d'abord enregistré. */
+async function joindreDepuisHistorique(e) {
+  if (e.aCreer) await creerExamenExterneHistorique(e.libelle)
+  else ouvrirJoindreResultat(e)
+}
+
+/** Après un changement de document : la fenêtre d'historique ouverte reprend les données à jour. */
+async function rafraichirApresDocument() {
+  await chargerDetail()
+  if (historiqueDetail.value) {
+    historiqueDetail.value =
+      historiquePatient.value.find((h) => h.id === historiqueDetail.value.id) ?? historiqueDetail.value
+  }
+}
+
+// ── Résultat scanné d'un examen réalisé hors clinique ──
+const ligneJoindre = ref(null)
+const joindreEnCours = ref(false)
+const formJoindre = reactive({ nomFichier: '', tailleLisible: '', contenu: '', dateExamen: '', lieu: '', conclusion: '' })
+const TAILLE_MAX_RESULTAT = 7 * 1024 * 1024
+
+function ouvrirJoindreResultat(l) {
+  const r = l.resultatExterne
+  Object.assign(formJoindre, {
+    nomFichier: '',
+    tailleLisible: '',
+    contenu: '',
+    dateExamen: r?.dateExamen ? String(r.dateExamen).slice(0, 10) : '',
+    lieu: r?.lieu ?? '',
+    conclusion: r?.conclusion ?? '',
+  })
+  ligneJoindre.value = l
+}
+
+function onFichierResultat(event) {
+  const fichier = event.target.files?.[0]
+  if (!fichier) return
+  if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(fichier.type)) {
+    toastError('Format non accepté : choisissez une image (JPG, PNG) ou un PDF.')
+    event.target.value = ''
+    return
+  }
+  if (fichier.size > TAILLE_MAX_RESULTAT) {
+    toastError('Fichier trop volumineux (7 Mo maximum). Scannez en qualité plus faible ou en noir et blanc.')
+    event.target.value = ''
+    return
+  }
+  const lecteur = new FileReader()
+  lecteur.onload = () => {
+    formJoindre.contenu = lecteur.result
+    formJoindre.nomFichier = fichier.name
+    formJoindre.tailleLisible =
+      fichier.size > 1024 * 1024
+        ? `${(fichier.size / 1024 / 1024).toFixed(1)} Mo`
+        : `${Math.max(1, Math.round(fichier.size / 1024))} Ko`
+  }
+  lecteur.onerror = () => toastError('Lecture du fichier impossible.')
+  lecteur.readAsDataURL(fichier)
+}
+
+async function enregistrerResultatExterne() {
+  const l = ligneJoindre.value
+  if (!l) return
+  if (!formJoindre.contenu && !l.resultatExterne) {
+    toastError('Choisissez le fichier du résultat.')
+    return
+  }
+  joindreEnCours.value = true
+  try {
+    await http.post(`/consultations/examens/${l.id}/resultat-externe`, {
+      nomFichier: formJoindre.nomFichier || undefined,
+      contenu: formJoindre.contenu || undefined,
+      dateExamen: formJoindre.dateExamen || undefined,
+      lieu: formJoindre.lieu || undefined,
+      conclusion: formJoindre.conclusion || undefined,
+    })
+    toastSuccess(`Résultat de « ${l.libelle} » enregistré dans le dossier.`)
+    ligneJoindre.value = null
+    await rafraichirApresDocument(l.id)
+  } catch (e) {
+    toastError(e.response?.data?.message || "Enregistrement du fichier impossible.")
+  } finally {
+    joindreEnCours.value = false
+  }
+}
+
+// Visionneuse : le document est chargé à la demande puis affiché depuis une adresse locale
+const documentExterne = ref(null)
+async function voirResultatExterne(ligneId, libelle, supprimable) {
+  try {
+    const { data } = await http.get(`/consultations/examens/${ligneId}/resultat-externe`)
+    const blob = await (await fetch(data.contenu)).blob()
+    documentExterne.value = {
+      ligneId,
+      libelle,
+      supprimable,
+      nomFichier: data.nomFichier,
+      typeMime: data.typeMime,
+      dateExamen: data.dateExamen,
+      lieu: data.lieu,
+      conclusion: data.conclusion,
+      url: URL.createObjectURL(blob),
+    }
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Document introuvable.')
+  }
+}
+function fermerDocumentExterne() {
+  if (documentExterne.value?.url) URL.revokeObjectURL(documentExterne.value.url)
+  documentExterne.value = null
+}
+/** Ouvre le document dans un nouvel onglet : le navigateur propose l'impression. */
+function ouvrirDocumentExterne() {
+  window.open(documentExterne.value.url, '_blank')
+}
+async function supprimerResultatExterne() {
+  const doc = documentExterne.value
+  if (!doc || !window.confirm(`Supprimer le document joint à « ${doc.libelle} » ?`)) return
+  try {
+    await http.delete(`/consultations/examens/${doc.ligneId}/resultat-externe`)
+    toastSuccess('Document supprimé.')
+    fermerDocumentExterne()
+    await rafraichirApresDocument(doc.ligneId)
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Suppression impossible.')
+  }
+}
+const histMedecin = computed(() => {
+  const p = historiqueDetail.value?.medecin?.personnel
+  return p ? `Dr ${p.nom} ${p.prenom}` : '—'
+})
+const LIBELLES_ISSUE = {
+  HOSPITALISE: 'Hospitalisé',
+  MO: 'Mise en observation',
+  REFERE_INTERNE: 'Référé en interne',
+  REFERE_EXTERNE: 'Référé en externe',
+}
+function ouiNon(v) {
+  return v === true ? 'Oui' : v === false ? 'Non' : '—'
+}
+
 function ouvrirHistoriqueDetail(h) {
+  histOnglet.value = 'consultation'
+  histExamenVu.value = null
   historiqueDetail.value = h
 }
 
@@ -2405,6 +3210,8 @@ async function choisirPassage(p) {
   recherche.value = ''
   affectationOuverteId.value = null
   onglet.value = 'fiche'
+  // Stocks à jour pour la liste « Médicament » de la fiche
+  chargerMedicamentsCatalogue()
   await chargerDetail()
 }
 
@@ -2451,7 +3258,11 @@ async function chargerDetail() {
       litId: c.litId ?? null,
       modeEntree: c.modeEntree ?? '',
       modeEntreeAutre: c.modeEntreeAutre ?? '',
-      traitementAnterieur: c.traitementAnterieur ?? '',
+      // Oui / Non déduit du texte enregistré (« NON », « OUI » ou le commentaire)
+      traitementAnterieurOuiNon: traitementAnterieurChoix(c.traitementAnterieur),
+      traitementAnterieur: ['OUI', 'NON'].includes((c.traitementAnterieur ?? '').trim().toUpperCase())
+        ? ''
+        : (c.traitementAnterieur ?? ''),
       hta: c.hta ?? null,
       diabete: c.diabete ?? null,
       antecedentsMedicaux: c.antecedentsMedicaux ?? '',
@@ -2534,7 +3345,7 @@ async function sauvegarderFiche() {
       litId: ['HOSPITALISE', 'MO'].includes(f.issueSortie) ? f.litId ?? undefined : null,
       modeEntree: vider(f.modeEntree),
       modeEntreeAutre: vider(f.modeEntreeAutre),
-      traitementAnterieur: vider(f.traitementAnterieur),
+      traitementAnterieur: traitementAnterieurTexte(f.traitementAnterieurOuiNon, f.traitementAnterieur),
       hta: f.hta,
       diabete: f.diabete,
       antecedentsMedicaux: vider(f.antecedentsMedicaux),
@@ -2597,7 +3408,9 @@ async function sauvegarderFiche() {
     alimenterListe('PROFESSION', f.profession)
     alimenterListe('MOTIF', f.motif)
     alimenterListe('ANTECEDENT', f.antecedentsMedicaux)
-    separerExamens(f.autresExamens).forEach((ex) => alimenterListe('EXAMEN', ex))
+    separerExamens(f.autresExamens)
+      .filter((ex) => !examensCatalogue.value.some((c) => cleExamen(c.libelle) === cleExamen(ex)))
+      .forEach((ex) => alimenterListe('EXAMEN', ex))
     await chargerDetail()
   } catch (e) {
     toastError(e.response?.data?.message || 'Erreur lors de l\'enregistrement.')
@@ -2631,6 +3444,20 @@ const optionsMedicaments = computed(() => {
   return [...dispo, ...rupture]
 })
 
+/**
+ * Catalogue des médicaments (avec le stock du moment). Chargé dès l'ouverture
+ * d'un dossier : la liste de la fiche (« Prescription de médicaments ») et celle
+ * de la fenêtre d'ajout utilisent le même catalogue.
+ */
+async function chargerMedicamentsCatalogue() {
+  try {
+    const { data } = await http.get('/medicaments', { params: { cliniqueId: cliniqueId.value } })
+    medicaments.value = data.filter((m) => m.actif)
+  } catch {
+    medicaments.value = []
+  }
+}
+
 async function ouvrirAjoutMedicament() {
   ajoutVisible.value = true
   ajoutMedicamentId.value = null
@@ -2639,12 +3466,7 @@ async function ouvrirAjoutMedicament() {
   ajoutQuantite.value = ''
   ajoutDuree.value = ''
   ajoutError.value = ''
-  try {
-    const { data } = await http.get('/medicaments', { params: { cliniqueId: cliniqueId.value } })
-    medicaments.value = data.filter((m) => m.actif)
-  } catch {
-    medicaments.value = []
-  }
+  await chargerMedicamentsCatalogue()
 }
 
 function onMedicamentChoisi(valeur) {
@@ -2663,6 +3485,7 @@ async function confirmerAjoutMedicament() {
   try {
     await http.post(`/consultations/${consultation.value.id}/medicaments`, {
       medicamentId: ajoutMedicamentId.value ?? undefined,
+      ordonnanceId: ordonnanceActive.value?.statut === 'EN_ATTENTE' ? ordonnanceActive.value.id : undefined,
       nom: ajoutNom.value || undefined,
       posologie: ajoutPosologie.value || undefined,
       quantite: ajoutQuantite.value || undefined,
@@ -2692,7 +3515,7 @@ async function retirerMedicament(p) {
     toastSuccess('Prescription retirée.')
     await chargerDetail()
   } catch (e) {
-    toastError('Erreur lors du retrait.')
+    toastError(e.response?.data?.message || 'Erreur lors du retrait.')
   }
 }
 
@@ -2842,13 +3665,52 @@ async function sauvegarderOrdonnance() {
   }
 }
 
+// ── Ordonnances multiples : une consultation peut porter plusieurs ordonnances ──
+const ordonnanceActiveId = ref(null)
+const creationOrdonnance = ref(false)
+const ordonnancesConsult = computed(() => consultation.value?.ordonnances ?? [])
+const ordonnanceActive = computed(
+  () => ordonnancesConsult.value.find((o) => o.id === ordonnanceActiveId.value) ?? null,
+)
+/** Médicaments de l'ordonnance sélectionnée (tous s'il n'y a pas encore d'ordonnance). */
+const medicamentsOrdonnance = computed(() => {
+  const tous = consultation.value?.medicaments ?? []
+  return ordonnanceActive.value ? tous.filter((m) => m.ordonnanceId === ordonnanceActive.value.id) : tous
+})
+function nbMedicamentsOrdonnance(id) {
+  return (consultation.value?.medicaments ?? []).filter((m) => m.ordonnanceId === id).length
+}
+// À chaque rechargement : garder l'ordonnance choisie, sinon se placer sur la plus récente
+watch(ordonnancesConsult, (liste) => {
+  if (!liste.some((o) => o.id === ordonnanceActiveId.value)) {
+    ordonnanceActiveId.value = liste.length ? liste[liste.length - 1].id : null
+  }
+}, { immediate: true })
+
+async function nouvelleOrdonnance() {
+  if (!consultation.value) return
+  creationOrdonnance.value = true
+  try {
+    const { data } = await http.post(`/consultations/${consultation.value.id}/ordonnances`)
+    await chargerDetail()
+    ordonnanceActiveId.value = data.id
+    toastSuccess(`Ordonnance ${data.numero} prête : ajoutez les médicaments.`)
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Création de l\'ordonnance impossible.')
+  } finally {
+    creationOrdonnance.value = false
+  }
+}
+
 /** Construit l'ordonnance pour l'aperçu et l'impression. */
 function construireApercu() {
   if (!consultation.value || !passageCourant.value) return
   ordonnance.value = {
     patient: passageCourant.value.patient,
     passage: passageCourant.value,
-    medicaments: consultation.value.medicaments ?? [],
+    // Seule l'ordonnance sélectionnée est imprimée (elles sont indépendantes)
+    numero: ordonnanceActive.value?.numero ?? null,
+    medicaments: medicamentsOrdonnance.value,
   }
 }
 
@@ -2878,6 +3740,7 @@ onMounted(async () => {
     .then(({ data }) => (logoParametre.value = data?.loginImage || ''))
     .catch(() => {})
   chargerPrestations()
+  chargerMedicamentsCatalogue()
   chargerLits()
   chargerFile()
   // Signal de vie du poste : un médecin DISPONIBLE sans heartbeat est considéré
@@ -3353,6 +4216,29 @@ onUnmounted(() => {
   color: var(--text-muted);
   font-size: 12px;
 }
+.synthese-dossier {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.synthese-bloc {
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #dbe7e4;
+  border-radius: 10px;
+}
+.synthese-bloc h3 {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+  color: #0f5f59;
+}
+.synthese-bloc ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+}
 .historique-diag {
   font-weight: 600;
 }
@@ -3428,6 +4314,192 @@ onUnmounted(() => {
 }
 .apercu-barre .btn-back:hover {
   background: rgba(255, 255, 255, 0.16);
+}
+
+/* ---------- Résultat scanné d'un examen hors clinique ---------- */
+.doc-externe-voile {
+  z-index: 400; /* au-dessus de la fenêtre d'historique */
+}
+.doc-externe {
+  width: min(1000px, 96vw);
+  max-width: none;
+}
+.doc-externe-zone {
+  height: 68vh;
+  overflow: auto;
+  text-align: center;
+  background: #0f172a;
+  border-radius: 8px;
+}
+.doc-externe-zone img {
+  max-width: 100%;
+}
+.doc-externe-zone iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
+}
+@media screen {
+  .hist-panneau {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 118px;
+    z-index: 150;
+    width: min(1150px, calc(100vw - 24px));
+    max-height: calc(100vh - 134px);
+    overflow-y: auto;
+    padding: 20px 22px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+  }
+}
+.hist-panneau h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+.alert-info-examen {
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #1e3a8a;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+}
+.hist-ajout {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.hist-ajout input {
+  flex: 1;
+}
+.hist-actions {
+  white-space: nowrap;
+}
+.hist-document {
+  display: block;
+  max-width: 100%;
+  margin: 8px auto 0;
+  border: 1px solid #cbd5e1;
+}
+
+/* ---------- Ordonnances multiples : puces de sélection ---------- */
+.ordo-barre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ordo-puce {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  background: #fbfefd;
+  border: 1.5px solid #c9ece5;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.ordo-puce.actif {
+  color: #0f5f59;
+  background: #d9f2e8;
+  border-color: #0f766e;
+}
+.ordo-puce.traitee {
+  border-style: dashed;
+}
+.ordo-puce-etat {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+.ordo-puce-nb {
+  padding: 1px 7px;
+  font-size: 11px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.15);
+}
+
+/* ---------- Historique : fenêtre à onglets + feuille A4 ---------- */
+.hist-barre {
+  align-items: center;
+}
+.hist-onglets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hist-onglet {
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #d1fae5;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.hist-onglet:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.hist-onglet.actif {
+  color: #134e4a;
+  background: #fff;
+  border-color: #fff;
+}
+.hist-onglet-nb {
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 11px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.25);
+}
+@media screen {
+  #hist-print {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 118px;
+    z-index: 150;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 134px);
+    overflow-y: auto;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+  }
+}
+.hist-a4 {
+  min-height: 240mm;
+  font-size: 12.5px;
+}
+.hist-bloc {
+  margin-bottom: 10px;
+  page-break-inside: avoid;
+}
+.hist-texte {
+  white-space: pre-wrap;
+}
+.hist-valide {
+  font-style: italic;
+  color: #475569;
+}
+.hist-vide {
+  margin: 24px 0;
+  text-align: center;
+  color: #64748b;
+  font-style: italic;
+}
+@media print {
+  .hist-a4 {
+    min-height: 0;
+  }
 }
 
 /* ---------- Ordonnance d'examens (A4) ---------- */
@@ -3601,6 +4673,13 @@ onUnmounted(() => {
 .fiche-a4-sign-doc p {
   margin: 0 0 2px;
   font-weight: 600;
+}
+/* À l'impression, les hauteurs fixes sont neutralisées (règle globale) : le cadre
+   garde sa taille grâce à une marge interne. */
+@media print {
+  .fiche-a4-cachet {
+    padding: 20px 8px;
+  }
 }
 .fiche-a4-cachet {
   border: 1px solid #111;

@@ -407,6 +407,8 @@ select option {
   #recu-a4-print *,
   #pharma-fin-print,
   #pharma-fin-print *,
+  #hist-print,
+  #hist-print *,
   #ref-print,
   #ref-print * {
     visibility: visible;
@@ -430,6 +432,7 @@ select option {
   #certificat-print,
   #recu-a4-print,
   #pharma-fin-print,
+  #hist-print,
   #ref-print {
     position: absolute;
     left: 0;
