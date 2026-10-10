@@ -128,7 +128,7 @@
             v-model="recherche"
             class="search-input"
             type="text"
-            placeholder="Rechercher par code dossier patient ou N° d'ordre…"
+            placeholder="Rechercher par nom et prénoms, code patient ou N° d'ordre…"
             @input="onRecherche"
           />
         </div>
@@ -577,7 +577,15 @@
             </p>
             <div class="field">
               <label>Autres examens</label>
-              <SelectSearch v-model="formConsult.autresExamens" :options="listesParams.EXAMEN.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
+              <!-- Liste déroulante à cases à cocher : tous les examens cochés sont enregistrés (« A ; B ; C ») -->
+              <SelectSearch
+                :model-value="autresExamensListe"
+                :options="examensProposes.map((ex) => ({ value: ex, label: ex }))"
+                multiple
+                libre
+                placeholder="— Cocher un ou plusieurs examens —"
+                @update:model-value="(v) => (formConsult.autresExamens = v.join(' ; '))"
+              />
             </div>
             <!-- Le diagnostic se retient après les examens -->
             <div class="form-row">
@@ -2168,6 +2176,20 @@ const ROUTES_LISTES = {
   EXAMEN: '/autres-examens',
 }
 
+// ── Autres examens : plusieurs valeurs dans un seul champ texte « A ; B ; C » ──
+function separerExamens(texte) {
+  return (texte ?? '')
+    .split(';')
+    .map((x) => x.trim())
+    .filter(Boolean)
+}
+const autresExamensListe = computed(() => separerExamens(formConsult.autresExamens))
+// Examens de la liste + ceux saisis à la main sur cette fiche (restent cochés)
+const examensProposes = computed(() => {
+  const liste = listesParams.EXAMEN.map((x) => x.libelle)
+  return [...liste, ...autresExamensListe.value.filter((ex) => !liste.includes(ex))]
+})
+
 const listesParams = reactive({
   NATIONALITE: [],
   RESIDENCE: [],
@@ -2575,7 +2597,7 @@ async function sauvegarderFiche() {
     alimenterListe('PROFESSION', f.profession)
     alimenterListe('MOTIF', f.motif)
     alimenterListe('ANTECEDENT', f.antecedentsMedicaux)
-    alimenterListe('EXAMEN', f.autresExamens)
+    separerExamens(f.autresExamens).forEach((ex) => alimenterListe('EXAMEN', ex))
     await chargerDetail()
   } catch (e) {
     toastError(e.response?.data?.message || 'Erreur lors de l\'enregistrement.')

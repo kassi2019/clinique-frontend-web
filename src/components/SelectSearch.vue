@@ -1,5 +1,5 @@
 <template>
-  <div ref="racine" class="select-search" :class="{ open: ouvert }">
+  <div ref="racine" class="select-search" :class="{ open: ouvert, multiple }">
     <div class="select-search-field" @click="basculer">
       <span v-if="labelChoisi" class="select-search-value">{{ labelChoisi }}</span>
       <span v-else class="select-search-placeholder">{{ placeholder }}</span>
@@ -49,12 +49,20 @@
             v-for="(o, i) in optionsFiltrees"
             :key="o.value ?? 'vide'"
             class="select-search-option"
-            :class="{ actif: i === indexActif, choisi: o.value === modelValue }"
+            :class="{ actif: i === indexActif, choisi: estChoisi(o) }"
             :data-index="i"
             @mouseenter="indexActif = i"
             @click="choisir(o)"
           >
-            <span class="select-search-coche">{{ o.value === modelValue ? '✓' : '' }}</span>
+            <input
+              v-if="multiple"
+              type="checkbox"
+              class="select-search-case"
+              :checked="estChoisi(o)"
+              tabindex="-1"
+              @click.prevent
+            />
+            <span v-else class="select-search-coche">{{ estChoisi(o) ? '✓' : '' }}</span>
             <span class="select-search-libelle">{{ o.label }}</span>
           </li>
         </ul>
@@ -67,13 +75,15 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
 const props = defineProps({
-  modelValue: { type: [Number, String, null], default: null },
+  modelValue: { type: [Number, String, Array, null], default: null },
   options: { type: Array, default: () => [] }, // [{ value, label }]
   placeholder: { type: String, default: '— Choisir —' },
   // Saisie libre : propose « ＋ Ajouter » quand la valeur tapée n'existe pas dans la liste
   libre: { type: Boolean, default: false },
   // Pas de mise en majuscules automatique de la saisie (valeurs médicales)
   brut: { type: Boolean, default: false },
+  // Choix multiple : cases à cocher dans la liste, modelValue = tableau de valeurs
+  multiple: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'change'])
@@ -106,7 +116,20 @@ const optionsFiltrees = computed(() => {
   return props.options.filter((o) => normaliser(o.label).includes(f))
 })
 
+const valeursChoisies = computed(() =>
+  Array.isArray(props.modelValue) ? props.modelValue : [],
+)
+
+function estChoisi(o) {
+  return props.multiple ? valeursChoisies.value.includes(o.value) : o.value === props.modelValue
+}
+
 const labelChoisi = computed(() => {
+  if (props.multiple) {
+    return valeursChoisies.value
+      .map((v) => props.options.find((x) => x.value === v)?.label ?? String(v))
+      .join(' ; ')
+  }
   const o = props.options.find((x) => x.value === props.modelValue)
   if (o) return o.label
   // Valeur libre déjà enregistrée (absente de la liste)
@@ -146,7 +169,7 @@ function ouvrir() {
   ouvert.value = true
   filtre.value = ''
   // Positionne la sélection sur la valeur déjà choisie
-  const i = props.options.findIndex((o) => o.value === props.modelValue)
+  const i = props.options.findIndex((o) => estChoisi(o))
   indexActif.value = i >= 0 ? i : 0
   positionner()
   window.addEventListener('scroll', positionner, true)
@@ -170,6 +193,16 @@ function basculer() {
 }
 
 function choisir(o) {
+  if (props.multiple) {
+    // Coche / décoche sans fermer la liste
+    const valeurs = estChoisi(o)
+      ? valeursChoisies.value.filter((v) => v !== o.value)
+      : [...valeursChoisies.value, o.value]
+    emit('update:modelValue', valeurs)
+    emit('change', valeurs)
+    if (o.value === valeurLibre.value) filtre.value = ''
+    return
+  }
   emit('update:modelValue', o.value)
   emit('change', o.value)
   fermer()
@@ -246,6 +279,10 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Choix multiple : tous les examens cochés restent lisibles dans le champ */
+.select-search.multiple .select-search-value {
+  white-space: normal;
+}
 .select-search-placeholder {
   color: #64748b;
 }
@@ -302,6 +339,14 @@ onUnmounted(() => {
   flex-shrink: 0;
   color: var(--primary);
   font-weight: 800;
+}
+.select-search-case {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+  pointer-events: none;
 }
 .select-search-libelle {
   flex: 1;
