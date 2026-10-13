@@ -359,13 +359,21 @@
                   <input v-model="formConsult.traitementAnterieurOuiNon" type="radio" :value="false" hidden /> Non
                 </label>
               </div>
-              <!-- Le commentaire n'apparaît que si le médecin répond « Oui » -->
-              <input
-                v-if="formConsult.traitementAnterieurOuiNon === true"
-                v-model.trim="formConsult.traitementAnterieur"
-                class="mt-6"
-                placeholder="Préciser le traitement (médicaments, doses, durée)…"
-              />
+              <!-- Les trois champs n'apparaissent que si le médecin répond « Oui » -->
+              <div v-if="formConsult.traitementAnterieurOuiNon === true" class="traitement-champs mt-6">
+                <div class="field">
+                  <label>Médicaments</label>
+                  <input v-model.trim="formConsult.traitementMedicaments" placeholder="Ex : Paracétamol, Amlodipine" />
+                </div>
+                <div class="field">
+                  <label>Durée</label>
+                  <input v-model.trim="formConsult.traitementDuree" placeholder="Ex : depuis 2 mois" />
+                </div>
+                <div class="field">
+                  <label>Dose</label>
+                  <input v-model.trim="formConsult.traitementDose" placeholder="Ex : 1 cp matin et soir" />
+                </div>
+              </div>
             </div>
             <div class="form-row">
               <div class="field">
@@ -413,33 +421,44 @@
                 </div>
               </div>
             </div>
+            <!-- Antécédents chirurgicaux : Oui / Non, puis deux champs sur une même ligne -->
+            <div class="field">
+              <label>Antécédents chirurgicaux</label>
+              <div class="chips">
+                <label class="chip" :class="{ actif: formConsult.chirurgie === true }">
+                  <input v-model="formConsult.chirurgie" type="radio" :value="true" hidden /> Oui
+                </label>
+                <label class="chip" :class="{ actif: formConsult.chirurgie === false }">
+                  <input v-model="formConsult.chirurgie" type="radio" :value="false" hidden /> Non
+                </label>
+              </div>
+              <div v-if="formConsult.chirurgie === true" class="traitement-champs deux mt-6">
+                <div class="field">
+                  <label>Type d'intervention</label>
+                  <SelectSearch
+                    v-model="formConsult.chirurgieType"
+                    :options="listesParams.INTERVENTION.map((x) => ({ value: x.libelle, label: x.libelle }))"
+                    libre
+                    placeholder="— Choisir ou ajouter —"
+                  />
+                </div>
+                <div class="field">
+                  <label>Durée / année</label>
+                  <input v-model.trim="formConsult.chirurgieAnnee" placeholder="Ex : 2019, il y a 5 ans" />
+                </div>
+              </div>
+            </div>
             <div class="form-row">
               <div class="field">
                 <label>Antécédents médicaux (maladies)</label>
                 <SelectSearch v-model="formConsult.antecedentsMedicaux" :options="listesParams.ANTECEDENT.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
-              <div class="field">
-                <label>Antécédents chirurgicaux</label>
-                <div class="chips">
-                  <label class="chip" :class="{ actif: formConsult.chirurgie === true }">
-                    <input v-model="formConsult.chirurgie" type="radio" :value="true" hidden /> Oui
-                  </label>
-                  <label class="chip" :class="{ actif: formConsult.chirurgie === false }">
-                    <input v-model="formConsult.chirurgie" type="radio" :value="false" hidden /> Non
-                  </label>
-                </div>
-                <input
-                  v-if="formConsult.chirurgie === true"
-                  v-model.trim="formConsult.antecedentsChirurgicaux"
-                  style="margin-top: 6px"
-                  placeholder="Préciser (intervention, année…)"
-                />
-              </div>
-              <div class="field">
+              <!-- DDR et grossesse : sans objet pour un patient de sexe masculin -->
+              <div v-if="!patientMasculin" class="field">
                 <label>DDR</label>
                 <input v-model.trim="formConsult.ddr" type="date" />
               </div>
-              <div class="field">
+              <div v-if="!patientMasculin" class="field">
                 <label>Grossesse en cours</label>
                 <div class="chips">
                   <label class="chip" :class="{ actif: formConsult.grossesseEnCours === true }">
@@ -1882,7 +1901,7 @@
 
         <!-- Antécédents -->
         <h2 class="fiche-a4-section">ANTÉCÉDENTS</h2>
-        <p class="fiche-a4-ligne">Traitement médicamenteux antérieur / en cours : {{ traitementAnterieurTexte(formConsult.traitementAnterieurOuiNon, formConsult.traitementAnterieur) || '' }}</p>
+        <p class="fiche-a4-ligne">Traitement médicamenteux antérieur / en cours : {{ traitementAnterieurTexte(formConsult.traitementAnterieurOuiNon, formConsult) || '' }}</p>
         <p class="fiche-a4-ligne">
           Médicaux : HTA : {{ caseCoche(formConsult.hta === true) }} Oui {{ caseCoche(formConsult.hta === false) }} Non &nbsp;&nbsp;
           DIABÈTE : {{ caseCoche(formConsult.diabete === true) }} Oui {{ caseCoche(formConsult.diabete === false) }} Non<br />
@@ -1890,9 +1909,9 @@
         </p>
         <p class="fiche-a4-ligne">
           Chirurgicaux : {{ caseCoche(formConsult.chirurgie === true) }} Oui {{ caseCoche(formConsult.chirurgie === false) }} Non
-          <span v-if="formConsult.chirurgie === true"> — {{ formConsult.antecedentsChirurgicaux }}</span>
+          <span v-if="formConsult.chirurgie === true"> — {{ chirurgieTexte(formConsult) }}</span>
         </p>
-        <p class="fiche-a4-ligne">Gynéco-obstétricaux : DDR : {{ formConsult.ddr }} &nbsp;&nbsp;
+        <p v-if="!patientMasculin" class="fiche-a4-ligne">Gynéco-obstétricaux : DDR : {{ formConsult.ddr }} &nbsp;&nbsp;
           Grossesse en cours : {{ caseCoche(formConsult.grossesseEnCours === true) }} Oui {{ caseCoche(formConsult.grossesseEnCours === false) }} Non</p>
         <p class="fiche-a4-ligne">
           Modes de vie : Tabac : {{ caseCoche(formConsult.tabac === true) }} Oui {{ caseCoche(formConsult.tabac === false) }} Non &nbsp;&nbsp;
@@ -2581,7 +2600,11 @@ const ROUTES_LISTES = {
   MOTIF: '/motifs',
   ANTECEDENT: '/antecedents-medicaux',
   EXAMEN: '/autres-examens',
+  INTERVENTION: '/interventions-chirurgicales',
 }
+
+/** Patient de sexe masculin : la DDR et « Grossesse en cours » sont masquées. */
+const patientMasculin = computed(() => passageCourant.value?.patient?.sexe === 'M')
 
 // ── Traitement antérieur : Oui / Non + commentaire dans un seul champ texte ──
 // Enregistré « NON », ou le commentaire saisi (« OUI » si le commentaire est vide).
@@ -2590,11 +2613,47 @@ function traitementAnterieurChoix(texte) {
   if (!t) return null
   return t.toUpperCase() !== 'NON'
 }
-function traitementAnterieurTexte(choix, commentaire) {
+/**
+ * Les trois précisions (médicaments, durée, dose) sont rangées dans le même champ texte :
+ * « PARACÉTAMOL ; Durée : 2 MOIS ; Dose : 1 CP X 2 ». Un ancien commentaire libre est
+ * repris tel quel dans « Médicaments ».
+ */
+function traitementAnterieurDetails(texte) {
+  const t = (texte ?? '').trim()
+  const details = { medicaments: '', duree: '', dose: '' }
+  if (!t || ['OUI', 'NON'].includes(t.toUpperCase())) return details
+  const morceaux = t.split(/(?:^|\s*;\s*)(DUR[ÉE]E|DOSE)\s*:\s*/i)
+  details.medicaments = morceaux[0].trim()
+  for (let i = 1; i < morceaux.length; i += 2) {
+    const cle = morceaux[i].toUpperCase().startsWith('DOSE') ? 'dose' : 'duree'
+    details[cle] = (morceaux[i + 1] ?? '').trim()
+  }
+  return details
+}
+/**
+ * Antécédents chirurgicaux : type d'intervention et durée / année rangés dans le même
+ * champ texte, « APPENDICECTOMIE ; Durée / année : 2019 ». Un ancien texte libre est
+ * repris tel quel dans « Type d'intervention ».
+ */
+function chirurgieDetails(texte) {
+  const morceaux = (texte ?? '').trim().split(/(?:^|\s*;\s*)DUR[ÉE]E\s*\/\s*ANN[ÉE]E\s*:\s*/i)
+  return { type: (morceaux[0] ?? '').trim(), annee: (morceaux[1] ?? '').trim() }
+}
+function chirurgieTexte(f) {
+  const annee = (f.chirurgieAnnee ?? '').trim()
+  return [(f.chirurgieType ?? '').trim(), annee && `Durée / année : ${annee}`].filter(Boolean).join(' ; ')
+}
+function traitementAnterieurTexte(choix, f) {
   if (choix === false) return 'NON'
-  const c = (commentaire ?? '').trim()
-  if (choix === true) return c || 'OUI'
-  return c || null
+  const texte = [
+    (f.traitementMedicaments ?? '').trim(),
+    (f.traitementDuree ?? '').trim() && `Durée : ${f.traitementDuree.trim()}`,
+    (f.traitementDose ?? '').trim() && `Dose : ${f.traitementDose.trim()}`,
+  ]
+    .filter(Boolean)
+    .join(' ; ')
+  if (choix === true) return texte || 'OUI'
+  return texte || null
 }
 
 // ── Autres examens : plusieurs valeurs dans un seul champ texte « A ; B ; C » ──
@@ -2652,19 +2711,21 @@ const listesParams = reactive({
   MOTIF: [],
   ANTECEDENT: [],
   EXAMEN: [],
+  INTERVENTION: [],
 })
 
 async function chargerListesParams(cliniqueId) {
   if (!cliniqueId) return
   try {
     const codes = Object.keys(listesParams)
-    const reponses = await Promise.all(
+    // allSettled : une liste indisponible ne vide pas toutes les autres
+    const reponses = await Promise.allSettled(
       codes.map((code) =>
         http.get(ROUTES_LISTES[code], { params: { cliniqueId } }),
       ),
     )
     codes.forEach((code, i) => {
-      listesParams[code] = reponses[i].data ?? []
+      if (reponses[i].status === 'fulfilled') listesParams[code] = reponses[i].value.data ?? []
     })
   } catch {
     /* listes vides */
@@ -3260,13 +3321,14 @@ async function chargerDetail() {
       modeEntreeAutre: c.modeEntreeAutre ?? '',
       // Oui / Non déduit du texte enregistré (« NON », « OUI » ou le commentaire)
       traitementAnterieurOuiNon: traitementAnterieurChoix(c.traitementAnterieur),
-      traitementAnterieur: ['OUI', 'NON'].includes((c.traitementAnterieur ?? '').trim().toUpperCase())
-        ? ''
-        : (c.traitementAnterieur ?? ''),
+      traitementMedicaments: traitementAnterieurDetails(c.traitementAnterieur).medicaments,
+      traitementDuree: traitementAnterieurDetails(c.traitementAnterieur).duree,
+      traitementDose: traitementAnterieurDetails(c.traitementAnterieur).dose,
       hta: c.hta ?? null,
       diabete: c.diabete ?? null,
       antecedentsMedicaux: c.antecedentsMedicaux ?? '',
-      antecedentsChirurgicaux: c.antecedentsChirurgicaux ?? '',
+      chirurgieType: chirurgieDetails(c.antecedentsChirurgicaux).type,
+      chirurgieAnnee: chirurgieDetails(c.antecedentsChirurgicaux).annee,
       ddr: c.ddr ?? '',
       grossesseEnCours: c.grossesseEnCours ?? null,
       tabac: c.tabac ?? null,
@@ -3308,7 +3370,7 @@ async function chargerDetail() {
       typePopulation: pat.typePopulation ?? '',
       populationsRisque: pat.populationsRisque ?? '',
       protectionSociale: pat.protectionSociale ?? '',
-      residenceHabituelle: pat.residenceHabituelle ?? '',
+      residenceHabituelle: pat.residenceHabituelle ?? pat.ville ?? '',
       residenceActuelle: pat.residenceActuelle ?? '',
       telephone: pat.telephone ?? '',
       // Constantes de l'accueil (modifiables)
@@ -3345,13 +3407,14 @@ async function sauvegarderFiche() {
       litId: ['HOSPITALISE', 'MO'].includes(f.issueSortie) ? f.litId ?? undefined : null,
       modeEntree: vider(f.modeEntree),
       modeEntreeAutre: vider(f.modeEntreeAutre),
-      traitementAnterieur: traitementAnterieurTexte(f.traitementAnterieurOuiNon, f.traitementAnterieur),
+      traitementAnterieur: traitementAnterieurTexte(f.traitementAnterieurOuiNon, f),
       hta: f.hta,
       diabete: f.diabete,
       antecedentsMedicaux: vider(f.antecedentsMedicaux),
-      antecedentsChirurgicaux: f.chirurgie === false ? null : vider(f.antecedentsChirurgicaux),
-      ddr: vider(f.ddr),
-      grossesseEnCours: f.grossesseEnCours,
+      antecedentsChirurgicaux: f.chirurgie === false ? null : vider(chirurgieTexte(f)),
+      // Patient masculin : ces deux informations ne sont pas enregistrées
+      ddr: patientMasculin.value ? null : vider(f.ddr),
+      grossesseEnCours: patientMasculin.value ? null : f.grossesseEnCours,
       tabac: f.tabac,
       alcool: f.alcool,
       typeSuivi: vider(f.typeSuivi),
@@ -3408,6 +3471,7 @@ async function sauvegarderFiche() {
     alimenterListe('PROFESSION', f.profession)
     alimenterListe('MOTIF', f.motif)
     alimenterListe('ANTECEDENT', f.antecedentsMedicaux)
+    if (f.chirurgie === true) alimenterListe('INTERVENTION', f.chirurgieType)
     separerExamens(f.autresExamens)
       .filter((ex) => !examensCatalogue.value.some((c) => cleExamen(c.libelle) === cleExamen(ex)))
       .forEach((ex) => alimenterListe('EXAMEN', ex))
@@ -4091,6 +4155,24 @@ onUnmounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+/* Traitement antérieur : médicaments, durée et dose sur une même ligne */
+.traitement-champs {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 0 16px;
+}
+.traitement-champs .field {
+  margin-bottom: 0;
+}
+/* Variante à deux champs (antécédents chirurgicaux) */
+.traitement-champs.deux {
+  grid-template-columns: 2fr 1fr;
+}
+@media (max-width: 640px) {
+  .traitement-champs {
+    grid-template-columns: 1fr;
+  }
 }
 .chip {
   display: inline-flex;

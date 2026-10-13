@@ -399,6 +399,9 @@
                 <label>Date de naissance</label>
                 <input v-model="form.dateNaissance" type="date" />
               </div>
+            </div>
+            <!-- Sexe, profession et téléphone sur une même ligne -->
+            <div class="ligne-3">
               <div class="field">
                 <label>Sexe</label>
                 <select v-model="form.sexe">
@@ -408,7 +411,18 @@
                 </select>
               </div>
               <div class="field">
-                <label>Résidence</label>
+                <label>Profession *</label>
+                <SelectSearch v-model="form.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : commerçant…" />
+              </div>
+              <div class="field">
+                <label>Téléphone</label>
+                <input v-model.trim="form.telephone" />
+              </div>
+            </div>
+            <!-- Résidence habituelle, résidence actuelle et quartier sur une même ligne -->
+            <div class="ligne-3">
+              <div class="field">
+                <label>Résidence habituelle </label>
                 <SelectSearch
                   v-model="form.ville"
                   :options="optionsListe('RESIDENCE', form.ville)"
@@ -417,16 +431,17 @@
                 />
               </div>
               <div class="field">
+                <label>Résidence actuelle</label>
+                <SelectSearch
+                  v-model="form.residenceActuelle"
+                  :options="optionsListe('RESIDENCE', form.residenceActuelle)"
+                  libre
+                  placeholder="— Où le patient loge en ce moment —"
+                />
+              </div>
+              <div class="field">
                 <label>Quartier</label>
                 <SelectSearch v-model="form.quartier" :options="listesParams.QUARTIER.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : Yopougon…" />
-              </div>
-              <div class="field champ-large">
-                <label>Profession *</label>
-                <SelectSearch v-model="form.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : commerçant…" />
-              </div>
-              <div class="field champ-large">
-                <label>Téléphone</label>
-                <input v-model.trim="form.telephone" />
               </div>
             </div>
           </div>
@@ -717,6 +732,9 @@
               <label>Date de naissance</label>
               <input v-model="formEdit.dateNaissance" type="date" />
             </div>
+          </div>
+          <!-- Sexe, profession et téléphone sur une même ligne -->
+          <div class="ligne-3">
             <div class="field">
               <label>Sexe</label>
               <select v-model="formEdit.sexe">
@@ -726,7 +744,18 @@
               </select>
             </div>
             <div class="field">
-              <label>Résidence</label>
+              <label>Profession *</label>
+              <SelectSearch v-model="formEdit.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
+            </div>
+            <div class="field">
+              <label>Téléphone</label>
+              <input v-model.trim="formEdit.telephone" />
+            </div>
+          </div>
+          <!-- Résidence habituelle, résidence actuelle et quartier sur une même ligne -->
+          <div class="ligne-3">
+            <div class="field">
+              <label>Résidence habituelle</label>
               <SelectSearch
                 v-model="formEdit.ville"
                 :options="optionsListe('RESIDENCE', formEdit.ville)"
@@ -735,16 +764,17 @@
               />
             </div>
             <div class="field">
+              <label>Résidence actuelle</label>
+              <SelectSearch
+                v-model="formEdit.residenceActuelle"
+                :options="optionsListe('RESIDENCE', formEdit.residenceActuelle)"
+                libre
+                placeholder="— Où le patient loge en ce moment —"
+              />
+            </div>
+            <div class="field">
               <label>Quartier</label>
               <SelectSearch v-model="formEdit.quartier" :options="listesParams.QUARTIER.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
-            </div>
-            <div class="field">
-              <label>Profession *</label>
-              <SelectSearch v-model="formEdit.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
-            </div>
-            <div class="field">
-              <label>Téléphone</label>
-              <input v-model.trim="formEdit.telephone" />
             </div>
           </div>
 
@@ -1142,7 +1172,7 @@ function resetForm() {
   Object.keys(form).forEach((k) => delete form[k])
   Object.assign(form, {
     nom: '', prenom: '', age: '', dateNaissance: '', numeroCni: '', numeroCmu: '',
-    sexe: '', ville: '', quartier: '',
+    sexe: '', ville: '', residenceActuelle: '', quartier: '',
     profession: '', telephone: '', serviceId: null, typePatient: 'INTERNE',
     motif: '', referent: '', prestationDemandee: '', consultationPrestationId: null,
     actePrestationId: null,
@@ -1392,6 +1422,9 @@ async function enregistrer() {
         numeroCmu: form.numeroCmu || undefined,
         sexe: form.sexe || undefined,
         ville: form.ville || undefined,
+        // Reprises automatiquement dans la fiche de consultation
+        residenceHabituelle: form.ville || undefined,
+        residenceActuelle: form.residenceActuelle || undefined,
         quartier: form.quartier || undefined,
         profession: form.profession || undefined,
         telephone: form.telephone || undefined,
@@ -1409,6 +1442,7 @@ async function enregistrer() {
     if (!patientExistant.value) {
       await alimenterListe('PROFESSION', form.profession)
       if (form.ville) await alimenterListe('RESIDENCE', form.ville)
+      if (form.residenceActuelle) await alimenterListe('RESIDENCE', form.residenceActuelle)
       if (form.quartier) await alimenterListe('QUARTIER', form.quartier)
     }
     if (form.motif) await alimenterListe('MOTIF', form.motif)
@@ -1519,7 +1553,8 @@ function ouvrirModification(pg) {
     numeroCni: pg.patient?.numeroCni ?? '',
     numeroCmu: pg.patient?.numeroCmu ?? '',
     sexe: pg.patient?.sexe ?? '',
-    ville: pg.patient?.ville ?? '',
+    ville: pg.patient?.residenceHabituelle ?? pg.patient?.ville ?? '',
+    residenceActuelle: pg.patient?.residenceActuelle ?? '',
     quartier: pg.patient?.quartier ?? '',
     profession: pg.patient?.profession ?? '',
     telephone: pg.patient?.telephone ?? '',
@@ -1556,6 +1591,8 @@ async function enregistrerModification() {
         numeroCmu: formEdit.numeroCmu || undefined,
         sexe: formEdit.sexe || undefined,
         ville: formEdit.ville || undefined,
+        residenceHabituelle: formEdit.ville || undefined,
+        residenceActuelle: formEdit.residenceActuelle || undefined,
         quartier: formEdit.quartier || undefined,
         profession: formEdit.profession || undefined,
         telephone: formEdit.telephone || undefined,
@@ -1565,6 +1602,7 @@ async function enregistrerModification() {
     // Saisie libre auto-alimentée
     await alimenterListe('PROFESSION', formEdit.profession)
     if (formEdit.ville) await alimenterListe('RESIDENCE', formEdit.ville)
+    if (formEdit.residenceActuelle) await alimenterListe('RESIDENCE', formEdit.residenceActuelle)
     if (formEdit.quartier) await alimenterListe('QUARTIER', formEdit.quartier)
     if (formEdit.motif) await alimenterListe('MOTIF', formEdit.motif)
     if (ticket.value?.id === data.id) {
@@ -2074,6 +2112,17 @@ onUnmounted(() => {
 /* Champs larges du formulaire de passage (occupent 2 colonnes) */
 .champ-large {
   grid-column: span 2;
+}
+/* Trois champs toujours sur la même ligne (une colonne sur petit écran) */
+.ligne-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 16px;
+}
+@media (max-width: 640px) {
+  .ligne-3 {
+    grid-template-columns: 1fr;
+  }
 }
 .edit-assurance {
   margin-bottom: 10px;

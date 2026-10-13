@@ -115,6 +115,7 @@ const navItems = [
       { to: { name: 'admin-listes', params: { code: 'pathologies' } }, label: 'Pathologies associées', icon: '🦠' },
       { to: { name: 'admin-listes', params: { code: 'antecedents' } }, label: 'Antécédents médicaux', icon: '📜' },
       { to: { name: 'admin-listes', params: { code: 'examens' } }, label: 'Autres examens', icon: '🧪' },
+      { to: { name: 'admin-listes', params: { code: 'interventions' } }, label: 'Interventions chirurgicales', icon: '🔪' },
     ],
   },
   {

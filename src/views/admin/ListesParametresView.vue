@@ -145,6 +145,7 @@ const CATEGORIES = {
   quartiers: { code: 'QUARTIER', icone: '🏘️', libelle: 'Quartiers', route: '/quartiers' },
   antecedents: { code: 'ANTECEDENT', icone: '📜', libelle: 'Antécédents médicaux (maladies)', route: '/antecedents-medicaux' },
   examens: { code: 'EXAMEN', icone: '🧪', libelle: 'Autres examens', route: '/autres-examens' },
+  interventions: { code: 'INTERVENTION', icone: '🔪', libelle: "Types d'intervention chirurgicale", route: '/interventions-chirurgicales' },
 }
 
 const categorie = computed(() => CATEGORIES[route.params.code] ?? CATEGORIES.nationalites)
