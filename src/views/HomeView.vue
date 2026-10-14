@@ -86,7 +86,8 @@
             <div class="module-texte">
               <div class="module-label">{{ mod.label }}</div>
               <div class="module-desc">{{ mod.description }}</div>
-              <div v-if="!mod.allowed" class="module-lock">⏱ Prenez votre service</div>
+              <div v-if="!mod.autorise" class="module-lock module-interdit">🔒 Non attribué</div>
+              <div v-else-if="!mod.allowed" class="module-lock">⏱ Prenez votre service</div>
             </div>
           </button>
         </div>
@@ -276,9 +277,13 @@ const groupesModules = computed(() =>
     titre: g.titre,
     modules: g.codes
       .map((code) => MODULES.find((m) => m.code === code))
-      .filter((m) => m && auth.canAccess(m.code))
-      .map((m) => ({ ...m, allowed: !auth.doitPrendreService })),
-  })).filter((g) => g.modules.length > 0),
+      .filter(Boolean)
+      .map((m) => {
+        // Grisé si le rôle n'y donne pas accès, ou tant que l'agent n'a pas pris son service
+        const autorise = auth.canAccess(m.code)
+        return { ...m, autorise, allowed: autorise && !auth.doitPrendreService }
+      }),
+  })),
 )
 
 const initiales = computed(() => {
@@ -593,6 +598,9 @@ function onLogout() {
   .colonnes-modules {
     grid-template-columns: minmax(0, 520px);
   }
+}
+.module-lock.module-interdit {
+  color: #64748b;
 }
 .aucun-module {
   position: relative;
