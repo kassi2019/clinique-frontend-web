@@ -5,6 +5,11 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     token: localStorage.getItem('token') || null,
     user: JSON.parse(localStorage.getItem('user') || 'null'),
+    // Pointage : service en cours de l'utilisateur (null = pas en service)
+    service: null,
+    serviceCharge: false,
+    // false si le serveur ne gère pas encore le pointage : rien n'est alors verrouillé
+    pointageDisponible: true,
   }),
   getters: {
     isAuthenticated: (state) => !!state.token,
@@ -14,6 +19,12 @@ export const useAuthStore = defineStore('auth', {
       const modules = state.user?.role?.modules
       if (!modules || modules.length === 0) return true // accès complet si aucune restriction renseignée
       return modules.some((m) => m.code === moduleCode)
+    },
+    /** L'administrateur n'a pas à pointer pour travailler (paramétrage, contrôle). */
+    exempteDePointage: (state) => state.user?.role?.code === 'ADMINISTRATEUR',
+    /** Les modules restent verrouillés tant que l'agent n'a pas pris son service. */
+    doitPrendreService(state) {
+      return state.pointageDisponible && !this.exempteDePointage && !state.service
     },
   },
   actions: {
@@ -35,6 +46,21 @@ export const useAuthStore = defineStore('auth', {
         // token invalide : l'intercepteur redirige vers la connexion
       }
     },
+    /** Service en cours de l'utilisateur connecté. */
+    async chargerService() {
+      try {
+        const { data } = await http.get('/finances/mon-service')
+        this.service = data.service
+        this.pointageDisponible = true
+      } catch (e) {
+        // Serveur sans pointage (ancienne version) : on ne bloque pas l'application
+        if (e.response?.status !== 401) this.pointageDisponible = false
+        this.service = null
+      } finally {
+        this.serviceCharge = true
+      }
+      return this.service
+    },
     async logout() {
       // Un médecin qui se déconnecte devient indisponible (sinon le heartbeat
       // mettrait 2 minutes à le retirer de la liste des médecins éligibles).
@@ -47,6 +73,8 @@ export const useAuthStore = defineStore('auth', {
       }
       this.token = null
       this.user = null
+      this.service = null
+      this.serviceCharge = false
       localStorage.removeItem('token')
       localStorage.removeItem('user')
     },

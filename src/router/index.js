@@ -83,6 +83,13 @@ const routes = [
     component: () => import('../views/RapportsView.vue'),
     meta: { module: 'RAPPORTS' },
   },
+  // Module Finances (pointage du personnel, vacations)
+  {
+    path: '/finances',
+    name: 'finances',
+    component: () => import('../views/FinancesView.vue'),
+    meta: { module: 'FINANCES' },
+  },
   // Module Statistiques
   {
     path: '/statistiques',
@@ -167,10 +174,15 @@ const router = createRouter({
 })
 
 // Garde d'authentification
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
   if (!to.meta.public && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  // Un module (accès direct par l'adresse compris) demande d'avoir pris son service
+  if (to.meta.module && auth.isAuthenticated && !auth.exempteDePointage) {
+    if (!auth.serviceCharge) await auth.chargerService()
+    if (auth.doitPrendreService) return { name: 'home', query: { pointage: '1' } }
   }
   if (to.name === 'login' && auth.isAuthenticated) {
     return { name: 'home' }

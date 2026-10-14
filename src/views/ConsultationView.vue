@@ -2214,7 +2214,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import http from '../api/http'
 import { marquerValeurs } from '../utils/texteFiche'
-import { toastError, toastSuccess } from '../utils/notifications'
+import { confirmer, toastError, toastSuccess } from '../utils/notifications'
 import logoClinique from '../assets/logoclinique.jpeg'
 // Certificat d'arrêt : logo, lieu et téléphone du modèle officiel (CERTIFICAT ARRET T.docx)
 import logoCertificat from '../assets/logo-certificat.jpeg'
@@ -3147,7 +3147,14 @@ function ouvrirDocumentExterne() {
 }
 async function supprimerResultatExterne() {
   const doc = documentExterne.value
-  if (!doc || !window.confirm(`Supprimer le document joint à « ${doc.libelle} » ?`)) return
+  if (!doc) return
+  const ok = await confirmer({
+    titre: 'Supprimer le document ?',
+    texte: `Le résultat joint à « ${doc.libelle} » sera retiré du dossier du patient.`,
+    boutonOui: 'Oui, supprimer',
+    danger: true,
+  })
+  if (!ok) return
   try {
     await http.delete(`/consultations/examens/${doc.ligneId}/resultat-externe`)
     toastSuccess('Document supprimé.')

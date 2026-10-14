@@ -655,7 +655,7 @@ import http from '../../api/http'
 import PaginationBar from '../../components/PaginationBar.vue'
 import SelectSearch from '../../components/SelectSearch.vue'
 import { useAuthStore } from '../../stores/auth'
-import { toastError, toastSuccess } from '../../utils/notifications'
+import { confirmer, saisir, toastError, toastSuccess } from '../../utils/notifications'
 
 const auth = useAuthStore()
 const cliniqueId = computed(() => auth.user?.clinique?.id ?? null)
@@ -771,10 +771,14 @@ function sousTitreFacturation() {
 
 // ── Taux « médicaments » d'une formule (pharmacie) ──
 async function modifierTauxPharmacie(f) {
-  const saisie = window.prompt(
-    `Part des médicaments prise en charge à la pharmacie pour « ${f.libelle} » (0 à 100 %).\nLaisser vide = médicaments non couverts.`,
-    f.tauxPharmacie ?? '',
-  )
+  const saisie = await saisir({
+    titre: '💊 Taux « médicaments »',
+    texte: `Part des médicaments prise en charge à la pharmacie pour « ${f.libelle} » (0 à 100 %). Laisser vide = médicaments non couverts.`,
+    valeur: f.tauxPharmacie ?? '',
+    type: 'number',
+    placeholder: 'Ex : 80',
+    validation: (v) => (v !== '' && (Number(v) < 0 || Number(v) > 100) ? 'Le taux doit être compris entre 0 et 100.' : undefined),
+  })
   if (saisie === null) return
   try {
     await http.patch(`/assurances/formules/${f.id}/taux-pharmacie`, { tauxPharmacie: saisie.trim() })
@@ -831,7 +835,13 @@ async function enregistrerReglement() {
 }
 
 async function supprimerReglement(r) {
-  if (!window.confirm(`Supprimer le règlement de ${r.montant.toLocaleString('fr-FR')} F (${r.assurance.libelle}) ?`)) return
+  const ok = await confirmer({
+    titre: 'Supprimer ce règlement ?',
+    texte: `Règlement de ${r.montant.toLocaleString('fr-FR')} F reçu de ${r.assurance.libelle}. Le reste à recouvrer sera recalculé.`,
+    boutonOui: 'Oui, supprimer',
+    danger: true,
+  })
+  if (!ok) return
   try {
     await http.delete(`/assurances/reglements/${r.id}`)
     toastSuccess('Règlement supprimé.')
