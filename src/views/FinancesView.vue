@@ -203,6 +203,37 @@
           Le calcul reprend les services du mois (sauf les services rejetés) et le tarif de chaque agent.
           Une fiche validée ou payée n'est plus recalculée.
         </p>
+        <details class="formules">
+          <summary>📐 Comment la fiche est calculée</summary>
+          <ol>
+            <li>
+              <strong>Durée d'un service</strong> = heure de « Terminer mon service » − heure de « Prendre mon service »
+              <div class="text-muted">Si le responsable a corrigé le service, ce sont ses heures retenues qui comptent.</div>
+            </li>
+            <li>
+              <strong>Vacations d'un service</strong> = durée du service ÷ durée d'une vacation de l'agent (onglet Tarifs)
+              <div class="text-muted">
+                Exemple : 22 h ÷ 24 h = 0,92 vacation ; 12 h ÷ 12 h = 1 vacation.
+                Si le responsable a saisi des « vacations retenues », ce chiffre remplace le calcul.
+              </div>
+            </li>
+            <li>
+              <strong>Total du mois</strong> = somme des heures et des vacations de tous les services du mois
+              <div class="text-muted">Les services rejetés ne comptent pas ; les services « à vérifier » comptent mais sont signalés.</div>
+            </li>
+            <li>
+              <strong>Montant</strong> = vacations du mois × tarif d'une vacation
+              <span class="text-muted">(agent payé à la vacation)</span><br />
+              <strong>Montant</strong> = heures du mois × tarif horaire
+              <span class="text-muted">(agent payé à l'heure)</span>
+              <div class="text-muted">Exemple : 3,5 vacations × 15 000 F = 52 500 F.</div>
+            </li>
+            <li><strong>Total dû</strong> = montant + primes − retenues</li>
+          </ol>
+          <p class="text-muted">
+            Le temps de présence sur le poste (onglet Services) est donné pour information : il ne change pas le montant.
+          </p>
+        </details>
         <div v-if="!fiches.lignes.length" class="empty-state">
           Aucune fiche pour ce mois. Paramétrez les tarifs, puis cliquez sur « Calculer les fiches du mois ».
         </div>
@@ -309,6 +340,10 @@
               <tr><td>Agent</td><td><strong>{{ impression.fiche.personnel.nom }} {{ impression.fiche.personnel.prenom }}</strong></td></tr>
               <tr><td>Matricule / fonction</td><td>{{ impression.fiche.personnel.matricule }} — {{ impression.fiche.personnel.fonction }}</td></tr>
               <tr><td>Tarif appliqué</td><td>{{ montant(impression.fiche.tarif) }} par {{ impression.fiche.mode === 'HEURE' ? 'heure' : `vacation de ${impression.fiche.dureeVacationHeures} h` }}</td></tr>
+              <tr v-if="impression.fiche.mode !== 'HEURE'">
+                <td>Calcul</td>
+                <td>vacations d'un service = heures du service ÷ {{ impression.fiche.dureeVacationHeures }} h</td>
+              </tr>
             </tbody>
           </table>
           <h3>Services effectués</h3>
@@ -331,7 +366,16 @@
             <tbody>
               <tr><td>Total des heures</td><td class="num">{{ nombre(impression.fiche.heures) }}</td></tr>
               <tr><td>Total des vacations</td><td class="num">{{ nombre(impression.fiche.vacations) }}</td></tr>
-              <tr><td>Montant des {{ impression.fiche.mode === 'HEURE' ? 'heures' : 'vacations' }}</td><td class="num">{{ montant(impression.fiche.montantBase) }}</td></tr>
+              <tr>
+                <td>
+                  Montant des {{ impression.fiche.mode === 'HEURE' ? 'heures' : 'vacations' }}
+                  <small>
+                    ({{ nombre(impression.fiche.mode === 'HEURE' ? impression.fiche.heures : impression.fiche.vacations) }}
+                    × {{ montant(impression.fiche.tarif) }})
+                  </small>
+                </td>
+                <td class="num">{{ montant(impression.fiche.montantBase) }}</td>
+              </tr>
               <tr><td>Primes</td><td class="num">+ {{ montant(impression.fiche.primes) }}</td></tr>
               <tr><td>Retenues</td><td class="num">− {{ montant(impression.fiche.retenues) }}</td></tr>
               <tr class="fin-a4-total"><td>MONTANT DÛ</td><td class="num">{{ montant(impression.fiche.montantTotal) }}</td></tr>
@@ -850,6 +894,29 @@ onUnmounted(() => clearInterval(minuterie))
 }
 .presence-faible {
   color: #c2410c;
+}
+.formules {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  font-size: 13px;
+}
+.formules summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #1d4ed8;
+}
+.formules ol {
+  margin: 10px 0 6px;
+  padding-left: 20px;
+}
+.formules li {
+  margin-bottom: 8px;
+}
+.formules p {
+  margin: 0;
 }
 .motif {
   max-width: 220px;
