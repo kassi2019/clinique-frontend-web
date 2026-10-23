@@ -145,9 +145,9 @@
             </div>
             <div class="field">
               <label>Matricule (auto si vide)</label>
-              <input v-model.trim="form.matricule" placeholder="Ex : MED0001" />
+              <input v-model.trim="form.matricule" placeholder="Ex : MED001" />
               <p class="text-muted" style="font-size: 11px; margin-top: 3px">
-                Laissez vide : généré automatiquement — 3 lettres du service + numéro (MED0001, MED0002…).
+                Laissez vide : généré automatiquement selon la fonction — MED001 médecins, INF001 infirmiers, AID001 aides-soignants, SFDE001 sages-femmes, IMA001 imagerie, LAB001 labo, PHA001 pharmacie, CAI001 caisse, ACC001 accueil, PERA001 administratif.
               </p>
             </div>
             <div class="field">
@@ -355,7 +355,7 @@ async function save() {
     const payload = { ...form }
     delete payload.id
     // À la création, un matricule vide est omis : le backend le génère
-    // automatiquement (3 lettres du service + numéro d'ordre).
+    // automatiquement (préfixe de la fonction + numéro sur 3 chiffres).
     if (!payload.matricule?.trim()) delete payload.matricule
     // À la création, une photo absente est simplement omise ;
     // en modification, photo: null retire la photo existante.

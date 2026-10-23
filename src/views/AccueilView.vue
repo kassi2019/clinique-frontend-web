@@ -444,6 +444,65 @@
                 <SelectSearch v-model="form.quartier" :options="listesParams.QUARTIER.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : Yopougon…" />
               </div>
             </div>
+
+            <!-- Assurance rattachée dès la création du patient (facultatif) -->
+            <h3 class="section-title">Assurance</h3>
+            <label class="case-assure">
+              <input v-model="assuranceNouveau.active" type="checkbox" @change="chargerAssurances" />
+              🛡️ Le patient est assuré
+            </label>
+            <template v-if="assuranceNouveau.active">
+              <div class="form-row">
+                <div class="field champ-large">
+                  <label>Assurance *</label>
+                  <SelectSearch
+                    v-model="assuranceNouveau.assuranceId"
+                    :options="optionsAssurances"
+                    placeholder="— Choisir une assurance —"
+                  />
+                </div>
+                <div class="field champ-large">
+                  <label>Formule *</label>
+                  <SelectSearch
+                    v-model="assuranceNouveau.formuleId"
+                    :options="formulesDe(assuranceNouveau.assuranceId)"
+                    placeholder="— Choisir une formule —"
+                  />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label>N° d'assuré</label>
+                  <input v-model.trim="assuranceNouveau.numeroAssure" />
+                </div>
+                <div class="field">
+                  <label>N° de carte</label>
+                  <input v-model.trim="assuranceNouveau.numeroCarte" />
+                </div>
+                <div class="field">
+                  <label>Assuré principal</label>
+                  <input v-model.trim="assuranceNouveau.nomAssurePrincipal" />
+                </div>
+                <div class="field">
+                  <label>Type de bénéficiaire</label>
+                  <select v-model="assuranceNouveau.typeBeneficiaire">
+                    <option value="">—</option>
+                    <option value="ASSURE">Assuré</option>
+                    <option value="CONJOINT">Conjoint</option>
+                    <option value="ENFANT">Enfant</option>
+                    <option value="AUTRE">Autre</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Début de couverture</label>
+                  <input v-model="assuranceNouveau.dateDebut" type="date" />
+                </div>
+                <div class="field">
+                  <label>Fin de couverture</label>
+                  <input v-model="assuranceNouveau.dateFin" type="date" />
+                </div>
+              </div>
+            </template>
           </div>
 
           <h3 class="section-title">Passage</h3>
@@ -1060,12 +1119,32 @@ const optionsAssurances = computed(() =>
     .filter((a) => a.statut === 'ACTIF')
     .map((a) => ({ value: a.id, label: a.libelle })),
 )
-const optionsFormulesAssurance = computed(() => {
-  const a = assurancesListe.value.find((x) => x.id === formPatientAssurance.assuranceId)
+function formulesDe(assuranceId) {
+  const a = assurancesListe.value.find((x) => x.id === assuranceId)
   return (a?.formules ?? [])
     .filter((f) => f.statut === 'ACTIF')
     .map((f) => ({ value: f.id, label: f.libelle }))
-})
+}
+const optionsFormulesAssurance = computed(() => formulesDe(formPatientAssurance.assuranceId))
+
+// Assurance saisie dans le formulaire « nouveau patient » : rattachée
+// juste après la création du passage (le patient a alors un id).
+const ASSURANCE_VIDE = {
+  active: false, assuranceId: null, formuleId: null, numeroAssure: '', numeroCarte: '',
+  nomAssurePrincipal: '', typeBeneficiaire: '', dateDebut: '', dateFin: '',
+}
+const assuranceNouveau = reactive({ ...ASSURANCE_VIDE })
+watch(() => assuranceNouveau.assuranceId, () => { assuranceNouveau.formuleId = null })
+
+async function chargerAssurances() {
+  if (!assuranceNouveau.active || assurancesListe.value.length) return
+  try {
+    const { data } = await http.get('/assurances', { params: { cliniqueId: cliniqueId.value } })
+    assurancesListe.value = data
+  } catch {
+    toastError('Impossible de charger la liste des assurances.')
+  }
+}
 
 async function ouvrirAssurancePatient(patientId) {
   patientAssuranceCible.value = patientId
@@ -1177,6 +1256,7 @@ function resetForm() {
     motif: '', referent: '', prestationDemandee: '', consultationPrestationId: null,
     actePrestationId: null,
   })
+  Object.assign(assuranceNouveau, ASSURANCE_VIDE)
   doublonsPossibles.value = []
 }
 
@@ -1398,6 +1478,11 @@ async function enregistrer() {
     formError.value = 'La profession du patient est obligatoire.'
     return
   }
+  const rattacherAssurance = !patientExistant.value && assuranceNouveau.active
+  if (rattacherAssurance && (!assuranceNouveau.assuranceId || !assuranceNouveau.formuleId)) {
+    formError.value = 'Patient assuré : choisissez l\'assurance et la formule.'
+    return
+  }
   saving.value = true
   try {
     const payload = {
@@ -1433,6 +1518,18 @@ async function enregistrer() {
     const { data } = await http.post('/accueil/passages', payload)
     passageCree.value = data
     ticket.value = data
+    if (rattacherAssurance) {
+      const { active: _active, ...rattachement } = assuranceNouveau
+      try {
+        await http.post(`/assurances/patients/${data.patientId}`, rattachement)
+        toastSuccess('Patient rattaché à l\'assurance.')
+      } catch (e) {
+        // Le passage est créé : on ne bloque pas, on indique comment corriger.
+        toastError(
+          `Passage créé, mais l'assurance n'a pas pu être rattachée (${e.response?.data?.message || 'erreur'}). Rattachez-la via « Patient existant » → 🛡️ Assurance.`,
+        )
+      }
+    }
     if (data.controleGratuit) {
       toastSuccess(
         `✅ Consultation de contrôle GRATUITE : le patient est revenu dans les 10 jours (dernier passage ${data.controleGratuit.numeroOrdre}). La consultation sort à 0 FCFA — les médicaments et examens restent payants.`,
@@ -2126,5 +2223,13 @@ onUnmounted(() => {
 }
 .edit-assurance {
   margin-bottom: 10px;
+}
+.case-assure {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  cursor: pointer;
 }
 </style>
