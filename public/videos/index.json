@@ -1,0 +1,173 @@
+[
+  {
+    "code": "ACCUEIL",
+    "module": "ACCUEIL",
+    "titre": "Accueil",
+    "icone": "🏥",
+    "description": "Enregistrer un patient et créer son passage",
+    "fichier": "accueil.mp4",
+    "duree": 141
+  },
+  {
+    "code": "CONSTANTE",
+    "module": "ACCUEIL",
+    "titre": "Constantes",
+    "icone": "✍️",
+    "description": "Saisir les constantes du patient avant la consultation",
+    "fichier": "constante.mp4",
+    "duree": 97
+  },
+  {
+    "code": "CAISSE",
+    "module": "CAISSE",
+    "titre": "Caisse",
+    "icone": "💰",
+    "description": "Encaisser un passage, imprimer le reçu, crédits et assurances",
+    "fichier": "caisse.mp4",
+    "duree": 113
+  },
+  {
+    "code": "ASSURANCE",
+    "module": "CAISSE",
+    "titre": "Patient assuré",
+    "icone": "🛡️",
+    "description": "Rattacher l’assurance à l’accueil, partage des parts à la caisse",
+    "fichier": "assurance.mp4",
+    "duree": 119
+  },
+  {
+    "code": "CONSULTATION",
+    "module": "CONSULTATION",
+    "titre": "Consultation",
+    "icone": "🩺",
+    "description": "Fiche, hospitalisation, ordonnances, examens, certificat, historique et référence",
+    "fichier": "consultation.mp4",
+    "duree": 342
+  },
+  {
+    "code": "SOINS",
+    "module": "SOINS",
+    "titre": "Soins",
+    "icone": "💉",
+    "description": "Réaliser les soins prescrits",
+    "fichier": "soins.mp4",
+    "duree": 71
+  },
+  {
+    "code": "HOSPITALISATION",
+    "module": "HOSPITALISATION",
+    "titre": "Hospitalisation",
+    "icone": "🛏️",
+    "description": "Admettre un patient, suivre le séjour, la sortie",
+    "fichier": "hospitalisation.mp4",
+    "duree": 126
+  },
+  {
+    "code": "MATERNITE",
+    "module": "MATERNITE",
+    "titre": "Maternité",
+    "icone": "🤰",
+    "description": "CPN, accouchement, CPoN et planification familiale",
+    "fichier": "maternite.mp4",
+    "duree": 150
+  },
+  {
+    "code": "ACCOUCHEMENT",
+    "module": "MATERNITE",
+    "titre": "Accouchement en urgence",
+    "icone": "🚑",
+    "description": "Enregistrer un accouchement avant le paiement",
+    "fichier": "accouchement.mp4",
+    "duree": 105
+  },
+  {
+    "code": "CPON",
+    "module": "MATERNITE",
+    "titre": "Consultation postnatale",
+    "icone": "👶",
+    "description": "Suivre la mère et le nouveau-né après l’accouchement",
+    "fichier": "cpon.mp4",
+    "duree": 83
+  },
+  {
+    "code": "PF",
+    "module": "MATERNITE",
+    "titre": "Planification familiale",
+    "icone": "💊",
+    "description": "Enregistrer une méthode contraceptive",
+    "fichier": "pf.mp4",
+    "duree": 75
+  },
+  {
+    "code": "LABORATOIRE",
+    "module": "LABORATOIRE",
+    "titre": "Laboratoire",
+    "icone": "🧪",
+    "description": "Prélever, saisir et valider les résultats",
+    "fichier": "laboratoire.mp4",
+    "duree": 125
+  },
+  {
+    "code": "IMAGERIE",
+    "module": "IMAGERIE",
+    "titre": "Imagerie",
+    "icone": "🩻",
+    "description": "Réaliser un examen et rédiger le compte rendu",
+    "fichier": "imagerie.mp4",
+    "duree": 115
+  },
+  {
+    "code": "PHARMACIE",
+    "module": "PHARMACIE",
+    "titre": "Pharmacie",
+    "icone": "💊",
+    "description": "Dispenser une ordonnance, gérer le stock et l’inventaire",
+    "fichier": "pharmacie.mp4",
+    "duree": 132
+  },
+  {
+    "code": "STOCK",
+    "module": "PHARMACIE",
+    "titre": "Stock de la pharmacie",
+    "icone": "📦",
+    "description": "Entrées de lots, inventaire et mouvements",
+    "fichier": "stock.mp4",
+    "duree": 129
+  },
+  {
+    "code": "FINANCES",
+    "module": "FINANCES",
+    "titre": "Finances",
+    "icone": "💼",
+    "description": "Personnel en service, tarifs et fiches de vacation",
+    "fichier": "finances.mp4",
+    "duree": 78
+  },
+  {
+    "code": "RAPPORTS",
+    "module": "RAPPORTS",
+    "titre": "Rapports",
+    "icone": "📄",
+    "description": "Produire le rapport mensuel SIG",
+    "fichier": "rapports.mp4",
+    "duree": 68
+  },
+  {
+    "code": "STATISTIQUES",
+    "module": "STATISTIQUES",
+    "titre": "Statistiques",
+    "icone": "📊",
+    "description": "Lire les tableaux de bord",
+    "fichier": "statistiques.mp4",
+    "duree": 77
+  },
+  {
+    "code": "PARAMETRAGE",
+    "module": "PARAMETRAGE",
+    "titre": "Paramétrage",
+    "icone": "⚙️",
+    "description": "Personnel, utilisateurs, rôles et référentiels",
+    "fichier": "parametrage.mp4",
+    "duree": 89
+  }
+]

@@ -648,6 +648,7 @@ async function chargerRecherche() {
 async function choisirPassage(p) {
   passageCourant.value = p
   resultats.value = []
+  onglet.value = 'examens' // le détail du passage s'affiche dans l'onglet Recherche
   await chargerDetail()
 }
 

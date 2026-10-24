@@ -328,7 +328,7 @@
         <form @submit.prevent="enregistrer">
           <!-- Patient existant : recherche -->
           <div v-if="patientExistant" class="field">
-            <label>Rechercher le patient (nom, prénom, code, téléphone, N° CNI, N° CMU, date de naissance ou N° d'ordre)</label>
+            <label>Rechercher le patient (nom, prénom, code, téléphone, N° de pièce d'identité, date de naissance ou N° d'ordre)</label>
             <input
               v-model="recherchePatient"
               type="text"
@@ -356,12 +356,16 @@
             <h3 class="section-title">Identification</h3>
             <div class="form-row">
               <div class="field">
-                <label>N° CNI</label>
-                <input v-model.trim="form.numeroCni" placeholder="N° de la carte d'identité" />
+                <label>Type de pièce d'identité</label>
+                <SelectSearch
+                  v-model="form.typePieceIdentite"
+                  :options="TYPES_PIECE_IDENTITE"
+                  placeholder="— Choisir la pièce —"
+                />
               </div>
               <div class="field">
-                <label>N° CMU</label>
-                <input v-model.trim="form.numeroCmu" placeholder="N° CMU" />
+                <label>N° de la pièce d'identité</label>
+                <input v-model.trim="form.numeroCni" :placeholder="'N° ' + libellePiece(form.typePieceIdentite)" />
               </div>
             </div>
             <!-- Garde-fou anti-doublon : patients ressemblants détectés pendant la saisie -->
@@ -768,12 +772,16 @@
           <h3 class="section-title">Patient</h3>
           <div class="form-row">
             <div class="field">
-              <label>N° CNI</label>
-              <input v-model.trim="formEdit.numeroCni" />
+              <label>Type de pièce d'identité</label>
+              <SelectSearch
+                v-model="formEdit.typePieceIdentite"
+                :options="TYPES_PIECE_IDENTITE"
+                placeholder="— Choisir la pièce —"
+              />
             </div>
             <div class="field">
-              <label>N° CMU</label>
-              <input v-model.trim="formEdit.numeroCmu" />
+              <label>N° de la pièce d'identité</label>
+              <input v-model.trim="formEdit.numeroCni" />
             </div>
             <div class="field">
               <label>Nom *</label>
@@ -1004,6 +1012,20 @@ const todayLabel = computed(() =>
 
 // Formulaire de passage
 const form = reactive({})
+
+// Types de pièce d'identité (valeurs attendues par le backend)
+const TYPES_PIECE_IDENTITE = [
+  { value: 'CNI', label: "Carte nationale d'identité (CNI)" },
+  { value: 'PASSEPORT', label: 'Passeport' },
+  { value: 'CARTE_CONSULAIRE', label: 'Carte consulaire' },
+  { value: 'ATTESTATION', label: 'Attestation d\'identité' }, 
+  { value: 'PERMIS', label: 'Permis de conduire' }, 
+  { value: 'AUTRE', label: "Autre pièce d'identité" },
+]
+
+function libellePiece(v) {
+  return TYPES_PIECE_IDENTITE.find((t) => t.value === v)?.label ?? "pièce d'identité"
+}
 const formError = ref('')
 const saving = ref(false)
 const patientExistant = ref(false)
@@ -1250,7 +1272,7 @@ function formatDateHeure(d) {
 function resetForm() {
   Object.keys(form).forEach((k) => delete form[k])
   Object.assign(form, {
-    nom: '', prenom: '', age: '', dateNaissance: '', numeroCni: '', numeroCmu: '',
+    nom: '', prenom: '', age: '', dateNaissance: '', typePieceIdentite: 'CNI', numeroCni: '',
     sexe: '', ville: '', residenceActuelle: '', quartier: '',
     profession: '', telephone: '', serviceId: null, typePatient: 'INTERNE',
     motif: '', referent: '', prestationDemandee: '', consultationPrestationId: null,
@@ -1311,7 +1333,7 @@ watch(() => formEdit.dateNaissance, (dn) => {
   }
 })
 
-// ── N° CNI / N° CMU uniques : si le patient existe, il s'affiche automatiquement ──
+// ── N° de pièce d'identité unique : si le patient existe, il s'affiche automatiquement ──
 let identifiantTimer = null
 
 async function detecterPatientIdentifiant(valeur) {
@@ -1323,7 +1345,7 @@ async function detecterPatientIdentifiant(valeur) {
       const { data } = await http.get('/accueil/patients', {
         params: { search: v, cliniqueId: cliniqueId.value },
       })
-      const exact = (data ?? []).find((p) => p.numeroCni === v || p.numeroCmu === v)
+      const exact = (data ?? []).find((p) => p.numeroCni === v)
       if (exact) {
         toastInfo(
           `N° déjà connu : ${exact.nom} ${exact.prenom} (code ${exact.code}) — dossier existant sélectionné.`,
@@ -1337,7 +1359,6 @@ async function detecterPatientIdentifiant(valeur) {
 }
 
 watch(() => form.numeroCni, detecterPatientIdentifiant)
-watch(() => form.numeroCmu, detecterPatientIdentifiant)
 
 function changerOnglet(o) {
   onglet.value = o
@@ -1503,8 +1524,8 @@ async function enregistrer() {
         prenom: form.prenom,
         age: form.age || undefined,
         dateNaissance: form.dateNaissance || undefined,
+        typePieceIdentite: form.numeroCni ? form.typePieceIdentite : undefined,
         numeroCni: form.numeroCni || undefined,
-        numeroCmu: form.numeroCmu || undefined,
         sexe: form.sexe || undefined,
         ville: form.ville || undefined,
         // Reprises automatiquement dans la fiche de consultation
@@ -1647,8 +1668,8 @@ function ouvrirModification(pg) {
     dateNaissance: pg.patient?.dateNaissance
       ? pg.patient.dateNaissance.slice(0, 10)
       : '',
+    typePieceIdentite: pg.patient?.typePieceIdentite ?? 'CNI',
     numeroCni: pg.patient?.numeroCni ?? '',
-    numeroCmu: pg.patient?.numeroCmu ?? '',
     sexe: pg.patient?.sexe ?? '',
     ville: pg.patient?.residenceHabituelle ?? pg.patient?.ville ?? '',
     residenceActuelle: pg.patient?.residenceActuelle ?? '',
@@ -1684,8 +1705,8 @@ async function enregistrerModification() {
         prenom: formEdit.prenom,
         age: formEdit.age || undefined,
         dateNaissance: formEdit.dateNaissance || undefined,
+        typePieceIdentite: formEdit.numeroCni ? formEdit.typePieceIdentite : undefined,
         numeroCni: formEdit.numeroCni || undefined,
-        numeroCmu: formEdit.numeroCmu || undefined,
         sexe: formEdit.sexe || undefined,
         ville: formEdit.ville || undefined,
         residenceHabituelle: formEdit.ville || undefined,

@@ -325,7 +325,7 @@ const perPageParcours = ref(20)
 const apercuVisible = ref(false)
 
 const kpis = computed(() => {
-  const t = d.tableauBord
+  const t = d['tableau-bord'] // rangé sous le code de la rubrique (voir charger())
   if (!t) return []
   return [
     { label: 'Patients reçus', valeur: t.passages, icon: '🏥', cls: 'kpi-teal' },

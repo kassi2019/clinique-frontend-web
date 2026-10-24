@@ -21,6 +21,9 @@
             <span class="role-pill">{{ auth.user?.role?.nom || 'Rôle non défini' }}</span>
           </div>
           <div class="user-divider"></div>
+          <button class="btn-logout" @click="router.push({ name: 'tutoriels' })">
+            <span>🎬 Tutoriels</span>
+          </button>
           <button class="btn-logout" @click="ouvrirChangement = true">
             <span>🔑 Mot de passe</span>
           </button>

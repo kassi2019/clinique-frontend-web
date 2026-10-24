@@ -453,7 +453,8 @@ const tauxOccupation = computed(() =>
 )
 
 const sejoursEnCours = computed(() =>
-  lits.value.filter((l) => l.occupe && l.sejour).map((l) => l.sejour),
+  // Le séjour renvoyé avec le lit ne contient pas le lit : on le rattache (colonne « Lit », confirmation de sortie)
+  lits.value.filter((l) => l.occupe && l.sejour).map((l) => ({ ...l.sejour, lit: l })),
 )
 
 function joursDepuis(d) {

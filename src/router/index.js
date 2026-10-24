@@ -13,6 +13,12 @@ const routes = [
     name: 'home',
     component: () => import('../views/HomeView.vue'),
   },
+  // Tutoriels vidéo (filtrés selon les modules du rôle)
+  {
+    path: '/tutoriels',
+    name: 'tutoriels',
+    component: () => import('../views/TutorielsView.vue'),
+  },
   // Module Accueil
   {
     path: '/accueil',
