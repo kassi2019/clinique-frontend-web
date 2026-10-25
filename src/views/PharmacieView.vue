@@ -58,11 +58,23 @@
         <button class="tab-btn" :class="{ active: onglet === 'financier' }" @click="onglet = 'financier'; chargerFinancier()">
           💰 Points financiers
         </button>
+        <button class="tab-btn" :class="{ active: onglet === 'externes' }" @click="onglet = 'externes'; chargerRapportExternes()">
+          📄 Ordonnances externes
+        </button>
       </nav>
 
       <!-- ============ ORDONNANCES ============ -->
       <section v-if="onglet === 'ordonnances'" class="card">
-        <div class="card-header"><h2>Ordonnances (§9.1)</h2></div>
+        <div class="card-header">
+          <h2>Ordonnances (§9.1)</h2>
+          <button
+            class="btn btn-primary btn-sm"
+            title="Ordonnance prescrite dans un autre établissement"
+            @click="ouvrirOrdoExterne"
+          >
+            ＋ Saisir ordonnance externe
+          </button>
+        </div>
         <div class="toolbar">
           <input
             v-model="recherche"
@@ -764,7 +776,339 @@
           </table>
         </div>
       </section>
+
+      <!-- ============ RAPPORT : ORDONNANCES EXTERNES ============ -->
+      <section v-if="onglet === 'externes'" class="card">
+        <div class="card-header">
+          <h2>📄 Rapport des ordonnances externes</h2>
+          <button class="btn btn-primary btn-sm" @click="ouvrirOrdoExterne">＋ Saisir ordonnance externe</button>
+        </div>
+        <div class="toolbar">
+          <input v-model="externesDebut" type="date" class="search-input" style="max-width: 160px; flex: none" title="Vide = aujourd'hui" @change="chargerRapportExternes" />
+          <input v-model="externesFin" type="date" class="search-input" style="max-width: 160px; flex: none" title="Vide = aujourd'hui" @change="chargerRapportExternes" />
+          <button class="btn btn-outline btn-sm" @click="chargerRapportExternes">🔄 Actualiser</button>
+          <button class="btn btn-outline btn-sm" :disabled="!rapportExternes.lignes.length" @click="exporterExternesExcel">📥 Excel</button>
+          <button class="btn btn-outline btn-sm" :disabled="!rapportExternes.lignes.length" @click="imprimerExternesPdf">🖨️ PDF</button>
+        </div>
+
+        <div class="financier-grille">
+          <div class="financier-carte">
+            <div class="financier-label">🧾 Ordonnances servies</div>
+            <div class="financier-montant">{{ rapportExternes.totaux.nombre }}</div>
+            <div class="financier-note">
+              {{ rapportExternes.totaux.avecAssurance }} avec assurance · {{ rapportExternes.totaux.sansAssurance }} sans assurance
+            </div>
+          </div>
+          <div class="financier-carte">
+            <div class="financier-label">💊 Montant des médicaments</div>
+            <div class="financier-montant">{{ formatMontant(rapportExternes.totaux.montantTotal) }}</div>
+            <div class="financier-note">Total facturé sur la période</div>
+          </div>
+          <div class="financier-carte">
+            <div class="financier-label">🛡️ Part assurances</div>
+            <div class="financier-montant">{{ formatMontant(rapportExternes.totaux.montantAssurance) }}</div>
+            <div class="financier-note">À recouvrer auprès des assurances</div>
+          </div>
+          <div class="financier-carte">
+            <div class="financier-label">💵 Encaissé</div>
+            <div class="financier-montant">{{ formatMontant(rapportExternes.totaux.montantEncaisse) }}</div>
+            <div class="financier-note">
+              Crédits non réglés : {{ formatMontant(rapportExternes.totaux.resteCredits) }}
+            </div>
+          </div>
+        </div>
+
+        <div v-if="rapportExternes.lignes.length === 0" class="empty-state">
+          Aucune ordonnance externe sur la période.
+        </div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>N°</th>
+                <th>Date</th>
+                <th>Patient / client</th>
+                <th>Prescripteur</th>
+                <th>Médicaments</th>
+                <th>Total</th>
+                <th>Assurance</th>
+                <th>Règlement</th>
+                <th>Par</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="o in rapportExternes.lignes" :key="o.id" :class="{ 'ligne-annulee': o.statutPaiement === 'ANNULE' }">
+                <td><strong>{{ o.numero }}</strong></td>
+                <td>{{ formatDateHeure(o.createdAt) }}</td>
+                <td>
+                  <strong>{{ o.client }}</strong>
+                  <span v-if="o.patient" class="text-muted"> ({{ o.patient.code }})</span>
+                  <div>
+                    <span class="badge" :class="o.avecAssurance ? 'badge-success' : 'badge-muted'">
+                      {{ o.avecAssurance ? 'Avec assurance' : 'Sans assurance' }}
+                    </span>
+                  </div>
+                </td>
+                <td>
+                  {{ o.prescripteur || '—' }}
+                  <div v-if="o.etablissement" class="text-muted">{{ o.etablissement }}</div>
+                </td>
+                <td class="ext-meds">
+                  <div v-for="(m, i) in o.medicaments" :key="i">{{ m.nom }} × {{ m.quantite }}</div>
+                </td>
+                <td><strong>{{ o.montantTotal.toLocaleString('fr-FR') }} F</strong></td>
+                <td>
+                  <template v-if="o.montantAssurance > 0">
+                    {{ o.assurance }} ({{ o.tauxAssurance }} %)
+                    <div class="part-assurance">− {{ o.montantAssurance.toLocaleString('fr-FR') }} F</div>
+                  </template>
+                  <span v-else class="text-muted">—</span>
+                </td>
+                <td>
+                  <span v-if="o.statutPaiement === 'ANNULE'" class="badge badge-danger">Annulé</span>
+                  <span v-else-if="o.type === 'CREDIT'" class="badge badge-warning">{{ o.regleLe ? 'Crédit réglé' : 'Crédit' }}</span>
+                  <span v-else-if="o.type === 'CAS_SOCIAL'" class="badge badge-muted">Cas social</span>
+                  <span v-else>{{ labelMode(o.modePaiement) }}</span>
+                  <div class="text-muted">{{ o.numeroRecu || '' }}</div>
+                </td>
+                <td class="text-muted">{{ o.par }}</td>
+                <td>
+                  <button v-if="o.paiementId" class="btn btn-outline btn-sm" @click="imprimerRecuPharmacie(o.paiementId)">🖨️ Reçu</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </main>
+
+    <!-- Modale : saisie d'une ordonnance externe -->
+    <div v-if="ordoExtVisible" class="modal-backdrop">
+      <div class="modal modal-lg ordo-ext-modal">
+        <h2>📄 Ordonnance externe</h2>
+        <p class="text-muted small-note">
+          Ordonnance prescrite dans un autre établissement. Le stock diminue à la validation.
+        </p>
+
+        <!-- 1. Avec ou sans assurance -->
+        <div class="ext-choix">
+          <button
+            type="button"
+            class="ext-choix-btn"
+            :class="{ actif: ordoExt.avecAssurance }"
+            @click="choisirModeExterne(true)"
+          >
+            🛡️ Avec assurance
+            <small>Patient enregistré et rattaché à son assurance</small>
+          </button>
+          <button
+            type="button"
+            class="ext-choix-btn"
+            :class="{ actif: !ordoExt.avecAssurance }"
+            @click="choisirModeExterne(false)"
+          >
+            🛒 Sans assurance
+            <small>Vente au comptant, aucun dossier patient</small>
+          </button>
+        </div>
+
+        <!-- 2a. Patient assuré -->
+        <template v-if="ordoExt.avecAssurance">
+          <h3 class="section-title">Patient</h3>
+          <div v-if="ordoExt.patient" class="ext-patient-choisi">
+            <div>
+              <strong>{{ ordoExt.patient.nom }} {{ ordoExt.patient.prenom }}</strong>
+              <span class="text-muted"> ({{ ordoExt.patient.code }})</span>
+              <span v-if="ordoExt.patient.telephone" class="text-muted"> · 📞 {{ ordoExt.patient.telephone }}</span>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" @click="ordoExt.patient = null">Changer</button>
+          </div>
+          <template v-else-if="!ordoExt.nouveau">
+            <div class="toolbar">
+              <input
+                v-model="ordoExtRecherche"
+                class="search-input"
+                type="text"
+                placeholder="Nom et prénoms, code patient ou téléphone…"
+                @input="rechercherPatientExterne"
+              />
+              <button type="button" class="btn btn-outline btn-sm" @click="nouveauPatientExterne">＋ Nouveau patient</button>
+            </div>
+            <ul v-if="ordoExtPatients.length" class="resultats ext-resultats">
+              <li v-for="p in ordoExtPatients" :key="p.id" class="ext-resultat" @click="choisirPatientExterne(p)">
+                <strong>{{ p.nom }} {{ p.prenom }}</strong>
+                <span>code {{ p.code }}<template v-if="p.telephone"> · 📞 {{ p.telephone }}</template></span>
+                <span v-if="p.assurance" class="badge badge-success">🛡️ {{ p.assurance.assurance }} — {{ p.assurance.taux }} %</span>
+                <span v-else class="badge badge-muted">Sans assurance active</span>
+              </li>
+            </ul>
+            <p v-else-if="ordoExtRecherche.trim().length >= 2 && !ordoExtRechercheEnCours" class="text-muted small-note">
+              Aucun patient trouvé. Cliquez sur « ＋ Nouveau patient ».
+            </p>
+          </template>
+          <template v-else>
+            <div class="form-row">
+              <div class="field">
+                <label>Nom <span class="requis">*</span></label>
+                <input v-model.trim="ordoExt.nouveauPatient.nom" />
+              </div>
+              <div class="field">
+                <label>Prénoms <span class="requis">*</span></label>
+                <input v-model.trim="ordoExt.nouveauPatient.prenom" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Sexe</label>
+                <select v-model="ordoExt.nouveauPatient.sexe">
+                  <option value="">—</option>
+                  <option value="M">Masculin</option>
+                  <option value="F">Féminin</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Téléphone</label>
+                <input v-model.trim="ordoExt.nouveauPatient.telephone" type="tel" />
+              </div>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" @click="ordoExt.nouveau = false">← Rechercher un patient existant</button>
+          </template>
+
+          <!-- Assurance : celle du patient, sinon à rattacher -->
+          <div v-if="ordoExt.patient?.assurance" class="assurance-pharma">
+            🛡️ <strong>{{ ordoExt.patient.assurance.assurance }}</strong> — {{ ordoExt.patient.assurance.formule }}
+            <span v-if="ordoExt.patient.assurance.numeroAssure"> · N° assuré {{ ordoExt.patient.assurance.numeroAssure }}</span>
+            · médicaments couverts à <strong>{{ ordoExt.patient.assurance.taux }} %</strong>
+          </div>
+          <template v-else-if="ordoExt.patient || ordoExt.nouveau">
+            <h3 class="section-title">Assurance du patient</h3>
+            <div class="form-row">
+              <div class="field">
+                <label>Assurance <span class="requis">*</span></label>
+                <select v-model="ordoExt.assuranceId" @change="ordoExt.formuleId = null">
+                  <option :value="null">— Choisir —</option>
+                  <option v-for="a in assurancesActives" :key="a.id" :value="a.id">{{ a.libelle }}</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Formule <span class="requis">*</span></label>
+                <select v-model="ordoExt.formuleId" :disabled="!ordoExt.assuranceId">
+                  <option :value="null">— Choisir —</option>
+                  <option v-for="f in formulesExterne" :key="f.id" :value="f.id">
+                    {{ f.libelle }} ({{ f.tauxPharmacie ?? 0 }} % médicaments)
+                  </option>
+                </select>
+              </div>
+              <div class="field">
+                <label>N° assuré</label>
+                <input v-model.trim="ordoExt.numeroAssure" />
+              </div>
+            </div>
+          </template>
+        </template>
+
+        <!-- 2b. Client sans assurance -->
+        <div v-else class="field">
+          <label>Nom du client <span class="text-muted">(facultatif, imprimé sur le reçu)</span></label>
+          <input v-model.trim="ordoExt.clientNom" placeholder="Client de passage" />
+        </div>
+
+        <!-- 3. Origine de l'ordonnance -->
+        <h3 class="section-title">Ordonnance</h3>
+        <div class="form-row">
+          <div class="field">
+            <label>Médecin prescripteur</label>
+            <input v-model.trim="ordoExt.prescripteur" placeholder="Dr …" />
+          </div>
+          <div class="field">
+            <label>Établissement</label>
+            <input v-model.trim="ordoExt.etablissement" placeholder="CHU, clinique…" />
+          </div>
+          <div class="field">
+            <label>Date de l'ordonnance</label>
+            <input v-model="ordoExt.dateOrdonnance" type="date" />
+          </div>
+        </div>
+
+        <!-- 4. Médicaments -->
+        <h3 class="section-title">Médicaments</h3>
+        <div class="ext-ajout">
+          <div class="field ext-ajout-med">
+            <label>Médicament <span class="requis">*</span></label>
+            <SelectSearch v-model="ordoExtMedId" :options="optionsMedicamentsExterne" placeholder="Choisir un médicament…" />
+          </div>
+          <div class="field ext-ajout-qte">
+            <label>Quantité <span class="requis">*</span></label>
+            <input v-model.number="ordoExtQte" type="number" min="1" class="qte-input" placeholder="Qté" @keyup.enter="ajouterLigneExterne" />
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" @click="ajouterLigneExterne">＋ Ajouter</button>
+        </div>
+        <div v-if="ordoExt.lignes.length === 0" class="text-muted small-note">Aucun médicament ajouté.</div>
+        <div v-else class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Médicament</th><th>Stock</th><th>Prix unitaire</th><th>Qté</th><th>Montant</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="(l, i) in ordoExt.lignes" :key="l.medicamentId">
+                <td><strong>{{ l.nom }}</strong></td>
+                <td><span class="badge badge-success">{{ l.stock }}</span></td>
+                <td>
+                  <span v-if="l.consommable" class="text-muted">Consommable</span>
+                  <span v-else>{{ l.prixVente.toLocaleString('fr-FR') }} F / {{ l.uniteVente === 'PLAQUE' ? 'plaque' : 'boîte' }}</span>
+                </td>
+                <td style="width: 110px">
+                  <input
+                    v-model.number="l.quantite"
+                    type="number"
+                    min="1"
+                    :max="l.stock"
+                    class="qte-input"
+                    :class="{ 'qte-erreur': l.quantite > l.stock }"
+                  />
+                  <small v-if="l.quantite > l.stock" class="qte-message">Stock : {{ l.stock }}</small>
+                </td>
+                <td><strong>{{ montantLigneExterne(l).toLocaleString('fr-FR') }} F</strong></td>
+                <td><button type="button" class="btn btn-outline btn-sm" title="Retirer" @click="ordoExt.lignes.splice(i, 1)">✕</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 5. Facture -->
+        <div class="recap">
+          <div class="recap-item">
+            <span>Total des médicaments</span>
+            <strong>{{ totalExterne.toLocaleString('fr-FR') }} FCFA</strong>
+          </div>
+          <div v-if="partAssuranceExterne > 0" class="recap-item">
+            <span>Part assurance ({{ tauxExterne }} %)</span>
+            <strong class="part-assurance">− {{ partAssuranceExterne.toLocaleString('fr-FR') }} FCFA</strong>
+          </div>
+          <div v-if="partAssuranceExterne > 0" class="recap-item">
+            <span>Reste à payer par le patient</span>
+            <strong>{{ (totalExterne - partAssuranceExterne).toLocaleString('fr-FR') }} FCFA</strong>
+          </div>
+        </div>
+
+        <div class="modal-actions ext-actions">
+          <button type="button" class="btn btn-outline" :disabled="ordoExtEnCours" @click="ordoExtVisible = false">✖ Annuler</button>
+          <select v-model="ordoExt.modePaiement" class="mode-select">
+            <option value="ESPECES">💵 Espèces</option>
+            <option value="MOBILE_MONEY">📱 Mobile Money</option>
+            <option value="CARTE">💳 Carte bancaire</option>
+          </select>
+          <template v-if="ordoExt.avecAssurance">
+            <button type="button" class="btn btn-outline btn-credit" :disabled="ordoExtEnCours" @click="validerOrdoExterneSansPaiement('CREDIT')">🎫 Crédit</button>
+            <button type="button" class="btn btn-outline btn-cas-social" :disabled="ordoExtEnCours" @click="validerOrdoExterneSansPaiement('CAS_SOCIAL')">🤝 Cas social</button>
+          </template>
+          <button type="button" class="btn btn-primary" :disabled="ordoExtEnCours" @click="validerOrdoExterne()">
+            {{ ordoExtEnCours ? 'Validation…' : '✅ Valider & encaisser' }}
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Modale : retrait d'un lot -->
     <div v-if="retraitVisible" class="modal-backdrop">
@@ -1258,7 +1602,9 @@
         <div class="recu-numero">{{ recuPharma.paiement.numeroRecu }}</div>
         <div class="recu-sep"></div>
         <div class="recu-infos">
-          <div><strong>Patient : {{ ordonnance?.consultation?.patient?.nom }} {{ ordonnance?.consultation?.patient?.prenom }}</strong></div>
+          <div v-if="recuPharma.client"><strong>{{ recuPharma.client }}</strong></div>
+          <div v-else><strong>Patient : {{ ordonnance?.consultation?.patient?.nom }} {{ ordonnance?.consultation?.patient?.prenom }}</strong></div>
+          <div v-if="recuPharma.ordonnanceExterne">Ordonnance externe {{ recuPharma.ordonnanceExterne.numero }}</div>
         </div>
         <div class="recu-sep"></div>
         <div class="recu-lignes">
@@ -1528,6 +1874,310 @@ async function imprimerRecuPharmacie(paiementId) {
   } catch (e) {
     toastError(`Erreur d'impression : ${e.response?.data?.message || e.message}`)
   }
+}
+
+// ── Ordonnance externe (prescrite hors du centre) ──
+const ordoExtVisible = ref(false)
+const ordoExtEnCours = ref(false)
+const ordoExtRecherche = ref('')
+const ordoExtRechercheEnCours = ref(false)
+const ordoExtPatients = ref([])
+const ordoExtMedId = ref(null)
+const ordoExtQte = ref(1)
+const assurances = ref([])
+const catalogueExterne = ref([]) // tout le catalogue (sans le filtre de l'onglet Stocks)
+let ordoExtTimer = null
+
+const ORDO_EXT_VIDE = () => ({
+  avecAssurance: false,
+  patient: null,
+  nouveau: false,
+  nouveauPatient: { nom: '', prenom: '', sexe: '', telephone: '' },
+  assuranceId: null,
+  formuleId: null,
+  numeroAssure: '',
+  clientNom: '',
+  prescripteur: '',
+  etablissement: '',
+  dateOrdonnance: '',
+  lignes: [],
+  modePaiement: 'ESPECES',
+})
+const ordoExt = reactive(ORDO_EXT_VIDE())
+
+const assurancesActives = computed(() =>
+  assurances.value.filter((a) => a.statut === 'ACTIF' && a.formules?.some((f) => f.statut === 'ACTIF')),
+)
+const formulesExterne = computed(
+  () =>
+    assurances.value
+      .find((a) => a.id === ordoExt.assuranceId)
+      ?.formules?.filter((f) => f.statut === 'ACTIF') ?? [],
+)
+
+/** Médicaments actifs en stock (catalogue de la pharmacie). */
+const optionsMedicamentsExterne = computed(() =>
+  catalogueExterne.value
+    .filter((m) => m.actif !== false && m.stock > 0)
+    .map((m) => ({
+      value: m.id,
+      label: `${m.nom}${m.dosage ? ` (${m.dosage})` : ''} — stock ${m.stock}`,
+    })),
+)
+
+/** Taux « médicaments » applicable : assurance du patient, sinon formule choisie. */
+const tauxExterne = computed(() => {
+  if (!ordoExt.avecAssurance) return 0
+  if (ordoExt.patient?.assurance) return ordoExt.patient.assurance.taux ?? 0
+  return formulesExterne.value.find((f) => f.id === ordoExt.formuleId)?.tauxPharmacie ?? 0
+})
+
+function montantLigneExterne(l) {
+  return l.consommable ? 0 : (l.prixVente || 0) * (Number(l.quantite) || 0)
+}
+const totalExterne = computed(() => ordoExt.lignes.reduce((s, l) => s + montantLigneExterne(l), 0))
+const partAssuranceExterne = computed(() => Math.round((totalExterne.value * tauxExterne.value) / 100))
+
+async function ouvrirOrdoExterne() {
+  Object.assign(ordoExt, ORDO_EXT_VIDE())
+  ordoExtRecherche.value = ''
+  ordoExtPatients.value = []
+  ordoExtMedId.value = null
+  ordoExtQte.value = 1
+  ordoExtVisible.value = true
+  // Catalogue à jour (stock réel) + assurances paramétrées
+  const [catalogue, listeAssurances] = await Promise.allSettled([
+    http.get('/pharmacie/stocks', { params: { cliniqueId: cliniqueId.value } }),
+    http.get('/assurances', { params: { cliniqueId: cliniqueId.value } }),
+  ])
+  catalogueExterne.value = catalogue.status === 'fulfilled' ? catalogue.value.data : []
+  assurances.value = listeAssurances.status === 'fulfilled' ? listeAssurances.value.data : []
+}
+
+function choisirModeExterne(avecAssurance) {
+  ordoExt.avecAssurance = avecAssurance
+}
+
+function rechercherPatientExterne() {
+  clearTimeout(ordoExtTimer)
+  ordoExtTimer = setTimeout(async () => {
+    const q = ordoExtRecherche.value.trim()
+    if (q.length < 2) {
+      ordoExtPatients.value = []
+      return
+    }
+    ordoExtRechercheEnCours.value = true
+    try {
+      const { data } = await http.get('/pharmacie/ordonnances-externes/patients', {
+        params: { cliniqueId: cliniqueId.value, q },
+      })
+      ordoExtPatients.value = data
+    } catch {
+      ordoExtPatients.value = []
+    } finally {
+      ordoExtRechercheEnCours.value = false
+    }
+  }, 300)
+}
+
+function choisirPatientExterne(p) {
+  ordoExt.patient = p
+  ordoExtPatients.value = []
+}
+
+function nouveauPatientExterne() {
+  ordoExt.nouveau = true
+  ordoExt.patient = null
+  // Pré-remplit nom / prénoms avec la saisie de recherche (« KOUASSI JEAN »)
+  const [nom = '', ...prenoms] = ordoExtRecherche.value.trim().toUpperCase().split(/\s+/)
+  if (!/^\d+$/.test(nom)) {
+    ordoExt.nouveauPatient.nom = nom
+    ordoExt.nouveauPatient.prenom = prenoms.join(' ')
+  } else {
+    ordoExt.nouveauPatient.telephone = ordoExtRecherche.value.trim()
+  }
+}
+
+function ajouterLigneExterne() {
+  const m = catalogueExterne.value.find((x) => x.id === ordoExtMedId.value)
+  const qte = Math.floor(Number(ordoExtQte.value) || 0)
+  if (!m) return toastError('Choisissez un médicament.')
+  if (qte <= 0) return toastError('Saisissez une quantité.')
+  const existante = ordoExt.lignes.find((l) => l.medicamentId === m.id)
+  if (existante) {
+    existante.quantite += qte
+  } else {
+    ordoExt.lignes.push({
+      medicamentId: m.id,
+      nom: `${m.nom}${m.dosage ? ` (${m.dosage})` : ''}`,
+      stock: m.stock,
+      prixVente: m.prixVente || 0,
+      uniteVente: m.uniteVente,
+      consommable: m.consommable,
+      quantite: qte,
+    })
+  }
+  ordoExtMedId.value = null
+  ordoExtQte.value = 1
+}
+
+/** Contrôles avant envoi : message d'erreur, ou null si tout est bon. */
+function erreurOrdoExterne() {
+  if (ordoExt.lignes.length === 0) return 'Ajoutez au moins un médicament.'
+  const trop = ordoExt.lignes.find((l) => !(l.quantite > 0) || l.quantite > l.stock)
+  if (trop) return `« ${trop.nom} » : quantité invalide (stock disponible : ${trop.stock}).`
+  if (ordoExt.avecAssurance) {
+    if (!ordoExt.patient && !ordoExt.nouveau) return 'Choisissez le patient ou créez-le.'
+    if (ordoExt.nouveau && (!ordoExt.nouveauPatient.nom || !ordoExt.nouveauPatient.prenom)) {
+      return 'Le nom et les prénoms du patient sont obligatoires.'
+    }
+    if (!ordoExt.patient?.assurance && (!ordoExt.assuranceId || !ordoExt.formuleId)) {
+      return "Choisissez l'assurance et la formule du patient."
+    }
+  }
+  return null
+}
+
+async function validerOrdoExterneSansPaiement(type) {
+  const erreur = erreurOrdoExterne()
+  if (erreur) return toastError(erreur)
+  const casSocial = type === 'CAS_SOCIAL'
+  const reponse = await Swal.fire({
+    title: casSocial ? '🤝 Cas social' : '🎫 Crédit pharmacie',
+    text: casSocial
+      ? 'Les médicaments sont remis et pris en charge par la clinique (non remboursable).'
+      : 'Les médicaments sont remis maintenant. Le patient paiera sa part plus tard.',
+    input: 'text',
+    inputLabel: 'Motif (obligatoire)',
+    inputValue: casSocial ? 'Patient indigent' : 'Argent pas encore disponible',
+    showCancelButton: true,
+    confirmButtonText: 'Confirmer',
+    cancelButtonText: 'Annuler',
+    inputValidator: (v) => (!v?.trim() ? 'Indiquez le motif.' : undefined),
+  })
+  if (!reponse.isConfirmed) return
+  await validerOrdoExterne({ type, motif: reponse.value.trim() })
+}
+
+async function validerOrdoExterne(reglement) {
+  const erreur = erreurOrdoExterne()
+  if (erreur) return toastError(erreur)
+  ordoExtEnCours.value = true
+  try {
+    const assure = ordoExt.avecAssurance
+    const { data } = await http.post('/pharmacie/ordonnances-externes', {
+      cliniqueId: cliniqueId.value,
+      avecAssurance: assure,
+      patientId: assure ? ordoExt.patient?.id : undefined,
+      nouveauPatient: assure && !ordoExt.patient ? ordoExt.nouveauPatient : undefined,
+      assurance:
+        assure && !ordoExt.patient?.assurance
+          ? { assuranceId: ordoExt.assuranceId, formuleId: ordoExt.formuleId, numeroAssure: ordoExt.numeroAssure }
+          : undefined,
+      clientNom: assure ? undefined : ordoExt.clientNom,
+      prescripteur: ordoExt.prescripteur,
+      etablissement: ordoExt.etablissement,
+      dateOrdonnance: ordoExt.dateOrdonnance || undefined,
+      lignes: ordoExt.lignes.map((l) => ({ medicamentId: l.medicamentId, quantite: l.quantite })),
+      modePaiement: ordoExt.modePaiement,
+      type: reglement?.type,
+      motif: reglement?.motif,
+    })
+    const client = assure
+      ? `Patient : ${ordoExt.patient ? `${ordoExt.patient.nom} ${ordoExt.patient.prenom}` : `${ordoExt.nouveauPatient.nom} ${ordoExt.nouveauPatient.prenom}`}`
+      : `Client : ${ordoExt.clientNom || 'Client de passage'}`
+    recuPharma.value = { ...data, client }
+    toastSuccess(`Ordonnance externe ${data.ordonnanceExterne.numero} enregistrée — reçu ${data.paiement.numeroRecu}`)
+    if (data.impression?.ok) toastSuccess(`Reçu imprimé : ${data.impression.message}`)
+    ordoExtVisible.value = false
+    chargerStocks()
+    chargerAlertes()
+    chargerCreditsPharma()
+    if (onglet.value === 'externes') chargerRapportExternes()
+  } catch (e) {
+    toastError(e.response?.data?.message || "Erreur lors de l'enregistrement de l'ordonnance externe.")
+  } finally {
+    ordoExtEnCours.value = false
+  }
+}
+
+// ── Rapport dédié des ordonnances externes ──
+const externesDebut = ref('')
+const externesFin = ref('')
+const RAPPORT_EXT_VIDE = {
+  lignes: [],
+  totaux: { nombre: 0, avecAssurance: 0, sansAssurance: 0, montantTotal: 0, montantAssurance: 0, montantEncaisse: 0, resteCredits: 0 },
+}
+const rapportExternes = ref(RAPPORT_EXT_VIDE)
+
+async function chargerRapportExternes() {
+  try {
+    const { data } = await http.get('/pharmacie/ordonnances-externes', {
+      params: {
+        cliniqueId: cliniqueId.value,
+        debut: externesDebut.value || undefined,
+        fin: externesFin.value || undefined,
+      },
+    })
+    rapportExternes.value = data
+  } catch {
+    rapportExternes.value = RAPPORT_EXT_VIDE
+  }
+}
+
+/** Libellé du règlement d'une ordonnance externe (rapport, exports). */
+function reglementExterne(o) {
+  if (o.statutPaiement === 'ANNULE') return 'Annulé'
+  if (o.type === 'CREDIT') return o.regleLe ? 'Crédit réglé' : 'Crédit'
+  if (o.type === 'CAS_SOCIAL') return 'Cas social'
+  return labelMode(o.modePaiement)
+}
+
+function lignesRapportExternes() {
+  return rapportExternes.value.lignes.map((o) => ({
+    numero: o.numero,
+    date: o.createdAt,
+    client: o.client,
+    type: o.avecAssurance ? 'Avec assurance' : 'Sans assurance',
+    prescripteur: [o.prescripteur, o.etablissement].filter(Boolean).join(' — ') || '—',
+    medicaments: o.medicaments.map((m) => `${m.nom} × ${m.quantite}`).join(', '),
+    montant: o.montantTotal,
+    assurance: o.montantAssurance > 0 ? `${o.assurance} (${o.tauxAssurance} %) : ${o.montantAssurance.toLocaleString('fr-FR')} F` : '—',
+    reglement: reglementExterne(o),
+    recu: o.numeroRecu ?? '—',
+  }))
+}
+
+const COLONNES_EXTERNES = {
+  colonnes: ['N°', 'Date', 'Patient / client', 'Type', 'Prescripteur', 'Médicaments', 'Total', 'Assurance', 'Règlement', 'Reçu'],
+  champs: ['numero', 'date', 'client', 'type', 'prescripteur', 'medicaments', 'montant', 'assurance', 'reglement', 'recu'],
+}
+
+function exporterExternesExcel() {
+  const lignes = lignesRapportExternes().map((l) => {
+    const ligne = {}
+    COLONNES_EXTERNES.champs.forEach((c, i) => {
+      ligne[COLONNES_EXTERNES.colonnes[i]] = c === 'date' ? formatDateHeure(l.date) : l[c]
+    })
+    return ligne
+  })
+  exporterXlsx(lignes, `ordonnances-externes-${new Date().toISOString().slice(0, 10)}`)
+}
+
+function imprimerExternesPdf() {
+  const lignes = lignesRapportExternes()
+  const jour = (iso) => iso.split('-').reverse().join('/')
+  const aujourdhui = new Date().toLocaleDateString('fr-FR')
+  const debut = externesDebut.value ? jour(externesDebut.value) : aujourdhui
+  const fin = externesFin.value ? jour(externesFin.value) : aujourdhui
+  imprimerZone({
+    titre: 'Rapport des ordonnances externes',
+    periode: debut === fin ? debut : `du ${debut} au ${fin}`,
+    colonnes: COLONNES_EXTERNES.colonnes,
+    champs: COLONNES_EXTERNES.champs,
+    lignes,
+    sommes: sommesColonnes(lignes),
+  })
 }
 
 /** Recalcule les seuils automatiques (consommation 60 j ÷ 120) de tous les médicaments. */
@@ -2698,6 +3348,95 @@ onUnmounted(() => {
 .btn-cas-social {
   color: #475569;
   border-color: #94a3b8;
+}
+/* Ordonnance externe : modale de saisie + rapport */
+.ordo-ext-modal {
+  max-width: 900px;
+}
+.ext-choix {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 6px 0 4px;
+}
+.ext-choix-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: left;
+  color: var(--text, #0f172a);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.ext-choix-btn small {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+.ext-choix-btn.actif {
+  border-color: var(--primary);
+  background: #eff6ff;
+}
+.ext-patient-choisi {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+}
+.ext-resultats {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.ext-resultat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.ext-ajout {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ext-ajout .field {
+  margin-bottom: 0;
+}
+.ext-ajout-med {
+  flex: 1;
+  min-width: 0;
+}
+.ext-ajout .qte-input {
+  width: 100px;
+}
+.ext-ajout > .btn {
+  margin-bottom: 2px;
+}
+.ext-actions {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.ext-meds {
+  font-size: 12.5px;
+}
+.ligne-annulee td {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+@media (max-width: 640px) {
+  .ext-choix {
+    grid-template-columns: 1fr;
+  }
 }
 .tab-count {
   margin-left: 6px;
