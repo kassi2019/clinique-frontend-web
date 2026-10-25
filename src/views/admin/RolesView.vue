@@ -65,11 +65,11 @@
         <form @submit.prevent="save">
           <div class="form-row">
             <div class="field">
-              <label>Code *</label>
+              <label>Code <span class="requis">*</span></label>
               <input v-model.trim="form.code" required placeholder="Ex : MEDECIN" />
             </div>
             <div class="field">
-              <label>Nom *</label>
+              <label>Nom <span class="requis">*</span></label>
               <input v-model.trim="form.nom" required placeholder="Ex : Médecin" />
             </div>
           </div>

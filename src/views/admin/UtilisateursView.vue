@@ -80,7 +80,7 @@
         <p v-if="formError" class="alert alert-error">{{ formError }}</p>
         <form @submit.prevent="save">
           <div class="field">
-            <label>Fiche personnel rattachée *</label>
+            <label>Fiche personnel rattachée <span class="requis">*</span></label>
             <SelectSearch
               :model-value="form.personnelId"
               :options="optionsPersonnel"
@@ -90,7 +90,7 @@
           </div>
           <div class="form-row">
             <div class="field">
-              <label>Matricule de connexion *</label>
+              <label>Matricule de connexion <span class="requis">*</span></label>
               <input
                 v-model.trim="form.matricule"
                 :disabled="!!form.personnelId"
@@ -102,7 +102,7 @@
               </p>
             </div>
             <div class="field">
-              <label>Rôle *</label>
+              <label>Rôle <span class="requis">*</span></label>
               <SelectSearch
                 v-model="form.roleId"
                 :options="optionsRoles"
@@ -111,7 +111,7 @@
             </div>
           </div>
           <div v-if="!form.id" class="field">
-            <label>Mot de passe * (défaut : 123456)</label>
+            <label>Mot de passe <span class="requis">*</span> (défaut : 123456)</label>
             <div class="input-oeil">
               <input
                 v-model="form.motDePasse"
@@ -148,7 +148,7 @@
         <p v-if="resetError" class="alert alert-error">{{ resetError }}</p>
         <form @submit.prevent="doReset">
           <div class="field">
-            <label>Nouveau mot de passe * (6 caractères minimum)</label>
+            <label>Nouveau mot de passe <span class="requis">*</span> (6 caractères minimum)</label>
             <div class="input-oeil">
               <input
                 v-model="nouveauMotDePasse"

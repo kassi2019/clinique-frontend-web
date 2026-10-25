@@ -65,7 +65,7 @@
         <form @submit.prevent="save">
           <div class="form-row">
             <div class="field">
-              <label>Clinique *</label>
+              <label>Clinique <span class="requis">*</span></label>
               <SelectSearch
                 v-model="form.cliniqueId"
                 :options="optionsCliniques"
@@ -73,12 +73,12 @@
               />
             </div>
             <div class="field">
-              <label>Code * (auto à partir du nom)</label>
+              <label>Code <span class="requis">*</span> (auto à partir du nom)</label>
               <input v-model.trim="form.code" maxlength="4" required placeholder="Ex : MED" @input="codeManuel = true" />
             </div>
           </div>
           <div class="field">
-            <label>Nom *</label>
+            <label>Nom <span class="requis">*</span></label>
             <input v-model.trim="form.nom" required placeholder="Ex : Médecine générale" @input="genererCode" />
           </div>
           <div class="field">

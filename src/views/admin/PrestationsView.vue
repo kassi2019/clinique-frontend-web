@@ -81,7 +81,7 @@
         <form @submit.prevent="save">
           <div class="form-row">
             <div class="field">
-              <label>Clinique *</label>
+              <label>Clinique <span class="requis">*</span></label>
               <SelectSearch
                 v-model="form.cliniqueId"
                 :options="optionsCliniques"
@@ -89,7 +89,7 @@
               />
             </div>
             <div class="field">
-              <label>Service *</label>
+              <label>Service <span class="requis">*</span></label>
               <SelectSearch
                 v-model="form.serviceId"
                 :options="optionsServices"
@@ -99,11 +99,11 @@
           </div>
           <div class="form-row">
             <div class="field">
-              <label>Code *</label>
+              <label>Code <span class="requis">*</span></label>
               <input v-model.trim="form.code" required placeholder="Ex : CONS-GEN" />
             </div>
             <div class="field">
-              <label>Type *</label>
+              <label>Type <span class="requis">*</span></label>
               <SelectSearch
                 v-model="form.type"
                 :options="optionsTypes"
@@ -112,11 +112,11 @@
             </div>
           </div>
           <div class="field">
-            <label>Libellé *</label>
+            <label>Libellé <span class="requis">*</span></label>
             <input v-model.trim="form.libelle" required placeholder="Ex : Consultation générale" />
           </div>
           <div class="field">
-            <label>Montant (FCFA) *</label>
+            <label>Montant (FCFA) <span class="requis">*</span></label>
             <input v-model.number="form.montant" type="number" min="0" step="1" required />
           </div>
           <div class="modal-actions">

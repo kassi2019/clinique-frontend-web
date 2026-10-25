@@ -388,11 +388,11 @@
             </div>
             <div class="form-row">
               <div class="field champ-large">
-                <label>Nom *</label>
+                <label>Nom <span class="requis">*</span></label>
                 <input v-model.trim="form.nom" required />
               </div>
               <div class="field champ-large">
-                <label>Prénom *</label>
+                <label>Prénom <span class="requis">*</span></label>
                 <input v-model.trim="form.prenom" required />
               </div>
               <div class="field">
@@ -415,7 +415,7 @@
                 </select>
               </div>
               <div class="field">
-                <label>Profession *</label>
+                <label>Profession <span class="requis">*</span></label>
                 <SelectSearch v-model="form.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : commerçant…" />
               </div>
               <div class="field">
@@ -458,7 +458,7 @@
             <template v-if="assuranceNouveau.active">
               <div class="form-row">
                 <div class="field champ-large">
-                  <label>Assurance *</label>
+                  <label>Assurance <span class="requis">*</span></label>
                   <SelectSearch
                     v-model="assuranceNouveau.assuranceId"
                     :options="optionsAssurances"
@@ -466,7 +466,7 @@
                   />
                 </div>
                 <div class="field champ-large">
-                  <label>Formule *</label>
+                  <label>Formule <span class="requis">*</span></label>
                   <SelectSearch
                     v-model="assuranceNouveau.formuleId"
                     :options="formulesDe(assuranceNouveau.assuranceId)"
@@ -512,7 +512,7 @@
           <h3 class="section-title">Passage</h3>
           <div class="form-row">
             <div class="field champ-large">
-              <label>Service à consulter *</label>
+              <label>Service à consulter <span class="requis">*</span></label>
               <SelectSearch
                 v-model="form.serviceId"
                 :options="optionsServices"
@@ -538,7 +538,7 @@
           </div>
           <div class="form-row">
             <div v-if="consultationsDuService.length > 1" class="field champ-large">
-              <label>Type de consultation *</label>
+              <label>Type de consultation <span class="requis">*</span></label>
               <select v-model="form.consultationPrestationId" required>
                 <option :value="null" disabled>— Choisir —</option>
                 <option v-for="c in consultationsDuService" :key="c.id" :value="c.id">
@@ -589,7 +589,7 @@
       <div class="modal">
         <h2>🛡️ Assurance du patient</h2>
         <div class="field">
-          <label>Assurance *</label>
+          <label>Assurance <span class="requis">*</span></label>
           <SelectSearch
             v-model="formPatientAssurance.assuranceId"
             :options="optionsAssurances"
@@ -597,7 +597,7 @@
           />
         </div>
         <div class="field">
-          <label>Formule *</label>
+          <label>Formule <span class="requis">*</span></label>
           <SelectSearch
             v-model="formPatientAssurance.formuleId"
             :options="optionsFormulesAssurance"
@@ -701,11 +701,11 @@
               <input v-model="formConstantes.pouls" type="number" min="0" max="300" placeholder="ex : 72" />
             </div>
             <div class="field">
-              <label>Tension art. gauche (TAg) *</label>
+              <label>Tension art. gauche (TAg) <span class="requis">*</span></label>
               <input v-model.trim="formConstantes.tensionGauche" placeholder="ex : 12/8" pattern="[0-9]{1,3}/[0-9]{1,3}" required />
             </div>
             <div class="field">
-              <label>Tension art. droite (TAd) *</label>
+              <label>Tension art. droite (TAd) <span class="requis">*</span></label>
               <input v-model.trim="formConstantes.tensionDroite" placeholder="ex : 12/8" pattern="[0-9]{1,3}/[0-9]{1,3}" required />
             </div>
             <div class="field">
@@ -784,11 +784,11 @@
               <input v-model.trim="formEdit.numeroCni" />
             </div>
             <div class="field">
-              <label>Nom *</label>
+              <label>Nom <span class="requis">*</span></label>
               <input v-model.trim="formEdit.nom" required />
             </div>
             <div class="field">
-              <label>Prénom *</label>
+              <label>Prénom <span class="requis">*</span></label>
               <input v-model.trim="formEdit.prenom" required />
             </div>
             <div class="field">
@@ -811,7 +811,7 @@
               </select>
             </div>
             <div class="field">
-              <label>Profession *</label>
+              <label>Profession <span class="requis">*</span></label>
               <SelectSearch v-model="formEdit.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
             </div>
             <div class="field">
@@ -848,7 +848,7 @@
           <h3 class="section-title">Passage</h3>
           <div class="form-row">
             <div class="field">
-              <label>Service à consulter *</label>
+              <label>Service à consulter <span class="requis">*</span></label>
               <SelectSearch
                 v-model="formEdit.serviceId"
                 :options="optionsServices"

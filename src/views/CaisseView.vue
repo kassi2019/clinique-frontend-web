@@ -653,7 +653,7 @@
             />
           </div>
           <div class="field">
-            <label>Prestation *</label>
+            <label>Prestation <span class="requis">*</span></label>
             <SelectSearch
               v-model="ajoutPrestationId"
               :options="optionsPrestationsFiltrees"

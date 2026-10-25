@@ -93,6 +93,14 @@ body {
   font-size: 13px;
   color: var(--text-muted);
 }
+/* Astérisque des champs obligatoires : rouge et un peu plus grand */
+.requis {
+  color: #dc2626;
+  font-size: 1.3em;
+  font-weight: 800;
+  line-height: 1;
+  margin-left: 2px;
+}
 .field input,
 .field select,
 .field textarea {

@@ -108,21 +108,21 @@
         <h2>🔑 Changer le mot de passe</h2>
         <form @submit.prevent="changerMotDePasse">
           <div class="field">
-            <label>Mot de passe actuel *</label>
+            <label>Mot de passe actuel <span class="requis">*</span></label>
             <div class="input-oeil">
               <input v-model="mdp.actuel" :type="voirMdp ? 'text' : 'password'" required autocomplete="current-password" />
               <button type="button" class="btn-oeil" @click="voirMdp = !voirMdp">{{ voirMdp ? '🙈' : '👁️' }}</button>
             </div>
           </div>
           <div class="field">
-            <label>Nouveau mot de passe * (6 caractères minimum)</label>
+            <label>Nouveau mot de passe <span class="requis">*</span> (6 caractères minimum)</label>
             <div class="input-oeil">
               <input v-model="mdp.nouveau" :type="voirMdp ? 'text' : 'password'" minlength="6" required autocomplete="new-password" />
               <button type="button" class="btn-oeil" @click="voirMdp = !voirMdp">{{ voirMdp ? '🙈' : '👁️' }}</button>
             </div>
           </div>
           <div class="field">
-            <label>Confirmer le nouveau mot de passe *</label>
+            <label>Confirmer le nouveau mot de passe <span class="requis">*</span></label>
             <div class="input-oeil">
               <input v-model="mdp.confirmation" :type="voirMdp ? 'text' : 'password'" required autocomplete="new-password" />
               <button type="button" class="btn-oeil" @click="voirMdp = !voirMdp">{{ voirMdp ? '🙈' : '👁️' }}</button>

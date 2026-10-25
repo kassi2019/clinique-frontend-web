@@ -319,7 +319,7 @@
           </div>
         </div>
         <div class="field">
-          <label>Motif de la correction *</label>
+          <label>Motif de la correction <span class="requis">*</span></label>
           <input v-model.trim="correction.motif" placeholder="Ex : oubli de terminer le service, garde de 24 h confirmée" />
         </div>
         <div class="modal-actions">

@@ -228,7 +228,7 @@
           <form @submit.prevent="enregistrerCpn">
             <div class="form-separator">Données administratives</div>
             <div class="form-row">
-              <div class="field"><label>Date de la consultation *</label><input v-model="formCpn.date" type="date" required /></div>
+              <div class="field"><label>Date de la consultation <span class="requis">*</span></label><input v-model="formCpn.date" type="date" required /></div>
               <div class="field">
                 <label>Mode d'entrée</label>
                 <select v-model="formCpn.modeEntree">
@@ -242,7 +242,7 @@
               <div class="field"><label>N° gestante</label><input v-model.trim="formCpn.numeroGestante" placeholder="ex : 08/B/2026/CPN1/R1/P10" /></div>
             </div>
             <div class="form-row">
-              <div class="field"><label>Nom *</label><input v-model.trim="formCpn.nom" required /></div>
+              <div class="field"><label>Nom <span class="requis">*</span></label><input v-model.trim="formCpn.nom" required /></div>
               <div class="field"><label>Prénoms</label><input v-model.trim="formCpn.prenom" /></div>
               <div class="field"><label>Âge (ans)</label><input v-model.number="formCpn.age" type="number" min="0" max="150" /></div>
             </div>
@@ -312,7 +312,7 @@
 
             <div class="form-separator">Grossesse</div>
             <div class="form-row">
-              <div class="field"><label>DDR (date des dernières règles) *</label><input v-model="formCpn.ddr" type="date" required /></div>
+              <div class="field"><label>DDR (date des dernières règles) <span class="requis">*</span></label><input v-model="formCpn.ddr" type="date" required /></div>
               <div class="field"><label>Terme prévu (intervalle calculé)</label><input :value="termePrevu" disabled /></div>
               <div class="field"><label>Âge gestationnel (calculé, modifiable)</label><input v-model.trim="formCpn.ageGestationnelSA" placeholder="Ex : 16 SA + 3 j" /></div>
             </div>
@@ -461,7 +461,7 @@
           <form @submit.prevent="enregistrerCpon">
             <div class="form-separator">Données administratives</div>
             <div class="form-row">
-              <div class="field"><label>Date de la consultation *</label><input v-model="formCpon.date" type="date" required /></div>
+              <div class="field"><label>Date de la consultation <span class="requis">*</span></label><input v-model="formCpon.date" type="date" required /></div>
               <div class="field">
                 <label>Type de consultation postnatale</label>
                 <select v-model="formCpon.typeCpon">
@@ -485,7 +485,7 @@
             </div>
             <div class="form-row">
               <div class="field"><label>Report N° gestante</label><input v-model.trim="formCpon.numeroGestanteReport" placeholder="ex : 08/B/2026/CPN1/R1/P10R" /></div>
-              <div class="field"><label>Nom *</label><input v-model.trim="formCpon.nom" required /></div>
+              <div class="field"><label>Nom <span class="requis">*</span></label><input v-model.trim="formCpon.nom" required /></div>
               <div class="field"><label>Prénoms</label><input v-model.trim="formCpon.prenom" /></div>
             </div>
             <div class="form-row">
@@ -615,7 +615,7 @@
           <form v-else @submit.prevent="enregistrerAccouchement">
             <div class="form-separator">Identité et arrivée</div>
             <div class="form-row">
-              <div class="field"><label>Date et heure de l'accouchement *</label><input v-model="formAccouchement.dateHeure" type="datetime-local" required /></div>
+              <div class="field"><label>Date et heure de l'accouchement <span class="requis">*</span></label><input v-model="formAccouchement.dateHeure" type="datetime-local" required /></div>
               <div class="field"><label>Numéro d'accouchement</label><input v-model.number="formAccouchement.numeroAccouchement" type="number" min="0" /></div>
               <div class="field">
                 <label>Mode d'entrée</label>
@@ -779,9 +779,9 @@
           <form @submit.prevent="enregistrerPf">
             <div class="form-separator">Consultation</div>
             <div class="form-row">
-              <div class="field"><label>Date *</label><input v-model="formPf.date" type="date" required /></div>
+              <div class="field"><label>Date <span class="requis">*</span></label><input v-model="formPf.date" type="date" required /></div>
               <div class="field">
-                <label>Méthode contraceptive *</label>
+                <label>Méthode contraceptive <span class="requis">*</span></label>
                 <select v-model="formPf.methode" required>
                   <option value="" disabled>— Choisir —</option>
                   <option v-for="m in METHODES_PF" :key="m" :value="m">{{ m }}</option>
@@ -999,8 +999,8 @@
 
         <div class="form-separator">Ou nouvelle patiente</div>
         <div class="form-row">
-          <div class="field"><label>Nom *</label><input v-model.trim="urgenceForm.nom" :disabled="!!urgencePatiente" /></div>
-          <div class="field"><label>Prénom(s) *</label><input v-model.trim="urgenceForm.prenom" :disabled="!!urgencePatiente" /></div>
+          <div class="field"><label>Nom <span class="requis">*</span></label><input v-model.trim="urgenceForm.nom" :disabled="!!urgencePatiente" /></div>
+          <div class="field"><label>Prénom(s) <span class="requis">*</span></label><input v-model.trim="urgenceForm.prenom" :disabled="!!urgencePatiente" /></div>
           <div class="field"><label>Âge</label><input v-model.number="urgenceForm.age" type="number" min="0" :disabled="!!urgencePatiente" /></div>
           <div class="field"><label>Téléphone</label><input v-model.trim="urgenceForm.telephone" :disabled="!!urgencePatiente" /></div>
         </div>
@@ -1026,7 +1026,7 @@
         <form @submit.prevent="enregistrerAccouchement">
           <div class="form-separator">Identité et arrivée</div>
           <div class="form-row">
-            <div class="field"><label>Date et heure *</label><input v-model="formAccouchement.dateHeure" type="datetime-local" required /></div>
+            <div class="field"><label>Date et heure <span class="requis">*</span></label><input v-model="formAccouchement.dateHeure" type="datetime-local" required /></div>
             <div class="field"><label>Numéro d'accouchement</label><input v-model.number="formAccouchement.numeroAccouchement" type="number" min="0" /></div>
             <div class="field">
               <label>Mode d'entrée</label>
@@ -1183,7 +1183,7 @@
         <h2>{{ formCpon.id ? '✏️ Modifier la CPoN' : '＋ Nouvelle consultation postnatale' }}</h2>
         <form @submit.prevent="enregistrerCpon">
           <div class="form-row">
-            <div class="field"><label>Date *</label><input v-model="formCpon.date" type="date" required /></div>
+            <div class="field"><label>Date <span class="requis">*</span></label><input v-model="formCpon.date" type="date" required /></div>
             <div class="field">
               <label>Type de CPoN</label>
               <select v-model="formCpon.typeCpon">
@@ -1242,9 +1242,9 @@
         <h2>{{ formPf.id ? '✏️ Modifier la consultation PF' : '＋ Nouvelle consultation PF' }}</h2>
         <form @submit.prevent="enregistrerPf">
           <div class="form-row">
-            <div class="field"><label>Date *</label><input v-model="formPf.date" type="date" required /></div>
+            <div class="field"><label>Date <span class="requis">*</span></label><input v-model="formPf.date" type="date" required /></div>
             <div class="field">
-              <label>Méthode contraceptive *</label>
+              <label>Méthode contraceptive <span class="requis">*</span></label>
               <select v-model="formPf.methode" required>
                 <option value="" disabled>— Choisir —</option>
                 <option v-for="m in METHODES_PF" :key="m" :value="m">{{ m }}</option>

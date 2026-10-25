@@ -4,9 +4,9 @@
     "module": "ACCUEIL",
     "titre": "Accueil",
     "icone": "🏥",
-    "description": "Enregistrer un patient et créer son passage",
+    "description": "Enregistrer un patient (pièce d’identité) et créer son passage",
     "fichier": "accueil.mp4",
-    "duree": 141
+    "duree": 162
   },
   {
     "code": "CONSTANTE",
@@ -40,18 +40,18 @@
     "module": "CONSULTATION",
     "titre": "Consultation",
     "icone": "🩺",
-    "description": "Fiche, hospitalisation, ordonnances, examens, certificat, historique et référence",
+    "description": "Fiche, ordonnances, prescription des soins, examens, certificat, historique et référence",
     "fichier": "consultation.mp4",
-    "duree": 342
+    "duree": 405
   },
   {
     "code": "SOINS",
     "module": "SOINS",
     "titre": "Soins",
     "icone": "💉",
-    "description": "Réaliser les soins prescrits",
+    "description": "Administrer les soins prescrits par le médecin",
     "fichier": "soins.mp4",
-    "duree": 71
+    "duree": 116
   },
   {
     "code": "HOSPITALISATION",
@@ -121,9 +121,9 @@
     "module": "PHARMACIE",
     "titre": "Pharmacie",
     "icone": "💊",
-    "description": "Dispenser une ordonnance, gérer le stock et l’inventaire",
+    "description": "Dispenser une ordonnance selon la quantité demandée, gérer le stock",
     "fichier": "pharmacie.mp4",
-    "duree": 132
+    "duree": 146
   },
   {
     "code": "STOCK",

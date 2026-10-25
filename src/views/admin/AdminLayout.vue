@@ -129,6 +129,7 @@ const navItems = [
       { to: { name: 'admin-listes', params: { code: 'professions' } }, label: 'Professions', icon: '💼' },
       { to: { name: 'admin-listes', params: { code: 'motifs' } }, label: 'Motifs de consultation', icon: '📋' },
       { to: { name: 'admin-listes', params: { code: 'quartiers' } }, label: 'Quartiers', icon: '🏘️' },
+      { to: { name: 'admin-listes', params: { code: 'types-soins' } }, label: 'Types de soins', icon: '💉' },
     ],
   },
   {

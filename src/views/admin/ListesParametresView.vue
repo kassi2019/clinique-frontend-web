@@ -104,7 +104,7 @@
         <h2>{{ form.id ? '✏️ Modifier' : '＋ Ajouter' }} — {{ categorie.libelle }}</h2>
         <form @submit.prevent="enregistrer">
           <div class="field">
-            <label>Libellé *</label>
+            <label>Libellé <span class="requis">*</span></label>
             <input v-model.trim="form.libelle" required placeholder="Ex : Abidjan" />
           </div>
           <div class="modal-actions">
@@ -146,6 +146,7 @@ const CATEGORIES = {
   antecedents: { code: 'ANTECEDENT', icone: '📜', libelle: 'Antécédents médicaux (maladies)', route: '/antecedents-medicaux' },
   examens: { code: 'EXAMEN', icone: '🧪', libelle: 'Autres examens', route: '/autres-examens' },
   interventions: { code: 'INTERVENTION', icone: '🔪', libelle: "Types d'intervention chirurgicale", route: '/interventions-chirurgicales' },
+  'types-soins': { code: 'TYPE_SOIN', icone: '💉', libelle: 'Types de soins (injection, pansement, perfusion…)', route: '/types-soins' },
 }
 
 const categorie = computed(() => CATEGORIES[route.params.code] ?? CATEGORIES.nationalites)

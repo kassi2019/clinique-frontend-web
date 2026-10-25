@@ -31,18 +31,18 @@
         <h2>💰 Règlement reçu d'une assurance</h2>
         <div class="form-row">
           <div class="field">
-            <label>Assurance *</label>
+            <label>Assurance <span class="requis">*</span></label>
             <select v-model="formReglement.assuranceId">
               <option :value="null" disabled>— Choisir —</option>
               <option v-for="a in assurances" :key="a.id" :value="a.id">{{ a.libelle }}</option>
             </select>
           </div>
           <div class="field">
-            <label>Date du règlement *</label>
+            <label>Date du règlement <span class="requis">*</span></label>
             <input v-model="formReglement.dateReglement" type="date" />
           </div>
           <div class="field">
-            <label>Montant reçu (FCFA) *</label>
+            <label>Montant reçu (FCFA) <span class="requis">*</span></label>
             <input v-model.number="formReglement.montant" type="number" min="1" />
           </div>
           <div class="field">
@@ -541,11 +541,11 @@
         <h2>🛡️ Nouvelle assurance</h2>
         <div class="form-row">
           <div class="field">
-            <label>Code *</label>
+            <label>Code <span class="requis">*</span></label>
             <input v-model.trim="formAssurance.code" placeholder="SUNU" />
           </div>
           <div class="field">
-            <label>Libellé *</label>
+            <label>Libellé <span class="requis">*</span></label>
             <input v-model.trim="formAssurance.libelle" placeholder="SUNU ASSURANCES" />
           </div>
           <div class="field">
@@ -578,11 +578,11 @@
         <h2>📋 Formule — {{ assuranceFormule?.libelle }}</h2>
         <div class="form-row">
           <div class="field">
-            <label>Code *</label>
+            <label>Code <span class="requis">*</span></label>
             <input v-model.trim="formFormule.code" placeholder="STANDARD" />
           </div>
           <div class="field">
-            <label>Libellé *</label>
+            <label>Libellé <span class="requis">*</span></label>
             <input v-model.trim="formFormule.libelle" placeholder="Formule Standard" />
           </div>
           <div class="field">
@@ -615,7 +615,7 @@
         <h2>🧾 Couverture — {{ formuleCouverture?.libelle }}</h2>
         <div class="form-row">
           <div class="field" style="grid-column: span 2">
-            <label>Prestation *</label>
+            <label>Prestation <span class="requis">*</span></label>
             <SelectSearch
               v-model="formCouverture.prestationId"
               :options="optionsPrestations"
@@ -623,7 +623,7 @@
             />
           </div>
           <div class="field">
-            <label>Taux de couverture (%) *</label>
+            <label>Taux de couverture (%) <span class="requis">*</span></label>
             <input v-model.number="formCouverture.tauxCouverture" type="number" min="0" max="100" />
           </div>
           <div class="field">

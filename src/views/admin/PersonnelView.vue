@@ -136,7 +136,7 @@
 
           <div class="form-row">
             <div class="field">
-              <label>Clinique *</label>
+              <label>Clinique <span class="requis">*</span></label>
               <SelectSearch
                 v-model="form.cliniqueId"
                 :options="optionsCliniques"
@@ -151,11 +151,11 @@
               </p>
             </div>
             <div class="field">
-              <label>Nom *</label>
+              <label>Nom <span class="requis">*</span></label>
               <input v-model.trim="form.nom" required />
             </div>
             <div class="field">
-              <label>Prénom *</label>
+              <label>Prénom <span class="requis">*</span></label>
               <input v-model.trim="form.prenom" required />
             </div>
             <div class="field">
@@ -167,7 +167,7 @@
               </select>
             </div>
             <div class="field">
-              <label>Fonction *</label>
+              <label>Fonction <span class="requis">*</span></label>
               <SelectSearch v-model="form.fonction" :options="fonctions.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Médecin, agent d'accueil…" />
               <p class="text-muted" style="font-size: 11px; margin-top: 3px">
                 Nouvelle fonction ? Saisissez-la : elle sera ajoutée automatiquement à la liste.

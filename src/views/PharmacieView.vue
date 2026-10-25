@@ -108,7 +108,10 @@
               </thead>
               <tbody>
                 <tr v-for="o in ordonnancesAttente" :key="o.id">
-                  <td><strong>{{ o.numeroOrdonnance }}</strong></td>
+                  <td>
+                    <strong>{{ o.numeroOrdonnance }}</strong>
+                    <span v-if="o.ordonnanceType === 'SOINS'" class="badge badge-warning" title="Médicaments d'un soin prescrit : à remettre à l'infirmier"> 💉 Soins</span>
+                  </td>
                   <td>
                     <strong>{{ o.patient.nom }} {{ o.patient.prenom }}</strong>
                     <span class="text-muted"> ({{ o.patient.code }})</span>
@@ -137,7 +140,7 @@
             <strong>{{ p.patient.nom }} {{ p.patient.prenom }}</strong>
             <span>{{ p.numeroOrdre }} · code {{ p.patient.code }}</span>
             <div v-for="c in p.ordonnances" :key="c.id" class="ordo-line" @click="choisirOrdonnance(c, p)">
-              💊 Ordonnance {{ c.numeroOrdonnance ? `n° ${c.numeroOrdonnance} — ` : '' }}du {{ formatDate(c.valideeLe || p.createdAt) }}
+              {{ c.ordonnanceType === 'SOINS' ? '💉 Ordonnance de soins' : '💊 Ordonnance' }} {{ c.numeroOrdonnance ? `n° ${c.numeroOrdonnance} — ` : '' }}du {{ formatDate(c.valideeLe || p.createdAt) }}
               ({{ c.medicaments.length }} médicament(s)) — {{ c.ordonnanceStatut === 'TRAITEE' ? 'traitée' : 'en attente' }}
             </div>
           </li>
@@ -149,6 +152,7 @@
               <span class="fiche-label">Ordonnance</span>
               <span>
                 <strong>{{ ordonnance.ordonnance?.numero }}</strong>
+                <span v-if="ordonnance.ordonnance?.type === 'SOINS'" class="badge badge-warning"> 💉 Soins — à remettre à l'infirmier</span>
                 <span class="badge" :class="ordonnance.ordonnance?.statut === 'TRAITEE' ? 'badge-success' : 'badge-warning'">
                   {{ ordonnance.ordonnance?.statut === 'TRAITEE' ? 'Traitée' : 'En attente' }}
                 </span>
@@ -177,6 +181,7 @@
               <thead>
                 <tr>
                   <th>Médicament</th>
+                  <th>Quantité demandée par le médecin</th>
                   <th>Prescription</th>
                   <th>Stock</th>
                   <th>Prix unitaire</th>
@@ -187,7 +192,8 @@
               <tbody>
                 <tr v-for="p in ordonnance.prescriptions" :key="p.id">
                   <td><strong>{{ p.medicamentNom }}</strong><span v-if="p.forme" class="text-muted"> ({{ p.forme }})</span></td>
-                  <td>{{ [p.posologie, p.quantite, p.duree].filter(Boolean).join(' · ') || '—' }}</td>
+                  <td class="qte-demandee">{{ quantiteDemandee(p) }}</td>
+                  <td>{{ [p.posologie, p.duree].filter(Boolean).join(' · ') || '—' }}</td>
                   <td>
                     <span v-if="p.medicament" class="badge" :class="p.medicament.stock > 0 ? 'badge-success' : 'badge-danger'">
                       {{ p.medicament.stock }}
@@ -202,15 +208,23 @@
                     <span v-else class="text-muted">—</span>
                   </td>
                   <td style="width: 130px">
+                    <template v-if="p.medicament">
                     <input
-                      v-if="p.medicament"
                       v-model.number="quantites[p.id]"
                       type="number"
                       min="0"
                       class="qte-input"
-                      :max="p.medicament.stock"
+                      :class="{ 'qte-erreur': depasseQuantite(p) }"
+                      :max="p.quantiteMax != null ? Math.min(p.medicament.stock, p.quantiteMax) : p.medicament.stock"
                       placeholder="0"
                     />
+                    <small v-if="depasseQuantite(p)" class="qte-message">
+                      Maximum : {{ p.quantiteMax }} (quantité demandée par le médecin)
+                    </small>
+                    <small v-else-if="p.dejaDelivree > 0" class="text-muted">
+                      Déjà délivré : {{ p.dejaDelivree }}
+                    </small>
+                    </template>
                     <span v-else class="text-muted">Non délivrable</span>
                   </td>
                   <td>
@@ -762,11 +776,11 @@
         </p>
         <p v-if="retraitError" class="alert alert-error">{{ retraitError }}</p>
         <div class="field">
-          <label>Quantité à retirer *</label>
+          <label>Quantité à retirer <span class="requis">*</span></label>
           <input v-model.number="retraitForm.quantite" type="number" min="1" :max="retraitCible?.quantiteRestante" />
         </div>
         <div class="field">
-          <label>Motif *</label>
+          <label>Motif <span class="requis">*</span></label>
           <select v-model="retraitForm.motif">
             <option value="">— Choisir —</option>
             <option value="RETOUR_FOURNISSEUR">Retour fournisseur</option>
@@ -1090,17 +1104,17 @@
         <form @submit.prevent="confirmerEntree">
           <div class="form-row">
             <div class="field">
-              <label>Numéro de lot *</label>
+              <label>Numéro de lot <span class="requis">*</span></label>
               <input v-model.trim="entreeForm.numeroLot" required />
             </div>
             <div class="field">
-              <label>Quantité *</label>
+              <label>Quantité <span class="requis">*</span></label>
               <input v-model.number="entreeForm.quantite" type="number" min="1" required />
             </div>
           </div>
           <div class="form-row">
             <div class="field">
-              <label>Date de péremption *</label>
+              <label>Date de péremption <span class="requis">*</span></label>
               <input v-model="entreeForm.datePeremption" type="date" required />
             </div>
             <div class="field">
@@ -1128,7 +1142,7 @@
         <p class="text-muted">Stock actuel : {{ inventaireCible?.stock }}</p>
         <form @submit.prevent="confirmerInventaire">
           <div class="field">
-            <label>Quantité réelle comptée *</label>
+            <label>Quantité réelle comptée <span class="requis">*</span></label>
             <input v-model.number="inventaireQuantite" type="number" min="0" required />
           </div>
           <div class="field">
@@ -1187,7 +1201,7 @@
         <p class="text-muted">Quantité actuelle : {{ mouvementCible?.quantite }} {{ mouvementCible?.unite || '' }}</p>
         <form @submit.prevent="confirmerMouvementConsommable">
           <div class="field">
-            <label>Quantité *</label>
+            <label>Quantité <span class="requis">*</span></label>
             <input v-model.number="mouvementQuantite" type="number" min="1" required />
           </div>
           <div class="field">
@@ -1209,7 +1223,7 @@
         <form @submit.prevent="confirmerConsommable">
           <div class="form-row">
             <div class="field">
-              <label>Nom *</label>
+              <label>Nom <span class="requis">*</span></label>
               <input v-model.trim="consomForm.nom" required placeholder="Ex : Alcool 90°" />
             </div>
             <div class="field">
@@ -1285,6 +1299,7 @@
 
 <script setup>
 import SelectSearch from '../components/SelectSearch.vue'
+import { quantiteDemandee } from '../utils/quantite'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Swal from 'sweetalert2'
@@ -1451,10 +1466,22 @@ async function ouvrirOrdonnanceListe(o) {
   await choisirOrdonnance({ id: o.id })
 }
 
+/** Quantité saisie supérieure à la quantité demandée par le médecin (reste à délivrer). */
+function depasseQuantite(p) {
+  return p.quantiteMax != null && Number(quantites[p.id] || 0) > p.quantiteMax
+}
+
 async function dispenser(reglement) {
   // `reglement` = { type, motif } pour un crédit ou un cas social (sinon paiement comptant)
   const sansPaiement = reglement?.type === 'CREDIT' || reglement?.type === 'CAS_SOCIAL'
   if (!ordonnance.value) return
+  const trop = ordonnance.value.prescriptions.find((p) => depasseQuantite(p))
+  if (trop) {
+    toastError(
+      `« ${trop.medicamentNom} » : la quantité délivrée (${quantites[trop.id]}) ne peut pas dépasser la quantité demandée par le médecin (${trop.quantiteMax}).`,
+    )
+    return
+  }
   const lignes = ordonnance.value.prescriptions
     .filter((p) => p.medicament && quantites[p.id] > 0)
     .map((p) => ({ prescriptionId: p.id, quantiteDelivree: quantites[p.id] }))
@@ -2234,6 +2261,20 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.qte-input.qte-erreur {
+  border-color: #dc2626;
+  outline: 2px solid #fecaca;
+}
+.qte-message {
+  display: block;
+  color: #dc2626;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.qte-demandee {
+  font-weight: 700;
+  white-space: nowrap;
+}
 .statut-stock-libelle {
   display: block;
   font-size: 11px;

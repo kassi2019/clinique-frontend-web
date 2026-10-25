@@ -188,6 +188,9 @@
         <button class="tab-btn" :class="{ active: onglet === 'medicaments' }" @click="onglet = 'medicaments'">
           💊 Prescription de médicaments
         </button>
+        <button class="tab-btn" :class="{ active: onglet === 'soins' }" @click="onglet = 'soins'">
+          💉 Soins
+        </button>
         <button class="tab-btn" :class="{ active: onglet === 'examens' }" @click="onglet = 'examens'">
           🔬 Examens (labo / imagerie)
         </button>
@@ -663,7 +666,7 @@
                         <span class="text-muted" v-if="p.forme"> ({{ p.forme }})</span>
                         <span v-if="p.prixUnitaire != null" class="prix-ligne"> — {{ formatPrix(p.prixUnitaire) }} F</span>
                         <div class="text-muted small-note">
-                          {{ [p.posologie, p.quantite, p.duree].filter(Boolean).join(' · ') || '—' }}
+                          {{ detailPrescription(p) }}
                         </div>
                       </td>
                       <td style="width: 40px">
@@ -692,14 +695,15 @@
                     />
                   </div>
                   <div class="field">
-                    <label>Posologie</label>
+                    <label>Posologie <span class="requis">*</span></label>
                     <SelectSearch v-model="ficheMedPoso" :options="listesParams.POSOLOGIE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : 1 comprimé 3x/j" />
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="field">
-                    <label>Quantité</label>
-                    <input v-model.trim="ficheMedQte" placeholder="Ex : 2 boîtes" />
+                    <label>Quantité à acheter <span class="requis">*</span></label>
+                    <input v-model.number="ficheMedQte" type="number" min="1" placeholder="Ex : 2" />
+                    <small class="text-muted">{{ uniteDuMedicament(ficheMedId, ficheMedQte) }}</small>
                   </div>
                   <div class="field">
                     <label>Durée</label>
@@ -794,11 +798,11 @@
                   <input v-model.trim="formConsult.hospitalisationDuree" placeholder="Ex : 3 jours" />
                 </div>
                 <div class="field">
-                  <label>Nombre de jours (facturation) *</label>
+                  <label>Nombre de jours (facturation) <span class="requis">*</span></label>
                   <input v-model.number="formConsult.hospitalisationDureeJours" type="number" min="1" />
                 </div>
                 <div class="field">
-                  <label>Chambre / lit *</label>
+                  <label>Chambre / lit <span class="requis">*</span></label>
                   <SelectSearch
                     v-model="formConsult.litId"
                     :options="optionsLitsLibres"
@@ -877,7 +881,7 @@
                 <tr>
                   <th>Médicament</th>
                   <th>Posologie</th>
-                  <th>Quantité</th>
+                  <th>Quantité à acheter</th>
                   <th>Durée</th>
                   <th></th>
                 </tr>
@@ -886,7 +890,7 @@
                 <tr v-for="p in medicamentsOrdonnance" :key="p.id">
                   <td><strong>{{ p.medicamentNom }}</strong><span v-if="p.forme" class="text-muted"> ({{ p.forme }})</span></td>
                   <td>{{ p.posologie || '—' }}</td>
-                  <td>{{ p.quantite || '—' }}</td>
+                  <td><strong>{{ quantiteDemandee(p) }}</strong></td>
                   <td>{{ p.duree || '—' }}</td>
                   <td>
                     <button
@@ -922,6 +926,75 @@
               </span>
             </div>
           </div>
+          </template>
+        </section>
+
+        <!-- ══ Onglet Soins : injection, pansement, perfusion… → module Soins ══ -->
+        <section v-else-if="onglet === 'soins'" class="card">
+          <div class="card-header"><h2>Prescription des soins</h2></div>
+          <div v-if="!consultation" class="empty-state">
+            💉 Enregistrez d'abord la fiche de consultation pour prescrire des soins.
+          </div>
+          <template v-else>
+            <p class="text-muted small-note">
+              Les soins prescrits apparaissent aussitôt dans le module <strong>Soins</strong>. Leurs médicaments
+              partent sur une ordonnance « Soins » que l'infirmier retire à la pharmacie.
+            </p>
+            <div v-if="soinsPrescrits.length === 0" class="text-muted small-note">Aucun soin prescrit.</div>
+            <div v-else class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Type de soin</th>
+                    <th>Médicaments à administrer</th>
+                    <th>Rythme</th>
+                    <th>Instructions</th>
+                    <th>Suivi</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="s in soinsPrescrits" :key="s.id">
+                    <td>
+                      <strong>{{ s.typeSoin }}</strong>
+                      <div v-if="s.ordonnance" class="text-muted">{{ s.ordonnance.numero }}</div>
+                    </td>
+                    <td>
+                      <div v-for="l in s.lignes" :key="l.id">
+                        💊 <strong>{{ l.medicamentNom }}</strong> — {{ l.dose }} {{ l.unite }}
+                        <span v-if="l.voie">({{ libelleVoie(l.voie) }})</span>
+                        <span v-if="l.posologie" class="text-muted"> · {{ l.posologie }}</span>
+                        <span class="text-muted"> · {{ l.quantitePharmacie }} à retirer</span>
+                      </div>
+                      <span v-if="!s.lignes.length" class="text-muted">—</span>
+                    </td>
+                    <td class="soin-nowrap">{{ s.foisParJour }} fois/jour · {{ s.dureeJours }} j</td>
+                    <td>{{ s.instructions || '—' }}</td>
+                    <td class="soin-nowrap">
+                      <span class="badge" :class="badgeStatutSoin(s.statut)">{{ libelleStatutSoin(s.statut) }}</span>
+                      <div class="text-muted">{{ s.administrations.length }}/{{ s.nbAdministrations }} faite(s)</div>
+                    </td>
+                    <td>
+                      <button
+                        v-if="s.administrations.length === 0"
+                        class="btn btn-danger btn-sm"
+                        title="Retirer"
+                        @click="retirerSoin(s)"
+                      >✕</button>
+                      <button
+                        v-else-if="s.statut === 'EN_COURS'"
+                        class="btn btn-outline btn-sm"
+                        title="Arrêter le soin"
+                        @click="arreterSoin(s)"
+                      >⏹ Arrêter</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <button class="btn btn-outline btn-sm btn-add" @click="ouvrirPrescriptionSoin">
+              ＋ Prescrire un soin
+            </button>
           </template>
         </section>
 
@@ -1580,7 +1653,7 @@
           <strong>« fait hors clinique »</strong> et ne sera plus à payer à la caisse.
         </p>
         <div class="field">
-          <label>Fichier du résultat {{ ligneJoindre.resultatExterne ? '(laisser vide pour garder le document actuel)' : '*' }}</label>
+          <label>Fichier du résultat <span v-if="ligneJoindre.resultatExterne">(laisser vide pour garder le document actuel)</span><span v-else class="requis">*</span></label>
           <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" @change="onFichierResultat" />
           <span v-if="formJoindre.nomFichier" class="text-muted">
             ✓ {{ formJoindre.nomFichier }} ({{ formJoindre.tailleLisible }})
@@ -1727,12 +1800,13 @@
           </div>
           <div class="form-row">
             <div class="field">
-              <label>Posologie</label>
+              <label>Posologie <span class="requis">*</span></label>
               <SelectSearch v-model="ajoutPosologie" :options="listesParams.POSOLOGIE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : 1 comprimé 3x/j" />
             </div>
             <div class="field">
-              <label>Quantité</label>
-              <input v-model.trim="ajoutQuantite" placeholder="Ex : 12 comprimés" />
+              <label>Quantité à acheter <span class="requis">*</span></label>
+              <input v-model.number="ajoutQuantite" type="number" min="1" placeholder="Ex : 2" />
+              <small class="text-muted">{{ uniteDuMedicament(ajoutMedicamentId, ajoutQuantite) }}</small>
             </div>
             <div class="field">
               <label>Durée</label>
@@ -1743,6 +1817,144 @@
             <button type="button" class="btn btn-outline" @click="ajoutVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="ajoutEnCours">
               {{ ajoutEnCours ? 'Ajout…' : 'Ajouter' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modale : prescription d'un soin -->
+    <div v-if="soinVisible" class="modal-backdrop">
+      <div class="modal modal-soin">
+        <h2>💉 Prescrire un soin</h2>
+        <p v-if="soinErreur" class="alert alert-error">{{ soinErreur }}</p>
+        <form @submit.prevent="confirmerSoin">
+          <div class="form-row">
+            <div class="field">
+              <label>Type de soin <span class="requis">*</span></label>
+              <SelectSearch
+                v-model="formSoin.typeSoinId"
+                :options="listesParams.TYPE_SOIN.map((x) => ({ value: x.id, label: x.libelle }))"
+                placeholder="— Choisir le type de soin —"
+              />
+            </div>
+            <div class="field">
+              <label>Fois par jour <span class="requis">*</span></label>
+              <input v-model.number="formSoin.foisParJour" type="number" min="1" max="24" required />
+            </div>
+            <div class="field">
+              <label>Durée (jours) <span class="requis">*</span></label>
+              <input v-model.number="formSoin.dureeJours" type="number" min="1" max="365" required />
+            </div>
+          </div>
+          <p class="text-muted small-note">
+            Soit <strong>{{ totalAdministrationsSoin }}</strong> administration(s) à confirmer par l'infirmier.
+          </p>
+
+          <h3 class="section-title">Médicaments à administrer</h3>
+          <p v-if="optionsConsommables.length === 0" class="text-muted small-note">
+            Aucun médicament consommable disponible en stock.
+          </p>
+          <!-- Saisie d'un médicament (champs avec libellés) + « Ajouter » → tableau en dessous -->
+          <div class="soin-saisie">
+            <div class="field">
+              <label>Médicament consommable <span class="requis">*</span></label>
+              <SelectSearch v-model="ligneSaisie.medicamentId" :options="optionsConsommables" placeholder="— Choisir —" />
+            </div>
+            <div class="field">
+              <label>Qté par prise <span class="requis">*</span></label>
+              <input v-model.trim="ligneSaisie.dose" placeholder="1, 1/2" @keydown.enter.prevent="ajouterLigneSoin" />
+            </div>
+            <div class="field">
+              <label>Unité</label>
+              <SelectSearch
+                v-model="ligneSaisie.unite"
+                :options="UNITES_SOIN.map((u) => ({ value: u, label: u }))"
+                libre
+                brut
+                placeholder="ampoule"
+              />
+            </div>
+            <div class="field">
+              <label>Voie</label>
+              <SelectSearch v-model="ligneSaisie.voie" :options="VOIES_SOIN" placeholder="— Voie —" />
+            </div>
+            <div class="field">
+              <label>Posologie</label>
+              <SelectSearch
+                v-model="ligneSaisie.posologie"
+                :options="listesParams.POSOLOGIE.map((x) => ({ value: x.libelle, label: x.libelle }))"
+                libre
+                placeholder="matin et soir"
+              />
+            </div>
+            <div class="field">
+              <label>À retirer</label>
+              <input
+                v-model.number="ligneSaisie.quantitePharmacie"
+                type="number"
+                min="1"
+                title="Unités à retirer à la pharmacie pour tout le traitement"
+                @input="ligneSaisie.quantiteManuelle = true"
+                @keydown.enter.prevent="ajouterLigneSoin"
+              />
+            </div>
+            <div class="field soin-saisie-bouton">
+              <button type="button" class="btn btn-primary" @click="ajouterLigneSoin">＋ Ajouter</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="soin-tableau">
+              <thead>
+                <tr>
+                  <th>Médicament consommable</th>
+                  <th>Qté par prise</th>
+                  <th>Unité</th>
+                  <th>Voie</th>
+                  <th>Posologie</th>
+                  <th>À retirer</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(l, i) in formSoin.lignes" :key="i">
+                  <td><strong>{{ nomConsommable(l.medicamentId) }}</strong></td>
+                  <td>{{ l.dose }}</td>
+                  <td>{{ l.unite || '—' }}</td>
+                  <td>{{ l.voie ? libelleVoie(l.voie) : '—' }}</td>
+                  <td>{{ l.posologie || '—' }}</td>
+                  <td>
+                    <input
+                      v-model.number="l.quantitePharmacie"
+                      class="soin-qte"
+                      type="number"
+                      min="1"
+                      title="Unités à retirer à la pharmacie"
+                      @input="l.quantiteManuelle = true"
+                    />
+                  </td>
+                  <td>
+                    <button type="button" class="btn btn-danger btn-sm" title="Retirer ce médicament" @click="formSoin.lignes.splice(i, 1)">✕</button>
+                  </td>
+                </tr>
+                <tr v-if="formSoin.lignes.length === 0">
+                  <td colspan="7" class="text-muted soin-vide">
+                    Aucun médicament ajouté (un pansement peut s'en passer).
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="field">
+            <label>Instructions complémentaires</label>
+            <textarea v-model.trim="formSoin.instructions" rows="2" placeholder="Ex : injecter lentement, surveiller la tension…" />
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" @click="soinVisible = false">✖ Annuler</button>
+            <button type="submit" class="btn btn-primary" :disabled="soinEnCours">
+              {{ soinEnCours ? 'Enregistrement…' : '💾 Prescrire le soin' }}
             </button>
           </div>
         </form>
@@ -2223,6 +2435,15 @@ const TEL_CERTIFICAT = '27 24 45 26 01'
 /** Logo paramétré (Paramétrage → Paramètres → image de connexion), sinon logo du modèle. */
 const logoParametre = ref('')
 import SelectSearch from '../components/SelectSearch.vue'
+import { quantiteDemandee, uniteVenteTexte } from '../utils/quantite'
+import {
+  UNITES_SOIN,
+  VOIES_SOIN,
+  badgeStatutSoin,
+  libelleStatutSoin,
+  libelleVoie,
+  quantiteSuggeree,
+} from '../utils/soins'
 import ReferenceFiche from '../components/ReferenceFiche.vue'
 
 const auth = useAuthStore()
@@ -2563,6 +2784,14 @@ async function ajouterMedicamentFiche() {
     ficheMedError.value = 'Choisissez un médicament du catalogue ou saisissez un nom.'
     return
   }
+  if (!String(ficheMedPoso.value ?? '').trim()) {
+    ficheMedError.value = 'Indiquez la posologie.'
+    return
+  }
+  if (!quantiteValide(ficheMedQte.value)) {
+    ficheMedError.value = 'Indiquez la quantité à acheter (nombre de boîtes ou de plaquettes).'
+    return
+  }
   ficheMedEnCours.value = true
   ficheMedError.value = ''
   try {
@@ -2570,7 +2799,7 @@ async function ajouterMedicamentFiche() {
       medicamentId: ficheMedId.value ?? undefined,
       nom: ficheMedNom.value.trim() || undefined,
       posologie: ficheMedPoso.value || undefined,
-      quantite: ficheMedQte.value || undefined,
+      quantite: String(ficheMedQte.value),
       duree: ficheMedDuree.value || undefined,
     })
     alimenterListe('POSOLOGIE', ficheMedPoso.value)
@@ -2601,6 +2830,7 @@ const ROUTES_LISTES = {
   ANTECEDENT: '/antecedents-medicaux',
   EXAMEN: '/autres-examens',
   INTERVENTION: '/interventions-chirurgicales',
+  TYPE_SOIN: '/types-soins',
 }
 
 /** Patient de sexe masculin : la DDR et « Grossesse en cours » sont masquées. */
@@ -2712,6 +2942,7 @@ const listesParams = reactive({
   ANTECEDENT: [],
   EXAMEN: [],
   INTERVENTION: [],
+  TYPE_SOIN: [],
 })
 
 async function chargerListesParams(cliniqueId) {
@@ -3551,6 +3782,14 @@ async function confirmerAjoutMedicament() {
     ajoutError.value = 'Sélectionnez un médicament du catalogue ou saisissez un nom.'
     return
   }
+  if (!String(ajoutPosologie.value ?? '').trim()) {
+    ajoutError.value = 'Indiquez la posologie.'
+    return
+  }
+  if (!quantiteValide(ajoutQuantite.value)) {
+    ajoutError.value = 'Indiquez la quantité à acheter (nombre de boîtes ou de plaquettes).'
+    return
+  }
   ajoutEnCours.value = true
   ajoutError.value = ''
   try {
@@ -3559,7 +3798,7 @@ async function confirmerAjoutMedicament() {
       ordonnanceId: ordonnanceActive.value?.statut === 'EN_ATTENTE' ? ordonnanceActive.value.id : undefined,
       nom: ajoutNom.value || undefined,
       posologie: ajoutPosologie.value || undefined,
-      quantite: ajoutQuantite.value || undefined,
+      quantite: String(ajoutQuantite.value),
       duree: ajoutDuree.value || undefined,
     })
     // Posologie saisie librement : ajoutée automatiquement à la liste paramétrée
@@ -3580,6 +3819,30 @@ async function confirmerAjoutMedicament() {
   }
 }
 
+/** « Posologie : … · Quantité à acheter : 2 plaquettes · Durée : … » */
+function detailPrescription(p) {
+  return (
+    [
+      p.posologie && `Posologie : ${p.posologie}`,
+      p.quantite && `Quantité à acheter : ${quantiteDemandee(p)}`,
+      p.duree && `Durée : ${p.duree}`,
+    ]
+      .filter(Boolean)
+      .join(' · ') || '—'
+  )
+}
+
+/** Quantité à acheter : nombre entier ≥ 1 (boîtes ou plaquettes). */
+function quantiteValide(q) {
+  return Number.isInteger(Number(q)) && Number(q) >= 1
+}
+
+/** Unité de vente du médicament choisi, affichée sous la quantité (« plaquettes »). */
+function uniteDuMedicament(id, q) {
+  const m = medicaments.value.find((x) => x.id === id)
+  return m ? uniteVenteTexte(m.uniteVente, q || 2) : 'boîtes ou plaquettes'
+}
+
 async function retirerMedicament(p) {
   try {
     await http.delete(`/consultations/medicaments/${p.id}`)
@@ -3587,6 +3850,144 @@ async function retirerMedicament(p) {
     await chargerDetail()
   } catch (e) {
     toastError(e.response?.data?.message || 'Erreur lors du retrait.')
+  }
+}
+
+// ── Onglet Soins : prescription → module Soins (sans caisse) ──
+const soinsPrescrits = computed(() => consultation.value?.soins ?? [])
+const soinVisible = ref(false)
+const soinEnCours = ref(false)
+const soinErreur = ref('')
+const formSoin = reactive({ typeSoinId: null, foisParJour: 1, dureeJours: 1, instructions: '', lignes: [] })
+const totalAdministrationsSoin = computed(
+  () => Math.max(1, Number(formSoin.foisParJour) || 1) * Math.max(1, Number(formSoin.dureeJours) || 1),
+)
+
+/** Seuls les médicaments consommables disponibles en stock sont proposés. */
+const optionsConsommables = computed(() =>
+  medicaments.value
+    .filter((m) => m.consommable && m.stock > 0)
+    .map((m) => ({
+      value: m.id,
+      label: `${m.nom}${m.dosage ? ' — ' + m.dosage : ''}${m.forme ? ' (' + m.forme + ')' : ''} · stock ${m.stock}`,
+    })),
+)
+
+/** Ligne de saisie en bas du tableau : « Ajouter » la reporte dans le tableau. */
+const ligneSaisie = reactive({})
+function viderLigneSaisie() {
+  Object.assign(ligneSaisie, {
+    medicamentId: null,
+    dose: '1',
+    unite: '',
+    voie: null,
+    posologie: '',
+    quantitePharmacie: totalAdministrationsSoin.value,
+    quantiteManuelle: false,
+  })
+}
+viderLigneSaisie()
+
+function nomConsommable(id) {
+  const m = medicaments.value.find((x) => x.id === id)
+  return m ? `${m.nom}${m.dosage ? ' — ' + m.dosage : ''}` : '—'
+}
+
+/** Ajoute la ligne saisie au tableau (false si elle est incomplète). */
+function ajouterLigneSoin() {
+  if (!ligneSaisie.medicamentId) {
+    soinErreur.value = 'Choisissez le médicament consommable.'
+    return false
+  }
+  if (!String(ligneSaisie.dose ?? '').trim()) {
+    soinErreur.value = 'Indiquez la quantité par prise.'
+    return false
+  }
+  soinErreur.value = ''
+  formSoin.lignes.push({ ...ligneSaisie, quantitePharmacie: Number(ligneSaisie.quantitePharmacie) || 1 })
+  viderLigneSaisie()
+  return true
+}
+
+// Quantité à retirer à la pharmacie : dose × nombre d'administrations (tant qu'elle n'est pas saisie à la main)
+watch(
+  () => [
+    totalAdministrationsSoin.value,
+    formSoin.lignes.map((l) => l.dose).join('|'),
+    ligneSaisie.dose,
+  ],
+  () => {
+    ;[...formSoin.lignes, ligneSaisie].forEach((l) => {
+      if (!l.quantiteManuelle) l.quantitePharmacie = quantiteSuggeree(l.dose, totalAdministrationsSoin.value)
+    })
+  },
+)
+
+async function ouvrirPrescriptionSoin() {
+  Object.assign(formSoin, { typeSoinId: null, foisParJour: 1, dureeJours: 1, instructions: '', lignes: [] })
+  viderLigneSaisie()
+  soinErreur.value = ''
+  soinVisible.value = true
+  await chargerMedicamentsCatalogue()
+}
+
+async function confirmerSoin() {
+  if (!consultation.value) return
+  if (!formSoin.typeSoinId) {
+    soinErreur.value = 'Choisissez le type de soin.'
+    return
+  }
+  // Médicament choisi dans la ligne de saisie mais pas encore ajouté : on l'ajoute
+  if (ligneSaisie.medicamentId && !ajouterLigneSoin()) return
+  const lignes = formSoin.lignes
+  soinEnCours.value = true
+  soinErreur.value = ''
+  try {
+    await http.post(`/consultations/${consultation.value.id}/soins`, {
+      typeSoinId: formSoin.typeSoinId,
+      foisParJour: Number(formSoin.foisParJour),
+      dureeJours: Number(formSoin.dureeJours),
+      instructions: formSoin.instructions || undefined,
+      lignes: lignes.map((l) => ({
+        medicamentId: l.medicamentId,
+        dose: l.dose,
+        unite: l.unite || undefined,
+        voie: l.voie || undefined,
+        posologie: l.posologie || undefined,
+        quantitePharmacie: Number(l.quantitePharmacie) || 1,
+      })),
+    })
+    lignes.forEach((l) => alimenterListe('POSOLOGIE', l.posologie))
+    soinVisible.value = false
+    toastSuccess('Soin prescrit — il est visible dans le module Soins.')
+    await chargerDetail()
+  } catch (e) {
+    const m = e.response?.data?.message
+    soinErreur.value = Array.isArray(m) ? m.join(' · ') : m || 'Erreur lors de la prescription du soin.'
+  } finally {
+    soinEnCours.value = false
+  }
+}
+
+async function retirerSoin(s) {
+  if (!(await confirmer(`Retirer le soin « ${s.typeSoin} » ?`))) return
+  try {
+    await http.delete(`/consultations/soins/${s.id}`)
+    toastSuccess('Soin retiré.')
+    await chargerDetail()
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Erreur lors du retrait.')
+  }
+}
+
+async function arreterSoin(s) {
+  if (!(await confirmer(`Arrêter le soin « ${s.typeSoin} » ? Les administrations restantes ne seront pas faites.`))) return
+  try {
+    await http.post(`/consultations/soins/${s.id}/arreter`)
+    toastSuccess('Soin arrêté.')
+    await chargerDetail()
+  } catch (e) {
+    toastError(e.response?.data?.message || "Erreur lors de l'arrêt du soin.")
   }
 }
 
@@ -4272,6 +4673,57 @@ onUnmounted(() => {
 }
 .small-note {
   font-size: 13px;
+}
+.modal-soin {
+  max-width: 1280px;
+  width: 96vw;
+}
+/* Ligne de saisie : les colonnes rétrécissent sans déborder (min-width: 0) */
+.soin-saisie {
+  display: grid;
+  grid-template-columns: minmax(0, 2.4fr) minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1.3fr) minmax(0, 1.6fr) minmax(0, 0.9fr) auto;
+  gap: 10px;
+  align-items: end;
+  background: var(--primary-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px 0;
+  margin-bottom: 12px;
+}
+.soin-saisie .field {
+  min-width: 0;
+}
+.soin-saisie .field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.soin-saisie-bouton .btn {
+  white-space: nowrap;
+}
+@media (max-width: 900px) {
+  .soin-saisie {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.soin-tableau {
+  width: 100%;
+  margin-bottom: 12px;
+}
+.soin-tableau th,
+.soin-tableau td {
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+.soin-tableau .soin-qte {
+  width: 70px;
+  padding: 4px 6px;
+}
+.soin-nowrap {
+  white-space: nowrap;
+}
+.soin-vide {
+  text-align: center;
+  font-style: italic;
 }
 .btn-add {
   margin-top: 8px;

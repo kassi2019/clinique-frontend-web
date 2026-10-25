@@ -124,7 +124,7 @@
         <h2>🛏️ {{ chambreEditee ? 'Modifier la chambre' : 'Nouvelle chambre' }}</h2>
         <div class="form-row">
           <div class="field">
-            <label>Numéro *</label>
+            <label>Numéro <span class="requis">*</span></label>
             <input v-model.trim="formChambre.numero" placeholder="101" />
           </div>
           <div class="field">
@@ -159,7 +159,7 @@
       <div class="modal modal-sm">
         <h2>🛌 Nouveau lit — chambre {{ chambreLit?.numero }}</h2>
         <div class="field">
-          <label>Numéro du lit *</label>
+          <label>Numéro du lit <span class="requis">*</span></label>
           <input v-model.trim="formLit.numero" placeholder="A" />
         </div>
         <div class="modal-actions">

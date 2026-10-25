@@ -345,7 +345,7 @@
             <input v-model="sortieForm.dateSortie" type="datetime-local" />
           </div>
           <div class="field">
-            <label>Motif de sortie *</label>
+            <label>Motif de sortie <span class="requis">*</span></label>
             <select v-model="sortieForm.sortieMotif">
               <option value="">— Choisir —</option>
               <option value="EXEAT">Exéat</option>
