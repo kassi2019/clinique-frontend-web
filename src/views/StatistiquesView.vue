@@ -41,9 +41,9 @@
           <h2>{{ menuActif.icon }} {{ menuActif.label }}</h2>
           <div class="periode-bar">
             <label>Période</label>
-            <input v-model="debut" type="date" class="search-input" />
+            <DateSaisie v-model="debut" class="search-input" />
             <span>→</span>
-            <input v-model="fin" type="date" class="search-input" />
+            <DateSaisie v-model="fin" class="search-input" />
             <button class="btn btn-primary btn-sm" @click="charger">🔄 Actualiser</button>
           </div>
           <div class="stat-actions">
@@ -281,6 +281,7 @@
 </template>
 
 <script setup>
+import DateSaisie from '../components/DateSaisie.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import * as XLSX from 'xlsx'

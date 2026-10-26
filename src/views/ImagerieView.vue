@@ -351,10 +351,9 @@
               <template v-if="c.type === 'choix'">
                 <SelectSearch v-model="ficheValeurs[c.code]" :options="(c.options ?? []).map((o) => ({ value: o, label: o }))" libre brut placeholder="— choisir ou saisir —" />
               </template>
-              <input
+              <DateSaisie
                 v-else-if="c.type === 'date'"
                 v-model="ficheValeurs[c.code]"
-                type="date"
               />
               <input
                 v-else-if="c.type === 'nombre'"
@@ -461,9 +460,8 @@
           <h2>Historique des examens réalisés (§12)</h2>
         </div>
         <div class="toolbar">
-          <input
+          <DateSaisie
             v-model="jourFiltre"
-            type="date"
             class="search-input"
             style="max-width: 170px; flex: none"
             @change="chargerHistorique"
@@ -826,6 +824,7 @@
 </template>
 
 <script setup>
+import DateSaisie from '../components/DateSaisie.vue'
 import {
   computed,
   nextTick,

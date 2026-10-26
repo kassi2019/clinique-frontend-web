@@ -235,9 +235,8 @@
       <section v-else class="card">
         <div class="card-header"><h2>Historique des hospitalisations (§13)</h2></div>
         <div class="toolbar">
-          <input
+          <DateSaisie
             v-model="jourFiltre"
-            type="date"
             class="search-input"
             style="max-width: 170px; flex: none"
             @change="chargerHistorique"
@@ -342,7 +341,7 @@
         <div class="form-row">
           <div class="field">
             <label>Date de sortie</label>
-            <input v-model="sortieForm.dateSortie" type="datetime-local" />
+            <DateHeureSaisie v-model="sortieForm.dateSortie" />
           </div>
           <div class="field">
             <label>Motif de sortie <span class="requis">*</span></label>
@@ -371,6 +370,8 @@
 </template>
 
 <script setup>
+import DateHeureSaisie from '../components/DateHeureSaisie.vue'
+import DateSaisie from '../components/DateSaisie.vue'
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Swal from 'sweetalert2'

@@ -27,6 +27,9 @@
           <button class="btn-logout" @click="ouvrirChangement = true">
             <span>🔑 Mot de passe</span>
           </button>
+          <button v-if="estPrescripteur" class="btn-logout" @click="ouvrirSignature = true">
+            <span>✍️ Ma signature</span>
+          </button>
           <button class="btn-logout" @click="onLogout">
             <span>Déconnexion</span>
           </button>
@@ -137,6 +140,21 @@
         </form>
       </div>
     </div>
+
+    <!-- Modale : signature et cachet du prescripteur (apposés au choix sur les documents imprimés) -->
+    <div v-if="ouvrirSignature" class="modal-backdrop" @click.self="ouvrirSignature = false">
+      <div class="modal modal-signature">
+        <h2>✍️ Ma signature et mon cachet</h2>
+        <p class="text-muted">
+          Ils s'impriment sur les documents que vous établissez (ordonnances, fiches, certificats, fiches de
+          référence, reçus A4…) quand vous cochez « Apposer ma signature et mon cachet » avant d'imprimer.
+        </p>
+        <SignatureCachetEditeur />
+        <div class="modal-actions">
+          <button type="button" class="btn btn-primary" @click="ouvrirSignature = false">Terminé</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -144,6 +162,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import SignatureCachetEditeur from '../components/SignatureCachetEditeur.vue'
 import http from '../api/http'
 import { confirmer, toastError, toastSuccess } from '../utils/notifications'
 
@@ -156,6 +175,9 @@ const photo = computed(() => auth.user?.personnel?.photo ?? null)
 
 // ── Changement de mot de passe ──
 const ouvrirChangement = ref(false)
+const ouvrirSignature = ref(false)
+// Bouton « Ma signature » : rôle autorisé par l'administrateur (case « ✍️ Signature » de la liste des rôles)
+const estPrescripteur = computed(() => !!auth.user?.personnel && !!auth.user?.role?.signatureAutorisee)
 const enCours = ref(false)
 const voirMdp = ref(false)
 const mdp = reactive({ actuel: '', nouveau: '', confirmation: '' })
@@ -484,6 +506,9 @@ function onLogout() {
   width: 1px;
   height: 30px;
   background: rgba(255, 255, 255, 0.28);
+}
+.modal-signature {
+  max-width: 640px;
 }
 .btn-logout {
   padding: 8px 15px;

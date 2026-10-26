@@ -76,7 +76,7 @@
           <h2>Services pointés</h2>
         </div>
         <div class="toolbar">
-          <input v-model="mois" type="month" class="search-input champ-court" @change="chargerServices" />
+          <DateSaisie v-model="mois" mensuel class="search-input champ-court" @change="chargerServices" />
           <select v-model="filtreAgent" class="search-input champ-moyen" @change="chargerServices">
             <option :value="null">Tous les agents</option>
             <option v-for="a in agents" :key="a.personnelId" :value="a.personnelId">{{ a.nom }} {{ a.prenom }}</option>
@@ -194,7 +194,7 @@
           </div>
         </div>
         <div class="toolbar">
-          <input v-model="mois" type="month" class="search-input champ-court" @change="chargerFiches" />
+          <DateSaisie v-model="mois" mensuel class="search-input champ-court" @change="chargerFiches" />
           <button class="btn btn-primary btn-sm" :disabled="calculEnCours" @click="genererFiches">
             {{ calculEnCours ? 'Calcul…' : '🔄 Calculer / recalculer les fiches du mois' }}
           </button>
@@ -303,11 +303,11 @@
         <div class="form-row">
           <div class="field">
             <label>Début</label>
-            <input v-model="correction.debut" type="datetime-local" />
+            <DateHeureSaisie v-model="correction.debut" />
           </div>
           <div class="field">
             <label>Fin</label>
-            <input v-model="correction.fin" type="datetime-local" />
+            <DateHeureSaisie v-model="correction.fin" />
           </div>
           <div class="field">
             <label>Heures retenues (vide = calcul automatique)</label>
@@ -421,6 +421,8 @@
 </template>
 
 <script setup>
+import DateHeureSaisie from '../components/DateHeureSaisie.vue'
+import DateSaisie from '../components/DateSaisie.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import * as XLSX from 'xlsx'

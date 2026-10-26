@@ -70,7 +70,7 @@
       <div class="form-row">
         <div class="field"><label>N° Registre SIG</label><input v-model.trim="form.numeroRegistreSig" /></div>
         <div class="field"><label>District sanitaire</label><input v-model.trim="form.districtSanitaire" /></div>
-        <div class="field"><label>Date d'admission</label><input v-model="form.dateAdmission" type="date" /></div>
+        <div class="field"><label>Date d'admission</label><DateSaisie v-model="form.dateAdmission" /></div>
         <div class="field"><label>Heure d'admission</label><input v-model.trim="form.heureAdmission" /></div>
       </div>
       <div class="form-row">
@@ -155,6 +155,7 @@
     <div v-if="apercu" class="apercu-barre">
       <span>👁️ Aperçu de la fiche de référence — vérifiez avant d'imprimer</span>
       <div class="apercu-barre-actions">
+        <CaseSignature :prescripteur-id="apercu.etabliParId" />
         <button class="btn btn-primary btn-sm" @click="imprimerNavigateur">🖨️ Imprimer</button>
         <button class="btn btn-outline btn-sm btn-back" @click="apercu = null">Fermer</button>
       </div>
@@ -181,7 +182,10 @@
           <span class="ref-lib">{{ l.lib }} :</span><span class="ref-val">{{ l.val }}</span>
         </div>
         <div class="ref-sign">
-          <div>Fiche établie par : {{ nomAgent }}</div>
+          <div>
+            Fiche établie par : {{ nomAgent }}
+            <BlocSignature :prescripteur-id="apercu.etabliParId" compact />
+          </div>
           <div>{{ apercu.numero }}</div>
         </div>
       </div>
@@ -190,6 +194,9 @@
 </template>
 
 <script setup>
+import DateSaisie from './DateSaisie.vue'
+import BlocSignature from './BlocSignature.vue'
+import CaseSignature from './CaseSignature.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import http from '../api/http'
 import { toastError, toastSuccess } from '../utils/notifications'
@@ -432,7 +439,7 @@ const lignesContre = computed(() => {
   font-size: 13.5px;
   flex-wrap: wrap;
 }
-.apercu-barre-actions { display: flex; gap: 8px; }
+.apercu-barre-actions { display: flex; gap: 8px; align-items: center; }
 .apercu-barre .btn-back {
   color: #fff;
   border-color: rgba(255, 255, 255, 0.45);

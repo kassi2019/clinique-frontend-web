@@ -562,6 +562,21 @@ select {
   border-radius: 6px;
 }
 
+/* Inventaire : n° de lot et péremption modifiables */
+.inventaire-lot {
+  width: 130px;
+}
+.inventaire-peremption {
+  width: 150px;
+}
+.inventaire-input.modifie {
+  border-color: #d97706;
+  background: #fffbeb;
+}
+.inventaire-lots tr.lot-corrige td {
+  background: #fffdf5;
+}
+
 .lot-fournisseur {
   display: block;
   font-size: 11px;

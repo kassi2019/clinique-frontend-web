@@ -92,9 +92,8 @@
               <option value="EN_ATTENTE">En attente</option>
               <option value="TRAITEE">Traitées</option>
             </select>
-            <input
+            <DateSaisie
               v-model="filtreDateOrdo"
-              type="date"
               class="search-input"
               style="max-width: 170px; flex: none"
               title="Vide = aujourd'hui"
@@ -594,12 +593,25 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="l in lotsDe(m.id)" :key="l.id">
+                  <tr v-for="l in lotsDe(m.id)" :key="l.id" :class="{ 'lot-corrige': lotCorrige(l) }">
+                    <!-- N° de lot et péremption corrigeables pendant le comptage (lus sur la boîte) -->
                     <td>
-                      <span class="badge badge-muted">{{ l.numeroLot }}</span>
+                      <input
+                        v-model="correctionsLots[l.id].numeroLot"
+                        class="inventaire-input inventaire-lot"
+                        :class="{ modifie: correctionsLots[l.id].numeroLot.trim() !== l.numeroLot }"
+                        :title="`N° de lot enregistré : ${l.numeroLot}`"
+                      />
                       <span v-if="l.fournisseur" class="text-muted lot-fournisseur">{{ l.fournisseur }}</span>
                     </td>
-                    <td>{{ formatDate(l.datePeremption) }}</td>
+                    <td>
+                      <DateSaisie
+                        v-model="correctionsLots[l.id].datePeremption"
+                        class="inventaire-input inventaire-peremption"
+                        :class="{ modifie: correctionsLots[l.id].datePeremption !== jourIso(l.datePeremption) }"
+                        :title="`Péremption enregistrée : ${formatDate(l.datePeremption)}`"
+                      />
+                    </td>
                     <td>{{ l.quantiteRestante }}</td>
                     <td>
                       <input
@@ -621,7 +633,7 @@
                     <td>
                       <button
                         class="btn btn-primary btn-sm"
-                        :disabled="inventaireSaisies[l.id] === undefined || inventaireSaisies[l.id] === ''"
+                        :disabled="!lotAValider(l)"
                         @click="validerInventaireLot(l)"
                       >
                       ✅ Valider
@@ -684,17 +696,15 @@
           <h2>💰 Points financiers de la pharmacie</h2>
         </div>
         <div class="toolbar">
-          <input
+          <DateSaisie
             v-model="financierDebut"
-            type="date"
             class="search-input"
             style="max-width: 160px; flex: none"
             title="Vide = sans début"
             @change="chargerFinancier"
           />
-          <input
+          <DateSaisie
             v-model="financierFin"
-            type="date"
             class="search-input"
             style="max-width: 160px; flex: none"
             title="Vide = sans fin"
@@ -784,8 +794,8 @@
           <button class="btn btn-primary btn-sm" @click="ouvrirOrdoExterne">＋ Saisir ordonnance externe</button>
         </div>
         <div class="toolbar">
-          <input v-model="externesDebut" type="date" class="search-input" style="max-width: 160px; flex: none" title="Vide = aujourd'hui" @change="chargerRapportExternes" />
-          <input v-model="externesFin" type="date" class="search-input" style="max-width: 160px; flex: none" title="Vide = aujourd'hui" @change="chargerRapportExternes" />
+          <DateSaisie v-model="externesDebut" class="search-input" style="max-width: 160px; flex: none" title="Vide = aujourd'hui" @change="chargerRapportExternes" />
+          <DateSaisie v-model="externesFin" class="search-input" style="max-width: 160px; flex: none" title="Vide = aujourd'hui" @change="chargerRapportExternes" />
           <button class="btn btn-outline btn-sm" @click="chargerRapportExternes">🔄 Actualiser</button>
           <button class="btn btn-outline btn-sm" :disabled="!rapportExternes.lignes.length" @click="exporterExternesExcel">📥 Excel</button>
           <button class="btn btn-outline btn-sm" :disabled="!rapportExternes.lignes.length" @click="imprimerExternesPdf">🖨️ PDF</button>
@@ -1027,7 +1037,7 @@
           </div>
           <div class="field">
             <label>Date de l'ordonnance</label>
-            <input v-model="ordoExt.dateOrdonnance" type="date" />
+            <DateSaisie v-model="ordoExt.dateOrdonnance" :max="dateDuJour()" title="Date écrite sur l'ordonnance (date du jour par défaut)" />
           </div>
         </div>
 
@@ -1248,10 +1258,10 @@
         <h2>🖨️ Fiche d'inventaire</h2>
         <div class="toolbar">
           <label class="fiche-inv-date">Du
-            <input v-model="ficheInvDebut" type="date" class="search-input" @change="chargerFicheInventaire" />
+            <DateSaisie v-model="ficheInvDebut" class="search-input" @change="chargerFicheInventaire" />
           </label>
           <label class="fiche-inv-date">au
-            <input v-model="ficheInvFin" type="date" class="search-input" @change="chargerFicheInventaire" />
+            <DateSaisie v-model="ficheInvFin" class="search-input" @change="chargerFicheInventaire" />
           </label>
           <button class="btn btn-outline btn-sm" @click="chargerFicheInventaire">🔄 Actualiser</button>
         </div>
@@ -1459,7 +1469,7 @@
           <div class="form-row">
             <div class="field">
               <label>Date de péremption <span class="requis">*</span></label>
-              <input v-model="entreeForm.datePeremption" type="date" required />
+              <DateSaisie v-model="entreeForm.datePeremption" required />
             </div>
             <div class="field">
               <label>Prix d'achat (FCFA)</label>
@@ -1644,6 +1654,7 @@
 </template>
 
 <script setup>
+import DateSaisie from '../components/DateSaisie.vue'
 import SelectSearch from '../components/SelectSearch.vue'
 import { quantiteDemandee } from '../utils/quantite'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
@@ -1888,6 +1899,11 @@ const assurances = ref([])
 const catalogueExterne = ref([]) // tout le catalogue (sans le filtre de l'onglet Stocks)
 let ordoExtTimer = null
 
+/** Date du jour au format AAAA-MM-JJ (heure locale). */
+function dateDuJour() {
+  return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
+
 const ORDO_EXT_VIDE = () => ({
   avecAssurance: false,
   patient: null,
@@ -1899,7 +1915,8 @@ const ORDO_EXT_VIDE = () => ({
   clientNom: '',
   prescripteur: '',
   etablissement: '',
-  dateOrdonnance: '',
+  // Date de prescription : date du jour par défaut, à corriger si l'ordonnance est plus ancienne
+  dateOrdonnance: dateDuJour(),
   lignes: [],
   modePaiement: 'ESPECES',
 })
@@ -2204,6 +2221,8 @@ let stockTimer = null
 const sousOnglet = ref('entree')
 const tousLots = ref([])
 const inventaireSaisies = ref({})
+// Corrections du n° de lot et de la péremption par lot : { [lotId]: { numeroLot, datePeremption } }
+const correctionsLots = ref({})
 const mouvementMedId = ref(null)
 const mouvements = ref([])
 
@@ -2234,22 +2253,57 @@ async function chargerInventaireLots() {
   } catch {
     tousLots.value = []
   }
+  correctionsLots.value = Object.fromEntries(
+    tousLots.value.map((l) => [l.id, { numeroLot: l.numeroLot, datePeremption: jourIso(l.datePeremption) }]),
+  )
+}
+
+/** « 2027-05-31T00:00:00.000Z » → « 2027-05-31 » */
+function jourIso(date) {
+  return date ? String(date).slice(0, 10) : ''
+}
+
+function quantiteSaisie(l) {
+  const s = inventaireSaisies.value[l.id]
+  return s !== '' && s !== undefined && s !== null
+}
+
+/** N° de lot ou péremption différents de ceux enregistrés. */
+function lotCorrige(l) {
+  const c = correctionsLots.value[l.id]
+  if (!c) return false
+  return c.numeroLot.trim() !== l.numeroLot || (c.datePeremption && c.datePeremption !== jourIso(l.datePeremption))
+}
+
+function lotAValider(l) {
+  return quantiteSaisie(l) || lotCorrige(l)
+}
+
+/** Ligne envoyée à l'API : stock compté (inchangé s'il n'est pas saisi) + corrections du lot. */
+function ligneInventaire(l) {
+  const c = correctionsLots.value[l.id]
+  const ligne = {
+    lotId: l.id,
+    quantiteReelle: quantiteSaisie(l) ? Number(inventaireSaisies.value[l.id]) : l.quantiteRestante,
+  }
+  if (lotCorrige(l)) {
+    ligne.numeroLot = c.numeroLot.trim()
+    ligne.datePeremption = c.datePeremption || undefined
+  }
+  return ligne
 }
 
 /** Nombre de lots avec une quantité réelle saisie (inventaire). */
-const nbSaisies = computed(() =>
-  Object.values(inventaireSaisies.value).filter((s) => s !== '' && s !== undefined && s !== null).length,
-)
+const nbSaisies = computed(() => tousLots.value.filter(lotAValider).length)
 
 /** Valide d'un coup toutes les quantités réelles saisies. */
 async function validerInventaireGlobal() {
-  const lignes = tousLots.value
-    .filter((l) => {
-      const s = inventaireSaisies.value[l.id]
-      return s !== '' && s !== undefined && s !== null
-    })
-    .map((l) => ({ lotId: l.id, quantiteReelle: Number(inventaireSaisies.value[l.id]) }))
+  const lignes = tousLots.value.filter(lotAValider).map(ligneInventaire)
   if (lignes.length === 0) return
+  if (lignes.some((l) => l.numeroLot === '')) {
+    toastError('Le numéro de lot ne peut pas être vide.')
+    return
+  }
   const reponse = await Swal.fire({
     title: `Valider tout l'inventaire ?`,
     text: `${lignes.length} lot(s) seront ajustés.`,
@@ -2318,13 +2372,19 @@ function imprimerFicheInventaire() {
 }
 
 async function validerInventaireLot(l) {
-  const saisie = inventaireSaisies.value[l.id]
-  if (saisie === undefined || saisie === '') return
+  if (!lotAValider(l)) return
+  const ligne = ligneInventaire(l)
+  if (ligne.numeroLot === '') {
+    toastError('Le numéro de lot ne peut pas être vide.')
+    return
+  }
   try {
-    await http.post(`/pharmacie/lots/${l.id}/inventaire`, {
-      quantiteReelle: Number(saisie),
-    })
-    toastSuccess(`Lot ${l.numeroLot} : stock ajusté à ${saisie}.`)
+    await http.post(`/pharmacie/lots/${l.id}/inventaire`, ligne)
+    toastSuccess(
+      quantiteSaisie(l)
+        ? `Lot ${ligne.numeroLot ?? l.numeroLot} : stock ajusté à ${ligne.quantiteReelle}.`
+        : `Lot ${ligne.numeroLot ?? l.numeroLot} : n° de lot / péremption corrigés.`,
+    )
     inventaireSaisies.value = { ...inventaireSaisies.value, [l.id]: '' }
     await chargerInventaireLots()
     await chargerStocks()

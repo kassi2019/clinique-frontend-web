@@ -238,9 +238,9 @@
 
         <div class="toolbar">
           <label class="periode-label">Du</label>
-          <input v-model="filtreDebut" type="date" class="date-input" @change="page = 1; chargerListe()" />
+          <DateSaisie v-model="filtreDebut" class="search-input" style="max-width: 150px; flex: none" @change="page = 1; chargerListe()" />
           <label class="periode-label">Au</label>
-          <input v-model="filtreFin" type="date" class="date-input" @change="page = 1; chargerListe()" />
+          <DateSaisie v-model="filtreFin" class="search-input" style="max-width: 150px; flex: none" @change="page = 1; chargerListe()" />
           <input
             v-model="filtreRecherche"
             class="search-input"
@@ -401,7 +401,7 @@
               </div>
               <div class="field">
                 <label>Date de naissance</label>
-                <input v-model="form.dateNaissance" type="date" />
+                <DateSaisie v-model="form.dateNaissance" naissance />
               </div>
             </div>
             <!-- Sexe, profession et téléphone sur une même ligne -->
@@ -499,11 +499,11 @@
                 </div>
                 <div class="field">
                   <label>Début de couverture</label>
-                  <input v-model="assuranceNouveau.dateDebut" type="date" />
+                  <DateSaisie v-model="assuranceNouveau.dateDebut" />
                 </div>
                 <div class="field">
                   <label>Fin de couverture</label>
-                  <input v-model="assuranceNouveau.dateFin" type="date" />
+                  <DateSaisie v-model="assuranceNouveau.dateFin" />
                 </div>
               </div>
             </template>
@@ -531,8 +531,9 @@
               <SelectSearch
                 v-model="form.motif"
                 :options="optionsListe('MOTIF', form.motif)"
-                  libre
-                placeholder="— Choisir le motif —"
+                libre
+                multiple
+                placeholder="— Choisir un ou plusieurs motifs —"
               />
             </div>
           </div>
@@ -629,11 +630,11 @@
           </div>
           <div class="field">
             <label>Début de couverture</label>
-            <input v-model="formPatientAssurance.dateDebut" type="date" />
+            <DateSaisie v-model="formPatientAssurance.dateDebut" />
           </div>
           <div class="field">
             <label>Fin de couverture</label>
-            <input v-model="formPatientAssurance.dateFin" type="date" />
+            <DateSaisie v-model="formPatientAssurance.dateFin" />
           </div>
         </div>
 
@@ -797,7 +798,7 @@
             </div>
             <div class="field">
               <label>Date de naissance</label>
-              <input v-model="formEdit.dateNaissance" type="date" />
+              <DateSaisie v-model="formEdit.dateNaissance" naissance />
             </div>
           </div>
           <!-- Sexe, profession et téléphone sur une même ligne -->
@@ -867,8 +868,9 @@
               <SelectSearch
                 v-model="formEdit.motif"
                 :options="optionsListe('MOTIF', formEdit.motif)"
-                  libre
-                placeholder="— Choisir le motif —"
+                libre
+                multiple
+                placeholder="— Choisir un ou plusieurs motifs —"
               />
             </div>
           </div>
@@ -930,6 +932,7 @@ import http from '../api/http'
 import { toastError, toastInfo, toastSuccess } from '../utils/notifications'
 import PaginationBar from '../components/PaginationBar.vue'
 import SelectSearch from '../components/SelectSearch.vue'
+import DateSaisie from '../components/DateSaisie.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -1106,10 +1109,23 @@ async function chargerListesParams(cliniqueId) {
  */
 function optionsListe(code, valeurCourante) {
   const options = listesParams[code].map((x) => ({ value: x.libelle, label: x.libelle }))
-  if (valeurCourante && !options.some((o) => o.value === valeurCourante)) {
-    options.unshift({ value: valeurCourante, label: valeurCourante })
+  const valeurs = Array.isArray(valeurCourante) ? valeurCourante : [valeurCourante]
+  for (const v of valeurs) {
+    if (v && !options.some((o) => o.value === v)) options.unshift({ value: v, label: v })
   }
   return options
+}
+
+// Motifs de consultation : choix multiple, enregistrés dans un seul champ texte séparés par « ; »
+const SEPARATEUR_MOTIFS = ' ; '
+
+function joindreMotifs(motifs) {
+  const liste = (motifs ?? []).map((m) => m.trim()).filter(Boolean)
+  return liste.length ? liste.join(SEPARATEUR_MOTIFS) : undefined
+}
+
+function separerMotifs(texte) {
+  return (texte ?? '').split(';').map((m) => m.trim()).filter(Boolean)
 }
 
 /** Ajoute silencieusement une valeur saisie librement à sa liste dédiée. */
@@ -1275,7 +1291,7 @@ function resetForm() {
     nom: '', prenom: '', age: '', dateNaissance: '', typePieceIdentite: 'CNI', numeroCni: '',
     sexe: '', ville: '', residenceActuelle: '', quartier: '',
     profession: '', telephone: '', serviceId: null, typePatient: 'INTERNE',
-    motif: '', referent: '', prestationDemandee: '', consultationPrestationId: null,
+    motif: [], referent: '', prestationDemandee: '', consultationPrestationId: null,
     actePrestationId: null,
   })
   Object.assign(assuranceNouveau, ASSURANCE_VIDE)
@@ -1510,7 +1526,7 @@ async function enregistrer() {
       cliniqueId: cliniqueId.value,
       serviceId: form.serviceId,
       typePatient: form.typePatient,
-      motif: form.motif || undefined,
+      motif: joindreMotifs(form.motif),
       referent: form.referent || undefined,
       prestationDemandee: form.prestationDemandee || undefined,
       consultationPrestationId: form.consultationPrestationId || undefined,
@@ -1563,7 +1579,7 @@ async function enregistrer() {
       if (form.residenceActuelle) await alimenterListe('RESIDENCE', form.residenceActuelle)
       if (form.quartier) await alimenterListe('QUARTIER', form.quartier)
     }
-    if (form.motif) await alimenterListe('MOTIF', form.motif)
+    for (const m of form.motif) await alimenterListe('MOTIF', m)
     if (data.impression) {
       if (data.impression.ok) {
         toastSuccess(`Ticket imprimé : ${data.impression.message}`)
@@ -1678,7 +1694,7 @@ function ouvrirModification(pg) {
     telephone: pg.patient?.telephone ?? '',
     serviceId: pg.serviceId,
     typePatient: pg.typePatient,
-    motif: pg.motif ?? '',
+    motif: separerMotifs(pg.motif),
     referent: pg.referent ?? '',
     prestationDemandee: pg.prestationDemandee ?? '',
   })
@@ -1697,7 +1713,7 @@ async function enregistrerModification() {
     const { data } = await http.patch(`/accueil/passages/${editCible.value.id}`, {
       serviceId: formEdit.serviceId,
       typePatient: formEdit.typePatient,
-      motif: formEdit.motif || undefined,
+      motif: joindreMotifs(formEdit.motif),
       referent: formEdit.referent || undefined,
       prestationDemandee: formEdit.prestationDemandee || undefined,
       patient: {
@@ -1722,7 +1738,7 @@ async function enregistrerModification() {
     if (formEdit.ville) await alimenterListe('RESIDENCE', formEdit.ville)
     if (formEdit.residenceActuelle) await alimenterListe('RESIDENCE', formEdit.residenceActuelle)
     if (formEdit.quartier) await alimenterListe('QUARTIER', formEdit.quartier)
-    if (formEdit.motif) await alimenterListe('MOTIF', formEdit.motif)
+    for (const m of formEdit.motif) await alimenterListe('MOTIF', m)
     if (ticket.value?.id === data.id) {
       ticket.value = data
       passageCree.value = data
@@ -2064,13 +2080,6 @@ onUnmounted(() => {
 }
 
 /* ---------- Liste ---------- */
-.date-input {
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 13px;
-}
 .code-chip {
   font-family: Consolas, monospace;
   font-weight: 700;

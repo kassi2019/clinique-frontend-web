@@ -191,7 +191,7 @@
             </div>
             <div class="field">
               <label>Date d'embauche</label>
-              <input v-model="form.dateEmbauche" type="date" />
+              <DateSaisie v-model="form.dateEmbauche" />
             </div>
             <div class="field">
               <label>Statut</label>
@@ -200,6 +200,11 @@
                 <option value="INACTIF">Inactif</option>
               </select>
             </div>
+          </div>
+          <!-- Signature et cachet du prescripteur : enregistrés aussitôt (indépendamment du bouton Enregistrer) -->
+          <div v-if="form.id" class="field">
+            <label>Signature et cachet (apposés au choix sur les documents imprimés)</label>
+            <SignatureCachetEditeur :personnel-id="form.id" />
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-outline" @click="formVisible = false">✖ Annuler</button>
@@ -214,12 +219,14 @@
 </template>
 
 <script setup>
+import DateSaisie from '../../components/DateSaisie.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import Swal from 'sweetalert2'
 import http from '../../api/http'
 import { initialesDe, optimiserImage } from '../../utils/image'
 import PaginationBar from '../../components/PaginationBar.vue'
 import SelectSearch from '../../components/SelectSearch.vue'
+import SignatureCachetEditeur from '../../components/SignatureCachetEditeur.vue'
 import { toastError, toastSuccess } from '../../utils/notifications'
 
 const liste = ref([])

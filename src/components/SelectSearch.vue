@@ -201,6 +201,8 @@ function choisir(o) {
     emit('update:modelValue', valeurs)
     emit('change', valeurs)
     if (o.value === valeurLibre.value) filtre.value = ''
+    // La recherche garde le focus : on tape aussitôt la valeur suivante (Échap referme)
+    nextTick(() => inputRecherche.value?.focus())
     return
   }
   emit('update:modelValue', o.value)
@@ -235,8 +237,11 @@ function monter() {
 
 function onClicExterieur(e) {
   if (!ouvert.value) return
-  const dansChamp = racine.value?.contains(e.target)
-  const dansPanneau = panneau.value?.contains(e.target)
+  // composedPath() : chemin au moment du clic, même si l'élément cliqué a depuis été retiré
+  // de la liste (ligne « ＋ Ajouter » en choix multiple) — sinon la liste se refermerait
+  const chemin = e.composedPath()
+  const dansChamp = chemin.includes(racine.value)
+  const dansPanneau = chemin.includes(panneau.value)
   if (!dansChamp && !dansPanneau) fermer()
 }
 

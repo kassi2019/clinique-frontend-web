@@ -11,9 +11,8 @@
       </p>
 
       <div class="toolbar">
-        <input
+        <DateSaisie
           v-model="jourFiltre"
-          type="date"
           class="search-input"
           style="max-width: 170px; flex: none"
           title="Vide = tous les jours"
@@ -89,6 +88,7 @@
 </template>
 
 <script setup>
+import DateSaisie from '../../components/DateSaisie.vue'
 import { onMounted, ref } from 'vue'
 import http from '../../api/http'
 import PaginationBar from '../../components/PaginationBar.vue'

@@ -135,7 +135,7 @@
         <section v-else class="card">
           <div class="card-header"><h2>Patientes traitées</h2></div>
           <div class="toolbar">
-            <input v-model="jourTraites" type="date" class="search-input" style="max-width: 170px; flex: none" @change="chargerTraites" />
+            <DateSaisie v-model="jourTraites" class="search-input" style="max-width: 170px; flex: none" @change="chargerTraites()" />
           </div>
           <div class="table-wrap">
             <table>
@@ -228,7 +228,7 @@
           <form @submit.prevent="enregistrerCpn">
             <div class="form-separator">Données administratives</div>
             <div class="form-row">
-              <div class="field"><label>Date de la consultation <span class="requis">*</span></label><input v-model="formCpn.date" type="date" required /></div>
+              <div class="field"><label>Date de la consultation <span class="requis">*</span></label><DateSaisie v-model="formCpn.date" required /></div>
               <div class="field">
                 <label>Mode d'entrée</label>
                 <select v-model="formCpn.modeEntree">
@@ -312,12 +312,12 @@
 
             <div class="form-separator">Grossesse</div>
             <div class="form-row">
-              <div class="field"><label>DDR (date des dernières règles) <span class="requis">*</span></label><input v-model="formCpn.ddr" type="date" required /></div>
+              <div class="field"><label>DDR (date des dernières règles) <span class="requis">*</span></label><DateSaisie v-model="formCpn.ddr" required /></div>
               <div class="field"><label>Terme prévu (intervalle calculé)</label><input :value="termePrevu" disabled /></div>
               <div class="field"><label>Âge gestationnel (calculé, modifiable)</label><input v-model.trim="formCpn.ageGestationnelSA" placeholder="Ex : 16 SA + 3 j" /></div>
             </div>
             <div class="form-row">
-              <div class="field"><label>Date de la dernière CPN</label><input v-model="formCpn.dateDerniereCpn" type="date" /></div>
+              <div class="field"><label>Date de la dernière CPN</label><DateSaisie v-model="formCpn.dateDerniereCpn" /></div>
               <div class="field">
                 <label>Rang de la visite</label>
                 <select v-model.number="formCpn.numero">
@@ -337,11 +337,11 @@
                   <option value="CORRECTEMENT_VACCINEE">Correctement vaccinée</option>
                 </select>
               </div>
-              <div class="field"><label>Date VAT1</label><input v-model="formCpn.vat1" type="date" /></div>
-              <div class="field"><label>Date VAT2</label><input v-model="formCpn.vat2" type="date" /></div>
+              <div class="field"><label>Date VAT1</label><DateSaisie v-model="formCpn.vat1" /></div>
+              <div class="field"><label>Date VAT2</label><DateSaisie v-model="formCpn.vat2" /></div>
             </div>
             <div class="form-row">
-              <div class="field"><label>Date VAT rappel</label><input v-model="formCpn.vatRappel" type="date" /></div>
+              <div class="field"><label>Date VAT rappel</label><DateSaisie v-model="formCpn.vatRappel" /></div>
               <div class="field">
                 <label>Statut VIH à l'accueil</label>
                 <select v-model="formCpn.statutVih">
@@ -412,7 +412,7 @@
             <div class="form-separator">Conseils et rendez-vous</div>
             <div class="form-row">
               <div class="field champ-large"><label>Conseils donnés</label><textarea v-model.trim="formCpn.conseils" rows="2" placeholder="Fer, acide folique, MILDA, VAT…"></textarea></div>
-              <div class="field"><label>Prochaine visite</label><input v-model="formCpn.prochaineVisite" type="date" /></div>
+              <div class="field"><label>Prochaine visite</label><DateSaisie v-model="formCpn.prochaineVisite" /></div>
             </div>
 
             <div class="modal-actions" style="justify-content: flex-start">
@@ -461,7 +461,7 @@
           <form @submit.prevent="enregistrerCpon">
             <div class="form-separator">Données administratives</div>
             <div class="form-row">
-              <div class="field"><label>Date de la consultation <span class="requis">*</span></label><input v-model="formCpon.date" type="date" required /></div>
+              <div class="field"><label>Date de la consultation <span class="requis">*</span></label><DateSaisie v-model="formCpon.date" required /></div>
               <div class="field">
                 <label>Type de consultation postnatale</label>
                 <select v-model="formCpon.typeCpon">
@@ -534,7 +534,7 @@
 
             <div class="form-separator">Accouchement</div>
             <div class="form-row">
-              <div class="field"><label>Date d'accouchement</label><input v-model="formCpon.dateAccouchement" type="date" /></div>
+              <div class="field"><label>Date d'accouchement</label><DateSaisie v-model="formCpon.dateAccouchement" /></div>
               <div class="field">
                 <label>Lieu d'accouchement</label>
                 <select v-model="formCpon.lieuAccouchement"><option value="">—</option><option value="ETABLISSEMENT">Établissement de soins</option><option value="DOMICILE">Domicile</option></select>
@@ -615,7 +615,7 @@
           <form v-else @submit.prevent="enregistrerAccouchement">
             <div class="form-separator">Identité et arrivée</div>
             <div class="form-row">
-              <div class="field"><label>Date et heure de l'accouchement <span class="requis">*</span></label><input v-model="formAccouchement.dateHeure" type="datetime-local" required /></div>
+              <div class="field"><label>Date et heure de l'accouchement <span class="requis">*</span></label><DateHeureSaisie v-model="formAccouchement.dateHeure" required /></div>
               <div class="field"><label>Numéro d'accouchement</label><input v-model.number="formAccouchement.numeroAccouchement" type="number" min="0" /></div>
               <div class="field">
                 <label>Mode d'entrée</label>
@@ -629,7 +629,7 @@
               </div>
             </div>
             <div class="form-row">
-              <div class="field"><label>Heure d'arrivée</label><input v-model="formAccouchement.heureArrivee" type="datetime-local" /></div>
+              <div class="field"><label>Heure d'arrivée</label><DateHeureSaisie v-model="formAccouchement.heureArrivee" /></div>
               <div class="field"><label>Motif d'admission</label><input v-model.trim="formAccouchement.motifAdmission" placeholder="Douleur abdominale…" /></div>
               <div class="field"><label>En travail</label><select v-model="formAccouchement.enTravail"><option value="">—</option><option :value="true">Oui</option><option :value="false">Non</option></select></div>
             </div>
@@ -716,7 +716,7 @@
 
             <div class="form-separator">Accouchement, délivrance et enfant</div>
             <div class="form-row">
-              <div class="field"><label>Délivrance à</label><input v-model="formAccouchement.delivranceLe" type="datetime-local" /></div>
+              <div class="field"><label>Délivrance à</label><DateHeureSaisie v-model="formAccouchement.delivranceLe" /></div>
               <div class="field"><label>Révision utérine</label><select v-model="formAccouchement.revisionUterine"><option value="">—</option><option :value="true">Oui</option><option :value="false">Non</option></select></div>
               <div class="field"><label>UBT</label><select v-model="formAccouchement.ubt"><option value="">—</option><option :value="true">Oui</option><option :value="false">Non</option></select></div>
             </div>
@@ -752,7 +752,7 @@
 
             <div class="form-separator">Sortie de la mère</div>
             <div class="form-row">
-              <div class="field"><label>Sortie le</label><input v-model="formAccouchement.sortieMereLe" type="datetime-local" /></div>
+              <div class="field"><label>Sortie le</label><DateHeureSaisie v-model="formAccouchement.sortieMereLe" /></div>
               <div class="field"><label>Mode de sortie</label><input v-model.trim="formAccouchement.sortieMereMode" placeholder="Normale, transfert…" /></div>
               <div class="field"><label>Intervention du médecin</label><input v-model.trim="formAccouchement.interventionMedecin" /></div>
             </div>
@@ -779,7 +779,7 @@
           <form @submit.prevent="enregistrerPf">
             <div class="form-separator">Consultation</div>
             <div class="form-row">
-              <div class="field"><label>Date <span class="requis">*</span></label><input v-model="formPf.date" type="date" required /></div>
+              <div class="field"><label>Date <span class="requis">*</span></label><DateSaisie v-model="formPf.date" required /></div>
               <div class="field">
                 <label>Méthode contraceptive <span class="requis">*</span></label>
                 <select v-model="formPf.methode" required>
@@ -1026,7 +1026,7 @@
         <form @submit.prevent="enregistrerAccouchement">
           <div class="form-separator">Identité et arrivée</div>
           <div class="form-row">
-            <div class="field"><label>Date et heure <span class="requis">*</span></label><input v-model="formAccouchement.dateHeure" type="datetime-local" required /></div>
+            <div class="field"><label>Date et heure <span class="requis">*</span></label><DateHeureSaisie v-model="formAccouchement.dateHeure" required /></div>
             <div class="field"><label>Numéro d'accouchement</label><input v-model.number="formAccouchement.numeroAccouchement" type="number" min="0" /></div>
             <div class="field">
               <label>Mode d'entrée</label>
@@ -1040,7 +1040,7 @@
             </div>
           </div>
           <div class="form-row">
-            <div class="field"><label>Heure d'arrivée</label><input v-model="formAccouchement.heureArrivee" type="datetime-local" /></div>
+            <div class="field"><label>Heure d'arrivée</label><DateHeureSaisie v-model="formAccouchement.heureArrivee" /></div>
             <div class="field"><label>Motif d'admission</label><input v-model.trim="formAccouchement.motifAdmission" placeholder="Douleur abdominale…" /></div>
             <div class="field"><label>En travail</label><select v-model="formAccouchement.enTravail"><option value="">—</option><option :value="true">Oui</option><option :value="false">Non</option></select></div>
           </div>
@@ -1130,7 +1130,7 @@
 
           <div class="form-separator">Accouchement, délivrance et enfant</div>
           <div class="form-row">
-            <div class="field"><label>Délivrance à</label><input v-model="formAccouchement.delivranceLe" type="datetime-local" /></div>
+            <div class="field"><label>Délivrance à</label><DateHeureSaisie v-model="formAccouchement.delivranceLe" /></div>
             <div class="field"><label>Révision utérine</label><select v-model="formAccouchement.revisionUterine"><option value="">—</option><option :value="true">Oui</option><option :value="false">Non</option></select></div>
             <div class="field"><label>UBT</label><select v-model="formAccouchement.ubt"><option value="">—</option><option :value="true">Oui</option><option :value="false">Non</option></select></div>
           </div>
@@ -1164,7 +1164,7 @@
             <div class="field"><label>Accouchement multiple</label><select v-model="formAccouchement.accouchementMultiple"><option value="">—</option><option :value="true">Oui</option><option :value="false">Non</option></select></div>
           </div>
           <div class="form-row">
-            <div class="field"><label>Sortie de la mère le</label><input v-model="formAccouchement.sortieMereLe" type="datetime-local" /></div>
+            <div class="field"><label>Sortie de la mère le</label><DateHeureSaisie v-model="formAccouchement.sortieMereLe" /></div>
             <div class="field"><label>Mode de sortie</label><input v-model.trim="formAccouchement.sortieMereMode" placeholder="Normale, transfert…" /></div>
             <div class="field"><label>Intervention du médecin</label><input v-model.trim="formAccouchement.interventionMedecin" /></div>
           </div>
@@ -1183,7 +1183,7 @@
         <h2>{{ formCpon.id ? '✏️ Modifier la CPoN' : '＋ Nouvelle consultation postnatale' }}</h2>
         <form @submit.prevent="enregistrerCpon">
           <div class="form-row">
-            <div class="field"><label>Date <span class="requis">*</span></label><input v-model="formCpon.date" type="date" required /></div>
+            <div class="field"><label>Date <span class="requis">*</span></label><DateSaisie v-model="formCpon.date" required /></div>
             <div class="field">
               <label>Type de CPoN</label>
               <select v-model="formCpon.typeCpon">
@@ -1207,7 +1207,7 @@
           </div>
           <div class="form-row">
             <div class="field"><label>Report N° gestante</label><input v-model.trim="formCpon.numeroGestanteReport" placeholder="ex : 08/B/2026/CPN1/R1/P10R" /></div>
-            <div class="field"><label>Date d'accouchement</label><input v-model="formCpon.dateAccouchement" type="date" /></div>
+            <div class="field"><label>Date d'accouchement</label><DateSaisie v-model="formCpon.dateAccouchement" /></div>
             <div class="field">
               <label>Lieu d'accouchement</label>
               <select v-model="formCpon.lieuAccouchement"><option value="">—</option><option value="ETABLISSEMENT">Établissement de soins</option><option value="DOMICILE">Domicile</option></select>
@@ -1242,7 +1242,7 @@
         <h2>{{ formPf.id ? '✏️ Modifier la consultation PF' : '＋ Nouvelle consultation PF' }}</h2>
         <form @submit.prevent="enregistrerPf">
           <div class="form-row">
-            <div class="field"><label>Date <span class="requis">*</span></label><input v-model="formPf.date" type="date" required /></div>
+            <div class="field"><label>Date <span class="requis">*</span></label><DateSaisie v-model="formPf.date" required /></div>
             <div class="field">
               <label>Méthode contraceptive <span class="requis">*</span></label>
               <select v-model="formPf.methode" required>
@@ -1570,6 +1570,8 @@
 </template>
 
 <script setup>
+import DateHeureSaisie from '../components/DateHeureSaisie.vue'
+import DateSaisie from '../components/DateSaisie.vue'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import http from '../api/http'

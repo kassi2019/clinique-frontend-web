@@ -22,6 +22,9 @@
               <th>Nom</th>
               <th>Description</th>
               <th>Modules accessibles</th>
+              <th class="col-signature" title="Rôles autorisés à utiliser « Ma signature » (signature et cachet sur les documents imprimés)">
+                ✍️ Signature
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -35,6 +38,17 @@
                   {{ h.module.nom }}
                 </span>
                 <span v-if="r.habilitations.length === 0" class="text-muted">Aucun module</span>
+              </td>
+              <!-- Coché : les utilisateurs de ce rôle voient le bouton « ✍️ Ma signature » -->
+              <td class="col-signature">
+                <input
+                  type="checkbox"
+                  class="case-role-signature"
+                  :checked="r.signatureAutorisee"
+                  :disabled="signatureEnCours === r.id"
+                  :title="r.signatureAutorisee ? 'Retirer l’autorisation de signature' : 'Autoriser la signature et le cachet'"
+                  @change="(e) => basculerSignature(r, e.target.checked)"
+                />
               </td>
               <td>
                 <div class="actions">
@@ -172,6 +186,27 @@ async function load() {
   }
 }
 
+// Case « ✍️ Signature » : autorise le rôle à utiliser « Ma signature » (enregistrée aussitôt)
+const signatureEnCours = ref(null)
+
+async function basculerSignature(r, autorisee) {
+  signatureEnCours.value = r.id
+  try {
+    await http.patch(`/roles/${r.id}/signature`, { signatureAutorisee: autorisee })
+    r.signatureAutorisee = autorisee
+    toastSuccess(
+      autorisee
+        ? `Rôle « ${r.nom} » : bouton « Ma signature » activé.`
+        : `Rôle « ${r.nom} » : signature désactivée.`,
+    )
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Modification impossible.')
+    await load()
+  } finally {
+    signatureEnCours.value = null
+  }
+}
+
 function changerPage(p) {
   page.value = p
   load()
@@ -286,5 +321,15 @@ onMounted(async () => {
 }
 .role-module-badge {
   margin: 2px;
+}
+.col-signature {
+  text-align: center;
+  white-space: nowrap;
+}
+.case-role-signature {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
 }
 </style>

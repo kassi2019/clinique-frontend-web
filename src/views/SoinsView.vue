@@ -267,9 +267,8 @@
       <section v-else-if="onglet === 'historique'" class="card">
         <div class="card-header"><h2>Historique des soins réalisés</h2></div>
         <div class="toolbar">
-          <input
+          <DateSaisie
             v-model="jourFiltre"
-            type="date"
             class="search-input"
             style="max-width: 170px; flex: none"
             @change="chargerHistorique"
@@ -355,7 +354,7 @@
 
         <div class="field">
           <label>Date et heure de réalisation</label>
-          <input v-model="realisationForm.date" type="datetime-local" class="modal-input" />
+          <DateHeureSaisie v-model="realisationForm.date" class="modal-input" />
         </div>
 
         <div class="field champ-obs">
@@ -408,6 +407,8 @@
 </template>
 
 <script setup>
+import DateHeureSaisie from '../components/DateHeureSaisie.vue'
+import DateSaisie from '../components/DateSaisie.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import http from '../api/http'

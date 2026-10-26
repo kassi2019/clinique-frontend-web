@@ -46,9 +46,8 @@
       <section v-if="estMedecin && !passageCourant && vueFile === 'attente'" class="card">
         <div class="card-header">
           <h2>Patients affectés (file d'attente)</h2>
-          <input
+          <DateSaisie
             v-model="filtreJourFile"
-            type="date"
             class="search-input"
             style="max-width: 160px"
             title="Vide = tous les jours"
@@ -281,11 +280,11 @@
             <div class="form-row">
               <div class="field">
                 <label>Profession</label>
-                <SelectSearch v-model="formConsult.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
+                <SelectSearch :model-value="separerValeurs(formConsult.profession)" :options="optionsMultiples('PROFESSION', formConsult.profession)" multiple libre placeholder="— Cocher une ou plusieurs valeurs —" @update:model-value="(v) => (formConsult.profession = joindreValeurs(v))" />
               </div>
               <div class="field">
                 <label>Nationalité</label>
-                <SelectSearch v-model="formConsult.nationalite" :options="listesParams.NATIONALITE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
+                <SelectSearch :model-value="separerValeurs(formConsult.nationalite)" :options="optionsMultiples('NATIONALITE', formConsult.nationalite)" multiple libre placeholder="— Cocher une ou plusieurs valeurs —" @update:model-value="(v) => (formConsult.nationalite = joindreValeurs(v))" />
               </div>
               <div class="field">
                 <label>Contacts téléphoniques</label>
@@ -296,11 +295,11 @@
             <div class="form-row">
               <div class="field">
                 <label>Résidence habituelle</label>
-                <SelectSearch v-model="formConsult.residenceHabituelle" :options="listesParams.RESIDENCE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
+                <SelectSearch :model-value="separerValeurs(formConsult.residenceHabituelle)" :options="optionsMultiples('RESIDENCE', formConsult.residenceHabituelle)" multiple libre placeholder="— Cocher une ou plusieurs valeurs —" @update:model-value="(v) => (formConsult.residenceHabituelle = joindreValeurs(v))" />
               </div>
               <div class="field">
                 <label>Résidence actuelle</label>
-                <SelectSearch v-model="formConsult.residenceActuelle" :options="listesParams.RESIDENCE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
+                <SelectSearch :model-value="separerValeurs(formConsult.residenceActuelle)" :options="optionsMultiples('RESIDENCE', formConsult.residenceActuelle)" multiple libre placeholder="— Cocher une ou plusieurs valeurs —" @update:model-value="(v) => (formConsult.residenceActuelle = joindreValeurs(v))" />
               </div>
             </div>
 
@@ -439,10 +438,12 @@
                 <div class="field">
                   <label>Type d'intervention</label>
                   <SelectSearch
-                    v-model="formConsult.chirurgieType"
-                    :options="listesParams.INTERVENTION.map((x) => ({ value: x.libelle, label: x.libelle }))"
+                    :model-value="separerValeurs(formConsult.chirurgieType)"
+                    :options="optionsMultiples('INTERVENTION', formConsult.chirurgieType)"
+                    multiple
                     libre
-                    placeholder="— Choisir ou ajouter —"
+                    placeholder="— Cocher une ou plusieurs interventions —"
+                    @update:model-value="(v) => (formConsult.chirurgieType = joindreValeurs(v))"
                   />
                 </div>
                 <div class="field">
@@ -454,12 +455,12 @@
             <div class="form-row">
               <div class="field">
                 <label>Antécédents médicaux (maladies)</label>
-                <SelectSearch v-model="formConsult.antecedentsMedicaux" :options="listesParams.ANTECEDENT.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
+                <SelectSearch :model-value="separerValeurs(formConsult.antecedentsMedicaux)" :options="optionsMultiples('ANTECEDENT', formConsult.antecedentsMedicaux)" multiple libre placeholder="— Cocher une ou plusieurs valeurs —" @update:model-value="(v) => (formConsult.antecedentsMedicaux = joindreValeurs(v))" />
               </div>
               <!-- DDR et grossesse : sans objet pour un patient de sexe masculin -->
               <div v-if="!patientMasculin" class="field">
                 <label>DDR</label>
-                <input v-model.trim="formConsult.ddr" type="date" />
+                <DateSaisie v-model="formConsult.ddr" />
               </div>
               <div v-if="!patientMasculin" class="field">
                 <label>Grossesse en cours</label>
@@ -478,7 +479,7 @@
             <h3 class="section-title">Examen clinique et constantes physiques</h3>
             <div class="field">
               <label>Motifs de consultation</label>
-              <SelectSearch v-model="formConsult.motif" :options="listesParams.MOTIF.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou saisir le motif —" />
+              <SelectSearch :model-value="separerValeurs(formConsult.motif)" :options="optionsMultiples('MOTIF', formConsult.motif)" multiple libre placeholder="— Cocher une ou plusieurs valeurs —" @update:model-value="(v) => (formConsult.motif = joindreValeurs(v))" />
             </div>
             <div class="constantes-grid fiche-constantes">
               <label class="constante-item">Poids (kg) <input v-model.trim="formConsult.poids" /></label>
@@ -489,8 +490,16 @@
                   :value="imcCalcule"
                   readonly
                   class="champ-grise"
+                  :class="imcClasse && `imc-${imcClasse.niveau}`"
                   title="Calculé automatiquement à partir du poids et de la taille"
                 />
+                <!-- Classification OMS (adultes) : bleu = inférieur, vert = normal, rouge = supérieur à la normale -->
+                <span v-if="imcClasse" class="imc-classe" :class="`imc-texte-${imcClasse.niveau}`">
+                  {{ imcClasse.libelle }}
+                </span>
+                <span v-else-if="imcCalcule && patientMineur" class="imc-classe imc-texte-enfant">
+                  Enfant : se référer au Z-score
+                </span>
               </label>
               <label class="constante-item">Z-score <input v-model.trim="formConsult.zscore" /></label>
               <label class="constante-item">Température (°C) <input v-model.trim="formConsult.temperature" /></label>
@@ -632,11 +641,11 @@
             <div class="form-row">
               <div class="field">
                 <label>Diagnostic retenu</label>
-                <SelectSearch v-model="formConsult.diagnostic" :options="listesParams.DIAGNOSTIC.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="Ex : Paludisme simple" />
+                <SelectSearch :model-value="separerValeurs(formConsult.diagnostic)" :options="optionsMultiples('DIAGNOSTIC', formConsult.diagnostic)" multiple libre placeholder="— Cocher une ou plusieurs valeurs —" @update:model-value="(v) => (formConsult.diagnostic = joindreValeurs(v))" />
               </div>
               <div class="field">
                 <label>Autres pathologies associées</label>
-                <SelectSearch v-model="formConsult.pathologiesAssociees" :options="listesParams.PATHOLOGIE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
+                <SelectSearch :model-value="separerValeurs(formConsult.pathologiesAssociees)" :options="optionsMultiples('PATHOLOGIE', formConsult.pathologiesAssociees)" multiple libre placeholder="— Cocher une ou plusieurs valeurs —" @update:model-value="(v) => (formConsult.pathologiesAssociees = joindreValeurs(v))" />
               </div>
             </div>
 
@@ -657,8 +666,8 @@
               <p v-if="formConsult.prescriptionMedicaments !== true" class="text-muted small-note">
                 Choisissez « Oui » pour prescrire des médicaments.
               </p>
-              <div v-if="consultation" class="prescriptions-fiche">
-                <table v-if="(consultation.medicaments ?? []).length > 0" class="prescriptions-fiche-table">
+              <div class="prescriptions-fiche">
+                <table v-if="(consultation?.medicaments ?? []).length > 0" class="prescriptions-fiche-table">
                   <tbody>
                     <tr v-for="p in consultation.medicaments" :key="p.id">
                       <td>
@@ -723,9 +732,6 @@
                   </div>
                 </div>
               </div>
-              <p v-else class="text-muted small-note">
-                Enregistrez la fiche pour pouvoir prescrire des médicaments.
-              </p>
             </div>
 
             <!-- ══ 5. Issue de la consultation ══ -->
@@ -762,11 +768,11 @@
               </div>
               <div class="field">
                 <label>Début M.O.</label>
-                <input v-model="formConsult.moDebut" type="datetime-local" />
+                <DateHeureSaisie v-model="formConsult.moDebut" />
               </div>
               <div class="field">
                 <label>Fin M.O.</label>
-                <input v-model="formConsult.moFin" type="datetime-local" />
+                <DateHeureSaisie v-model="formConsult.moFin" />
               </div>
               <div class="field">
                 <label>Chambre / lit</label>
@@ -812,7 +818,7 @@
               </div>
               <p class="small-note text-muted">
                 💡 La facture (jours × tarif de la chambre) part à la caisse dès
-                l'enregistrement de la fiche — le patient peut la régler à
+                la sauvegarde de la fiche — le patient peut la régler à
                 l'entrée ou à la sortie.
               </p>
             </template>
@@ -833,10 +839,10 @@
               >
                 {{
                   savingConsult
-                    ? 'Enregistrement…'
+                    ? 'Sauvegarde…'
                     : consultation?.statut === 'VALIDEE'
-                      ? '💾 Enregistrer les modifications'
-                      : '💾 Enregistrer'
+                      ? '💾 Sauvegarder les modifications'
+                      : '💾 Sauvegarder'
                 }}
               </button>
             </div>
@@ -846,10 +852,6 @@
         <!-- ══ Onglet 2 : Prescription de médicaments ══ -->
         <section v-else-if="onglet === 'medicaments'" class="card">
           <div class="card-header"><h2>Prescription de médicaments</h2></div>
-          <div v-if="!consultation" class="empty-state">
-            💊 Enregistrez d'abord la fiche de consultation pour prescrire des médicaments.
-          </div>
-          <template v-else>
           <!-- Plusieurs ordonnances indépendantes par consultation -->
           <div class="ordo-barre">
             <button
@@ -906,7 +908,7 @@
           </div>
           <button
             class="btn btn-outline btn-sm btn-add"
-            :disabled="!consultation || ordonnanceActive?.statut === 'TRAITEE'"
+            :disabled="ordonnanceActive?.statut === 'TRAITEE'"
             @click="ouvrirAjoutMedicament"
           >
             + Ajouter un médicament{{ ordonnanceActive ? ` à ${ordonnanceActive.numero}` : '' }}
@@ -921,21 +923,16 @@
               <button class="btn btn-outline" @click="imprimerOrdonnance">
                 🖨️ Imprimer l'ordonnance
               </button>
-              <span v-if="consultation.ordonnanceSauveeLe" class="badge badge-success ordo-saved-badge">
+              <span v-if="consultation?.ordonnanceSauveeLe" class="badge badge-success ordo-saved-badge">
                 ✓ Sauvegardée le {{ formatDateHeure(consultation.ordonnanceSauveeLe) }}
               </span>
             </div>
           </div>
-          </template>
         </section>
 
         <!-- ══ Onglet Soins : injection, pansement, perfusion… → module Soins ══ -->
         <section v-else-if="onglet === 'soins'" class="card">
           <div class="card-header"><h2>Prescription des soins</h2></div>
-          <div v-if="!consultation" class="empty-state">
-            💉 Enregistrez d'abord la fiche de consultation pour prescrire des soins.
-          </div>
-          <template v-else>
             <p class="text-muted small-note">
               Les soins prescrits apparaissent aussitôt dans le module <strong>Soins</strong>. Leurs médicaments
               partent sur une ordonnance « Soins » que l'infirmier retire à la pharmacie.
@@ -995,7 +992,6 @@
             <button class="btn btn-outline btn-sm btn-add" @click="ouvrirPrescriptionSoin">
               ＋ Prescrire un soin
             </button>
-          </template>
         </section>
 
         <!-- ══ Onglet 3 : Examens (laboratoire / imagerie) ══ -->
@@ -1007,13 +1003,10 @@
               class="btn btn-outline btn-sm"
               @click="apercuExamensVisible = true"
             >
-              🖨️ Ordonnance d'examens
+              🖨️ Imprimer la demande d'examens
             </button>
           </div>
-          <div v-if="!consultation" class="text-muted small-note">
-            Enregistrez la fiche de consultation pour prescrire des examens.
-          </div>
-          <div v-if="consultation" class="ajout-examen">
+          <div class="ajout-examen">
             <div class="ajout-examen-select">
               <SelectSearch
                 v-model="nouvelExamenLaboId"
@@ -1076,10 +1069,10 @@
                     <span v-else-if="l.statut === 'EXTERNE'" class="badge badge-muted" title="Examen réalisé hors clinique — non facturable">
                       Hors clinique
                     </span>
+                    <span v-else class="badge badge-success">Payé</span>
                     <span v-if="l.resultatExterne" class="badge badge-success" title="Le résultat scanné est joint au dossier">
                       📎 Résultat joint
                     </span>
-                    <span v-else class="badge badge-success">Payé</span>
                   </td>
                   <td>
                     <button
@@ -1143,6 +1136,16 @@
               </tbody>
             </table>
           </div>
+          <!-- Prescription terminée : demande d'examens à remettre au patient (examens faits ici ou ailleurs) -->
+          <div v-if="consultation && examensPrescrits.length > 0" class="examens-impression">
+            <span class="text-muted small-note">
+              {{ examensPrescrits.length }} examen(s) prescrit(s) — le patient peut les faire à la clinique ou dans un
+              autre laboratoire / centre d'imagerie.
+            </span>
+            <button class="btn btn-primary" @click="apercuExamensVisible = true">
+              🖨️ Imprimer la demande d'examens
+            </button>
+          </div>
 
         </section>
 
@@ -1174,7 +1177,7 @@
             </div>
             <div class="field">
               <label>Né(e) le</label>
-              <input v-model.trim="formCertificat.dateNaissance" type="date" />
+              <DateSaisie v-model="formCertificat.dateNaissance" naissance />
             </div>
             <div class="field">
               <label>Profession</label>
@@ -1188,11 +1191,11 @@
             </div>
             <div class="field">
               <label>Du</label>
-              <input v-model="formCertificat.debut" type="date" />
+              <DateSaisie v-model="formCertificat.debut" />
             </div>
             <div class="field">
               <label>Au</label>
-              <input v-model="formCertificat.fin" type="date" />
+              <DateSaisie v-model="formCertificat.fin" />
             </div>
           </div>
           <div class="form-row">
@@ -1206,8 +1209,12 @@
             </div>
             <div class="field">
               <label>Le</label>
-              <input v-model="formCertificat.dateJour" type="date" />
+              <DateSaisie v-model="formCertificat.dateJour" />
             </div>
+          </div>
+          <!-- Signature et cachet du médecin, en bas du formulaire -->
+          <div class="certificat-signature">
+            <CaseSignature :prescripteur-id="consultation?.medecinId ?? auth.user?.id" />
           </div>
 
           <h3 class="section-title">Certificats enregistrés pour ce patient</h3>
@@ -1352,6 +1359,7 @@
       </div>
       <div class="apercu-barre-actions">
         <button v-if="histExamenVu" class="btn btn-outline btn-sm btn-back" @click="histExamenVu = null">← Liste des examens</button>
+        <CaseSignature v-if="histFeuilleVisible" :prescripteur-id="historiqueDetail?.medecinId" class="case-signature-barre" />
         <button v-if="histFeuilleVisible" class="btn btn-primary btn-sm" @click="lancerImpression('historique')">🖨️ Imprimer (A4)</button>
         <button class="btn btn-outline btn-sm btn-back" @click="historiqueDetail = null">✖ Fermer</button>
       </div>
@@ -1506,6 +1514,9 @@
           <p class="fiche-a4-ligne">
             TA bras gauche : {{ historiqueDetail.passage?.tensionGauche || '—' }} &nbsp;&nbsp; TA bras droit : {{ historiqueDetail.passage?.tensionDroite || '—' }}
             &nbsp;&nbsp; IMC : {{ historiqueDetail.imc || '—' }}
+            <template v-if="classerImc(historiqueDetail.imc, detail?.passage?.patient?.age)">
+              ({{ classerImc(historiqueDetail.imc, detail?.passage?.patient?.age).libelle }})
+            </template>
           </p>
 
           <h2 class="fiche-a4-section">ANTÉCÉDENTS</h2>
@@ -1634,7 +1645,9 @@
           <div class="ordo-ex-sign-date">Imprimé le {{ formatDate(new Date()) }}</div>
           <div class="ordo-ex-sign-doc">
             <p>Le médecin : {{ histMedecin }}</p>
-            <div class="fiche-a4-cachet">Signature et cachet</div>
+            <BlocSignature :prescripteur-id="historiqueDetail?.medecinId" compact>
+              <div class="fiche-a4-cachet">Signature et cachet</div>
+            </BlocSignature>
           </div>
         </div>
       </div>
@@ -1665,7 +1678,7 @@
         <div class="form-row">
           <div class="field">
             <label>Date de l'examen</label>
-            <input v-model="formJoindre.dateExamen" type="date" />
+            <DateSaisie v-model="formJoindre.dateExamen" />
           </div>
           <div class="field">
             <label>Réalisé à (laboratoire, centre…)</label>
@@ -2015,13 +2028,14 @@
 
           <div class="ordo-a4-footer">
             <div class="ordo-a4-signature">
-              Signature et cachet du médecin
+              <BlocSignature :prescripteur-id="consultation?.medecinId">Signature et cachet du médecin</BlocSignature>
             </div>
             <div class="ordo-a4-merci">Merci de votre visite.</div>
           </div>
           <div class="ordo-a4-cut" aria-hidden="true">✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ✂</div>
         </div>
         <div class="modal-actions">
+          <CaseSignature :prescripteur-id="consultation?.medecinId" class="case-signature-gauche" />
           <button class="btn btn-outline" @click="apercuVisible = false">✖ Fermer</button>
           <button class="btn btn-primary" @click="imprimerNavigateur">🖨️ Imprimer (A4)</button>
         </div>
@@ -2032,10 +2046,11 @@
     <div v-if="apercuFicheVisible || apercuExamensVisible" class="apercu-voile"></div>
     <div v-if="apercuFicheVisible || apercuExamensVisible" class="apercu-barre">
       <span>
-        👁️ {{ apercuFicheVisible ? 'Aperçu de la fiche' : 'Aperçu de l\'ordonnance d\'examens' }} — vérifiez avant
+        👁️ {{ apercuFicheVisible ? 'Aperçu de la fiche' : 'Aperçu de la demande d\'examens' }} — vérifiez avant
         d'imprimer
       </span>
       <div class="apercu-barre-actions">
+        <CaseSignature :prescripteur-id="consultation?.medecinId" class="case-signature-barre" />
         <button class="btn btn-primary btn-sm" @click="imprimerDepuisApercu">🖨️ Imprimer</button>
         <button
           class="btn btn-outline btn-sm btn-back"
@@ -2136,7 +2151,11 @@
         <p class="fiche-a4-ligne">Motifs de consultation : {{ formConsult.motif }}</p>
         <p class="fiche-a4-ligne">
           Constantes physiques : Poids : {{ formConsult.poids }} kg &nbsp; Taille : {{ formConsult.taille }} cm &nbsp;
-          IMC : {{ formConsult.imc }} kg/m² &nbsp; Z-score : {{ formConsult.zscore }}<br />
+          IMC : {{ imcCalcule || formConsult.imc }} kg/m²
+          <template v-if="classerImc(imcCalcule || formConsult.imc, passageCourant?.patient?.age)">
+            ({{ classerImc(imcCalcule || formConsult.imc, passageCourant?.patient?.age).libelle }})
+          </template>
+          &nbsp; Z-score : {{ formConsult.zscore }}<br />
           Température : {{ formConsult.temperature }} °C &nbsp; Fréquence respiratoire : {{ formConsult.frequenceRespiratoire }} cycles/min<br />
           TA : {{ formConsult.tension }} mmHg &nbsp; Pouls : {{ formConsult.pouls }} batt/min<br />
           Périmètre brachial : {{ formConsult.perimetreBrachial }} cm &nbsp; Périmètre crânien : {{ formConsult.perimetreCranien }} cm
@@ -2207,10 +2226,10 @@
             Fait le {{ formatDate(new Date()) }}
           </div>
           <div class="fiche-a4-sign-doc">
-            <p>Le médecin : Dr {{ auth.user?.personnel?.nom }} {{ auth.user?.personnel?.prenom }}</p>
-            <div class="fiche-a4-cachet">
-              Signature et cachet
-            </div>
+            <p>Le médecin : {{ nomPrescripteur }}</p>
+            <BlocSignature :prescripteur-id="consultation?.medecinId" compact>
+              <div class="fiche-a4-cachet">Signature et cachet</div>
+            </BlocSignature>
           </div>
         </div>
       </div>
@@ -2223,7 +2242,7 @@
           <h1>{{ cliniqueNom }}</h1>
           <p v-if="cliniqueAdresse">{{ cliniqueAdresse }}</p>
         </div>
-        <div class="fiche-a4-titre">Ordonnance d'examens</div>
+        <div class="fiche-a4-titre">Demande d'examens</div>
 
         <div class="ordo-ex-infos">
           <div class="fiche-a4-ligne">
@@ -2242,8 +2261,12 @@
             <span>{{ detail.passage.numeroOrdre }}</span>
           </div>
           <div class="fiche-a4-ligne">
-            <span class="ordo-ex-label">Médecin</span>
-            <span>Dr {{ auth.user?.personnel?.nom }} {{ auth.user?.personnel?.prenom }}</span>
+            <span class="ordo-ex-label">Médecin prescripteur</span>
+            <span>{{ nomPrescripteur }}</span>
+          </div>
+          <div v-if="renseignementsCliniques" class="fiche-a4-ligne">
+            <span class="ordo-ex-label">Renseignements cliniques</span>
+            <span>{{ renseignementsCliniques }}</span>
           </div>
         </div>
 
@@ -2251,14 +2274,14 @@
           <thead>
             <tr>
               <th>Examen</th>
-              <th>Service</th>
+              <th>Type</th>
               <th>Statut</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="l in examensPrescrits" :key="l.id">
               <td>{{ l.libelle }}</td>
-              <td>{{ l.service?.nom || '—' }}</td>
+              <td>{{ typeExamen(l) }}</td>
               <td>
                 <span v-if="estFait(l)" class="ordo-ex-fait">✓ Déjà fait</span>
                 <span v-else class="ordo-ex-reste">● Reste à faire</span>
@@ -2270,8 +2293,10 @@
         <div class="ordo-ex-sign">
           <div class="ordo-ex-sign-date">Fait le {{ formatDate(new Date()) }}</div>
           <div class="ordo-ex-sign-doc">
-            <p>Le médecin : Dr {{ auth.user?.personnel?.nom }} {{ auth.user?.personnel?.prenom }}</p>
-            <div class="fiche-a4-cachet">Signature et cachet</div>
+            <p>Le médecin : {{ nomPrescripteur }}</p>
+            <BlocSignature :prescripteur-id="consultation?.medecinId" compact>
+              <div class="fiche-a4-cachet">Signature et cachet</div>
+            </BlocSignature>
           </div>
         </div>
       </div>
@@ -2329,7 +2354,7 @@
 
         <div class="ordo-a4-footer">
           <div class="ordo-a4-signature">
-            Signature et cachet du médecin
+            <BlocSignature :prescripteur-id="consultation?.medecinId">Signature et cachet du médecin</BlocSignature>
           </div>
           <div class="ordo-a4-merci">Merci de votre visite.</div>
         </div>
@@ -2412,7 +2437,9 @@
           <div class="cert-medecin">
             <div class="cert-medecin-titre">LE MÉDECIN TRAITANT</div>
             <div class="cert-medecin-nom">{{ formCertificat.medecin }}</div>
-            <div class="cert-cachet"></div>
+            <BlocSignature :prescripteur-id="certificatPrescripteurId">
+              <div class="cert-cachet"></div>
+            </BlocSignature>
           </div>
         </div>
       </div>
@@ -2421,12 +2448,15 @@
 </template>
 
 <script setup>
+import DateHeureSaisie from '../components/DateHeureSaisie.vue'
+import DateSaisie from '../components/DateSaisie.vue'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import http from '../api/http'
 import { marquerValeurs } from '../utils/texteFiche'
 import { confirmer, toastError, toastSuccess } from '../utils/notifications'
+import { attendreImages } from '../utils/impression'
 import logoClinique from '../assets/logoclinique.jpeg'
 // Certificat d'arrêt : logo, lieu et téléphone du modèle officiel (CERTIFICAT ARRET T.docx)
 import logoCertificat from '../assets/logo-certificat.jpeg'
@@ -2435,6 +2465,8 @@ const TEL_CERTIFICAT = '27 24 45 26 01'
 /** Logo paramétré (Paramétrage → Paramètres → image de connexion), sinon logo du modèle. */
 const logoParametre = ref('')
 import SelectSearch from '../components/SelectSearch.vue'
+import BlocSignature from '../components/BlocSignature.vue'
+import CaseSignature from '../components/CaseSignature.vue'
 import { quantiteDemandee, uniteVenteTexte } from '../utils/quantite'
 import {
   UNITES_SOIN,
@@ -2636,6 +2668,8 @@ const lieuCertificat = computed(() => {
 
 /** Numéro du certificat imprimé (CERT-0001…), affiché en haut à droite. */
 const numeroCertificat = ref('')
+// Prescripteur du certificat imprimé : le médecin qui l'établit, ou celui d'un certificat réimprimé
+const certificatPrescripteurId = ref(null)
 const certificatEnCours = ref(false)
 
 /** Charge les certificats déjà établis pour cette consultation. */
@@ -2667,6 +2701,7 @@ function rechargerCertificat(c) {
     dateJour: new Date(c.createdAt).toISOString().slice(0, 10),
   })
   numeroCertificat.value = c.numero ?? ''
+  certificatPrescripteurId.value = c.medecinId ?? null
   onglet.value = 'certificat'
   lancerImpression('certificat')
 }
@@ -2694,6 +2729,7 @@ async function imprimerCertificat() {
       lieu: lieuCertificat.value,
     })
     numeroCertificat.value = cert?.numero ?? ''
+    certificatPrescripteurId.value = cert?.medecinId ?? auth.user?.id ?? null
     await chargerCertificats()
     toastSuccess('Certificat enregistré — prêt pour l’impression.')
   } catch (e) {
@@ -2745,6 +2781,33 @@ const imcCalcule = computed(() => {
   return (poids / (taille * taille)).toFixed(1)
 })
 
+/**
+ * Classification OMS de l'IMC (adultes uniquement : chez l'enfant, on se réfère au Z-score).
+ * niveau : « bas » (bleu, inférieur à la normale), « normal » (vert), « haut » (rouge, supérieur).
+ */
+const CLASSES_IMC = [
+  { max: 16, niveau: 'bas', libelle: 'Maigreur sévère' },
+  { max: 17, niveau: 'bas', libelle: 'Maigreur modérée' },
+  { max: 18.5, niveau: 'bas', libelle: 'Maigreur légère' },
+  { max: 25, niveau: 'normal', libelle: 'Corpulence normale' },
+  { max: 30, niveau: 'haut', libelle: 'Surpoids' },
+  { max: 35, niveau: 'haut', libelle: 'Obésité de classe I' },
+  { max: 40, niveau: 'haut', libelle: 'Obésité de classe II' },
+  { max: Infinity, niveau: 'haut', libelle: 'Obésité de classe III' },
+]
+
+function classerImc(valeur, age) {
+  const imc = Number(String(valeur ?? '').replace(',', '.'))
+  if (!imc || (age != null && age !== '' && Number(age) < 18)) return null
+  return CLASSES_IMC.find((c) => imc < c.max)
+}
+
+const patientMineur = computed(() => {
+  const age = passageCourant.value?.patient?.age
+  return age != null && age !== '' && Number(age) < 18
+})
+const imcClasse = computed(() => classerImc(imcCalcule.value, passageCourant.value?.patient?.age))
+
 /** Prix affiché sur l'ordonnance (tests automatiques), ex. 1 500. */
 function formatPrix(v) {
   return String(Math.round(Number(v))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
@@ -2779,7 +2842,7 @@ const ficheMedEnCours = ref(false)
 const ficheMedError = ref('')
 
 async function ajouterMedicamentFiche() {
-  if (!consultation.value) return
+  if (!(await assurerConsultation())) return
   if (!ficheMedId.value && !ficheMedNom.value.trim()) {
     ficheMedError.value = 'Choisissez un médicament du catalogue ou saisissez un nom.'
     return
@@ -2886,12 +2949,24 @@ function traitementAnterieurTexte(choix, f) {
   return texte || null
 }
 
-// ── Autres examens : plusieurs valeurs dans un seul champ texte « A ; B ; C » ──
-function separerExamens(texte) {
+// ── Listes à choix multiple : plusieurs valeurs dans un seul champ texte « A ; B ; C » ──
+function separerValeurs(texte) {
   return (texte ?? '')
     .split(';')
     .map((x) => x.trim())
     .filter(Boolean)
+}
+const separerExamens = separerValeurs
+function joindreValeurs(valeurs) {
+  return valeurs.join(' ; ')
+}
+/** Options d'une liste paramétrée ; les valeurs déjà cochées absentes de la liste restent décochables. */
+function optionsMultiples(code, texte) {
+  const options = listesParams[code].map((x) => ({ value: x.libelle, label: x.libelle }))
+  for (const v of separerValeurs(texte)) {
+    if (!options.some((o) => o.value === v)) options.unshift({ value: v, label: v })
+  }
+  return options
 }
 const autresExamensListe = computed(() => separerExamens(formConsult.autresExamens))
 // Examens de la liste + ceux saisis à la main sur cette fiche (restent cochés)
@@ -3001,6 +3076,8 @@ const zoneImpression = ref(null) // 'fiche' | 'ordonnance' | 'examens' | 'certif
 async function lancerImpression(zone) {
   zoneImpression.value = zone
   await nextTick() // attendre le RENDU de la zone avant d'imprimer
+  // Signature, cachet et logo chargés avant l'impression (certificat, ordonnance…)
+  await attendreImages('#certificat-print, #ordo-print, #fiche-print, #ordo-examens-print, #hist-print')
   window.print()
   zoneImpression.value = null
 }
@@ -3020,12 +3097,36 @@ const apercuFicheVisible = ref(false)
 // Aperçu de l'ordonnance d'examens (A4 flottant)
 const apercuExamensVisible = ref(false)
 
-/** Examens prescrits (ordonnance d'examens) : tout sauf « pas prescrit »/annulée. */
+/**
+ * Examens prescrits (demande d'examens) : laboratoire, imagerie et examens saisis librement
+ * (hors clinique) — la consultation, les soins… du passage n'y figurent pas.
+ * Rangés laboratoire → imagerie → autres.
+ */
+const ORDRE_TYPES_EXAMEN = { EXAMEN_LABO: 0, IMAGERIE: 1 }
 const examensPrescrits = computed(() =>
-  (detail.value?.passage.prestations ?? []).filter(
-    (l) => l.statut !== 'NON_PRESCRITE' && l.statut !== 'ANNULEE',
-  ),
+  (detail.value?.passage.prestations ?? [])
+    .filter(
+      (l) =>
+        l.statut !== 'NON_PRESCRITE' &&
+        l.statut !== 'ANNULEE' &&
+        (['EXAMEN_LABO', 'IMAGERIE'].includes(l.prestation?.type) || !l.prestationId),
+    )
+    .sort((a, b) => (ORDRE_TYPES_EXAMEN[a.prestation?.type] ?? 2) - (ORDRE_TYPES_EXAMEN[b.prestation?.type] ?? 2)),
 )
+
+function typeExamen(l) {
+  if (l.prestation?.type === 'EXAMEN_LABO') return '🔬 Laboratoire'
+  if (l.prestation?.type === 'IMAGERIE') return '🩻 Imagerie'
+  return 'Autre'
+}
+
+/** Motif et diagnostic, utiles au laboratoire ou au centre d'imagerie extérieur. */
+const renseignementsCliniques = computed(() => {
+  const c = consultation.value ?? {}
+  const motif = (formConsult.motif || c.motif || '').trim()
+  const diagnostic = (formConsult.diagnostic || c.diagnostic || '').trim()
+  return [motif && `Motif : ${motif}`, diagnostic && `Diagnostic : ${diagnostic}`].filter(Boolean).join(' — ')
+})
 
 /** Un examen est « déjà fait » si le service concerné l'a validé (labo ou imagerie). */
 function estFait(l) {
@@ -3395,6 +3496,11 @@ async function supprimerResultatExterne() {
     toastError(e.response?.data?.message || 'Suppression impossible.')
   }
 }
+/** Médecin de la consultation en cours (fiche, demande d'examens) ; à défaut, le compte connecté. */
+const nomPrescripteur = computed(() => {
+  const p = consultation.value?.medecin?.personnel ?? auth.user?.personnel
+  return p ? `Dr ${p.nom} ${p.prenom}` : '—'
+})
 const histMedecin = computed(() => {
   const p = historiqueDetail.value?.medecin?.personnel
   return p ? `Dr ${p.nom} ${p.prenom}` : '—'
@@ -3445,7 +3551,7 @@ function auteurExamen(exam) {
   return `${v.personnel?.prenom ?? ''} ${v.personnel?.nom ?? ''}`.trim()
 }
 
-/** Bouton Enregistrer : enregistre la fiche et valide la consultation (sans aperçu). */
+/** Bouton Sauvegarder : enregistre la fiche et valide la consultation (sans aperçu). */
 async function validerEtEnregistrer() {
   if (!passageCourant.value) return
   // 1. Enregistrer la fiche
@@ -3625,7 +3731,17 @@ async function chargerDetail() {
   }
 }
 
-async function sauvegarderFiche() {
+/**
+ * Prescription avant la sauvegarde de la fiche : la fiche est d'abord enregistrée en brouillon
+ * (consultation « En cours », non validée — le patient reste dans la file du médecin).
+ */
+async function assurerConsultation() {
+  if (consultation.value) return true
+  await sauvegarderFiche({ brouillon: true })
+  return !!consultation.value
+}
+
+async function sauvegarderFiche({ brouillon = false } = {}) {
   if (!passageCourant.value) return
   savingConsult.value = true
   try {
@@ -3699,17 +3815,18 @@ async function sauvegarderFiche() {
     }
     const { data } = await http.post(`/consultations/passages/${passageCourant.value.id}`, payload)
     consultation.value = data
-    toastSuccess('Fiche de consultation enregistrée.')
+    toastSuccess(brouillon ? 'Fiche sauvegardée en brouillon pour la prescription.' : 'Fiche de consultation sauvegardée.')
     // Saisie libre auto-alimentée : les nouvelles valeurs enrichissent les listes paramétrées
-    alimenterListe('DIAGNOSTIC', f.diagnostic)
-    alimenterListe('PATHOLOGIE', f.pathologiesAssociees)
-    alimenterListe('NATIONALITE', f.nationalite)
-    alimenterListe('RESIDENCE', f.residenceActuelle)
-    alimenterListe('RESIDENCE', f.residenceHabituelle)
-    alimenterListe('PROFESSION', f.profession)
-    alimenterListe('MOTIF', f.motif)
-    alimenterListe('ANTECEDENT', f.antecedentsMedicaux)
-    if (f.chirurgie === true) alimenterListe('INTERVENTION', f.chirurgieType)
+    const alimenterValeurs = (code, texte) => separerValeurs(texte).forEach((v) => alimenterListe(code, v))
+    alimenterValeurs('DIAGNOSTIC', f.diagnostic)
+    alimenterValeurs('PATHOLOGIE', f.pathologiesAssociees)
+    alimenterValeurs('NATIONALITE', f.nationalite)
+    alimenterValeurs('RESIDENCE', f.residenceActuelle)
+    alimenterValeurs('RESIDENCE', f.residenceHabituelle)
+    alimenterValeurs('PROFESSION', f.profession)
+    alimenterValeurs('MOTIF', f.motif)
+    alimenterValeurs('ANTECEDENT', f.antecedentsMedicaux)
+    if (f.chirurgie === true) alimenterValeurs('INTERVENTION', f.chirurgieType)
     separerExamens(f.autresExamens)
       .filter((ex) => !examensCatalogue.value.some((c) => cleExamen(c.libelle) === cleExamen(ex)))
       .forEach((ex) => alimenterListe('EXAMEN', ex))
@@ -3777,7 +3894,7 @@ function onMedicamentChoisi(valeur) {
 }
 
 async function confirmerAjoutMedicament() {
-  if (!consultation.value) return
+  if (!(await assurerConsultation())) return
   if (!ajoutMedicamentId.value && !ajoutNom.value.trim()) {
     ajoutError.value = 'Sélectionnez un médicament du catalogue ou saisissez un nom.'
     return
@@ -3932,7 +4049,7 @@ async function ouvrirPrescriptionSoin() {
 }
 
 async function confirmerSoin() {
-  if (!consultation.value) return
+  if (!(await assurerConsultation())) return
   if (!formSoin.typeSoinId) {
     soinErreur.value = 'Choisissez le type de soin.'
     return
@@ -4079,7 +4196,7 @@ async function chargerPrestations() {
 }
 
 async function ajouterExamen() {
-  if (!nouvelExamenId.value || !consultation.value) return
+  if (!nouvelExamenId.value || !(await assurerConsultation())) return
   ajoutExamenEnCours.value = true
   try {
     await http.post(`/consultations/${consultation.value.id}/examens/ajouter`, {
@@ -4102,7 +4219,7 @@ const nouvelExamenLibre = ref('')
 
 async function ajouterExamenLibre() {
   const libelle = nouvelExamenLibre.value.trim()
-  if (!libelle || !consultation.value) return
+  if (!libelle || !(await assurerConsultation())) return
   ajoutExamenEnCours.value = true
   try {
     await http.post(`/consultations/${consultation.value.id}/examens/ajouter`, {
@@ -4160,7 +4277,7 @@ watch(ordonnancesConsult, (liste) => {
 }, { immediate: true })
 
 async function nouvelleOrdonnance() {
-  if (!consultation.value) return
+  if (!(await assurerConsultation())) return
   creationOrdonnance.value = true
   try {
     const { data } = await http.post(`/consultations/${consultation.value.id}/ordonnances`)
@@ -4628,6 +4745,43 @@ onUnmounted(() => {
   font-weight: 600;
   color: var(--text-muted);
 }
+/* IMC : bleu = inférieur à la normale, vert = normal, rouge = supérieur (classification OMS, adultes) */
+.constante-item input.imc-bas {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+  border-color: #3b82f6 !important;
+  font-weight: 800;
+}
+.constante-item input.imc-normal {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+  border-color: #22c55e !important;
+  font-weight: 800;
+}
+.constante-item input.imc-haut {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+  border-color: #ef4444 !important;
+  font-weight: 800;
+}
+.imc-classe {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.imc-texte-bas {
+  color: #1d4ed8;
+}
+.imc-texte-normal {
+  color: #15803d;
+}
+.imc-texte-haut {
+  color: #b91c1c;
+}
+.imc-texte-enfant {
+  color: var(--text-muted);
+  font-weight: 600;
+}
 .constante-item input {
   padding: 7px 10px;
   border: 1px solid #d7e9e6;
@@ -4848,6 +5002,7 @@ onUnmounted(() => {
 .apercu-barre-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 .apercu-barre .btn-back {
   color: #fff;
@@ -5067,6 +5222,18 @@ onUnmounted(() => {
   font-weight: 700;
   min-width: 110px;
   flex-shrink: 0;
+}
+.examens-impression {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px dashed var(--primary);
+  border-radius: 10px;
+  background: #f0faf8;
 }
 .ordo-ex-table {
   width: 100%;
@@ -5396,6 +5563,26 @@ onUnmounted(() => {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  /* Une seule page A4, signature et cachet compris : espacements resserrés à l'impression */
+  .cert-titre {
+    margin: 10mm 0 8mm;
+  }
+  .cert-corps p {
+    margin: 0 0 4.5mm;
+  }
+  .cert-fin {
+    padding-top: 4mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .cert-fait {
+    margin: 0 0 4mm;
+  }
+  /* Sans signature apposée : la case garde la place de la signature à la main (la règle
+     d'impression globale neutralise les hauteurs, d'où la marge interne) */
+  .cert-cachet {
+    padding-top: 30mm;
+  }
 }
 .modal-a4 {
   max-width: 960px;
@@ -5530,6 +5717,20 @@ onUnmounted(() => {
   font-size: 12px;
   letter-spacing: 2px;
   color: #94a3b8;
+}
+.certificat-signature {
+  display: flex;
+  justify-content: flex-end;
+  margin: 2px 0 6px;
+}
+.certificat-signature:empty {
+  display: none;
+}
+.case-signature-gauche {
+  margin-right: auto;
+}
+.case-signature-barre {
+  color: inherit;
 }
 .ordo-a4-signature {
   font-size: 13px;

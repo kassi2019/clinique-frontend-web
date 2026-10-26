@@ -245,9 +245,8 @@
       <section v-else-if="onglet === 'historique'" class="card">
         <div class="card-header"><h2>Historique des examens réalisés (§11)</h2></div>
         <div class="toolbar">
-          <input
+          <DateSaisie
             v-model="jourFiltre"
-            type="date"
             class="search-input"
             style="max-width: 170px; flex: none"
             @change="chargerHistorique"
@@ -532,6 +531,7 @@
 </template>
 
 <script setup>
+import DateSaisie from '../components/DateSaisie.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Swal from 'sweetalert2'

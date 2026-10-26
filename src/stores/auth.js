@@ -16,7 +16,8 @@ export const useAuthStore = defineStore('auth', {
     // Modules accessibles via le rôle de l'utilisateur
     allowedModules: (state) => state.user?.role?.modules ?? [],
     canAccess: (state) => (moduleCode) => {
-      const modules = state.user?.role?.modules
+      if (!state.user) return false // déconnecté : aucun module
+      const modules = state.user.role?.modules
       if (!modules || modules.length === 0) return true // accès complet si aucune restriction renseignée
       return modules.some((m) => m.code === moduleCode)
     },
@@ -62,21 +63,29 @@ export const useAuthStore = defineStore('auth', {
       return this.service
     },
     async logout() {
-      // Un médecin qui se déconnecte devient indisponible (sinon le heartbeat
-      // mettrait 2 minutes à le retirer de la liste des médecins éligibles).
-      if (this.user?.role?.code === 'MEDECIN') {
-        try {
-          await http.put('/consultations/disponibilite', { disponibilite: 'INDISPONIBLE' })
-        } catch {
-          // la déconnexion continue même si l'API ne répond pas
-        }
-      }
+      const token = this.token
+      const etaitMedecin = this.user?.role?.code === 'MEDECIN'
+      // La session est vidée AVANT tout appel réseau : sinon, pendant l'attente, la page de
+      // connexion renvoyait vers l'accueil (encore « connecté ») avec tous les modules affichés.
       this.token = null
       this.user = null
       this.service = null
       this.serviceCharge = false
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+      // Un médecin qui se déconnecte devient indisponible (sinon le heartbeat
+      // mettrait 2 minutes à le retirer de la liste des médecins éligibles).
+      if (etaitMedecin && token) {
+        try {
+          await http.put(
+            '/consultations/disponibilite',
+            { disponibilite: 'INDISPONIBLE' },
+            { headers: { Authorization: `Bearer ${token}` } },
+          )
+        } catch {
+          // la déconnexion est faite même si l'API ne répond pas
+        }
+      }
     },
   },
 })

@@ -123,7 +123,16 @@
     "icone": "💊",
     "description": "Dispenser une ordonnance selon la quantité demandée, gérer le stock",
     "fichier": "pharmacie.mp4",
-    "duree": 146
+    "duree": 166
+  },
+  {
+    "code": "ORDO_EXTERNE",
+    "module": "PHARMACIE",
+    "titre": "Ordonnance externe",
+    "icone": "📄",
+    "description": "Servir une ordonnance d’un autre établissement, avec ou sans assurance",
+    "fichier": "ordo_externe.mp4",
+    "duree": 201
   },
   {
     "code": "STOCK",

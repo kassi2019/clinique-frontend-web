@@ -85,9 +85,8 @@
       <section v-if="!passageCourant && vueFile === 'attente'" class="card">
         <div class="card-header">
           <h2>Patients à encaisser (par ordre d'arrivée)</h2>
-          <input
+          <DateSaisie
             v-model="filtreJourFile"
-            type="date"
             class="search-input"
             style="max-width: 160px"
             title="Vide = tous les jours"
@@ -138,7 +137,10 @@
 
       <!-- Payés du jour -->
       <section v-else-if="!passageCourant && vueFile === 'payes'" class="card">
-        <div class="card-header"><h2>Paiements du jour</h2></div>
+        <div class="card-header">
+          <h2>Paiements du jour</h2>
+          <CaseSignature :prescripteur-id="auth.user?.id" />
+        </div>
         <div v-if="file.payes.length === 0" class="empty-state">
           Aucun paiement aujourd'hui.
         </div>
@@ -568,6 +570,7 @@
         <section class="card">
           <div class="card-header">
             <h2>Historique des paiements</h2>
+            <CaseSignature :prescripteur-id="auth.user?.id" />
           </div>
           <div
             v-if="!detail || detail.paiements.length === 0"
@@ -703,6 +706,7 @@
           Impression auto : {{ paiementEffectue.impression.message }}
         </p>
         <div class="modal-actions">
+          <CaseSignature :prescripteur-id="auth.user?.id" class="case-signature-caisse" />
           <button class="btn btn-outline" @click="paiementEffectue = null">
             ✖ Fermer
           </button>
@@ -854,7 +858,9 @@
               }}
             </div>
           </div>
-          <div class="recu-a4-cachet">Signature et cachet</div>
+          <BlocSignature :prescripteur-id="recuA4.caissierId">
+            <div class="recu-a4-cachet">Signature et cachet</div>
+          </BlocSignature>
         </div>
         <div class="recu-a4-merci">♥ Merci de votre visite ♥</div>
       </div>
@@ -863,13 +869,17 @@
 </template>
 
 <script setup>
+import DateSaisie from '../components/DateSaisie.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import Swal from "sweetalert2";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import http from "../api/http";
 import { toastError, toastSuccess } from "../utils/notifications";
+import { attendreImages } from "../utils/impression";
 import SelectSearch from "../components/SelectSearch.vue";
+import BlocSignature from "../components/BlocSignature.vue";
+import CaseSignature from "../components/CaseSignature.vue";
 import logoClinique from "../assets/logoclinique.jpeg";
 
 const auth = useAuthStore();
@@ -1295,6 +1305,8 @@ const recuA4 = ref(null);
 async function lancerImpression(zone) {
   zoneImpression.value = zone;
   await nextTick();
+  // Logo, signature et cachet doivent être chargés avant l'impression
+  await attendreImages(zone === "a4" ? "#recu-a4-print" : "#recu-print");
   window.print();
   zoneImpression.value = null;
 }
@@ -1849,6 +1861,10 @@ onUnmounted(() => {
 .recu-a4-sign-qui {
   margin-top: 10mm;
   font-size: 11px;
+}
+.case-signature-caisse {
+  flex-basis: 100%;
+  justify-content: center;
 }
 .recu-a4-cachet {
   border: 1px solid #111;

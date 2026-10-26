@@ -39,7 +39,7 @@
           </div>
           <div class="field">
             <label>Date du règlement <span class="requis">*</span></label>
-            <input v-model="formReglement.dateReglement" type="date" />
+            <DateSaisie v-model="formReglement.dateReglement" />
           </div>
           <div class="field">
             <label>Montant reçu (FCFA) <span class="requis">*</span></label>
@@ -211,9 +211,9 @@
     <!-- ============ FACTURATION ============ -->
     <div v-if="vue === 'facturation'">
       <div class="toolbar">
-        <input v-model="factDebut" type="date" class="search-input" style="max-width: 160px; flex: none" @change="chargerFacturation" />
+        <DateSaisie v-model="factDebut" class="search-input" style="max-width: 160px; flex: none" @change="chargerFacturation" />
         <span>→</span>
-        <input v-model="factFin" type="date" class="search-input" style="max-width: 160px; flex: none" @change="chargerFacturation" />
+        <DateSaisie v-model="factFin" class="search-input" style="max-width: 160px; flex: none" @change="chargerFacturation" />
         <select v-model="factAssuranceId" class="search-input" style="max-width: 220px; flex: none" @change="chargerFacturation">
           <option :value="null">Toutes les assurances</option>
           <option v-for="a in assurances" :key="a.id" :value="a.id">{{ a.libelle }}</option>
@@ -595,11 +595,11 @@
           </div>
           <div class="field">
             <label>Date de début</label>
-            <input v-model="formFormule.dateDebut" type="date" />
+            <DateSaisie v-model="formFormule.dateDebut" />
           </div>
           <div class="field">
             <label>Date de fin</label>
-            <input v-model="formFormule.dateFin" type="date" />
+            <DateSaisie v-model="formFormule.dateFin" />
           </div>
         </div>
         <div class="modal-actions">
@@ -632,11 +632,11 @@
           </div>
           <div class="field">
             <label>Date de début</label>
-            <input v-model="formCouverture.dateDebut" type="date" />
+            <DateSaisie v-model="formCouverture.dateDebut" />
           </div>
           <div class="field">
             <label>Date de fin</label>
-            <input v-model="formCouverture.dateFin" type="date" />
+            <DateSaisie v-model="formCouverture.dateFin" />
           </div>
         </div>
         <div class="modal-actions">
@@ -649,6 +649,7 @@
 </template>
 
 <script setup>
+import DateSaisie from '../../components/DateSaisie.vue'
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import * as XLSX from 'xlsx'
 import http from '../../api/http'
