@@ -162,6 +162,21 @@
     "duree": 68
   },
   {
+    "code": "SIGNATURE",
+    "module": "SIGNATURE",
+    "titre": "Signature et cachet",
+    "icone": "✍️",
+    "description": "Autoriser un rôle, enregistrer sa signature et l’apposer sur les documents imprimés",
+    "fichier": "signature.mp4",
+    "duree": 201,
+    "modules": [
+      "CONSULTATION",
+      "MATERNITE",
+      "CAISSE",
+      "PARAMETRAGE"
+    ]
+  },
+  {
     "code": "STATISTIQUES",
     "module": "STATISTIQUES",
     "titre": "Statistiques",

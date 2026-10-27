@@ -153,6 +153,11 @@
             <div v-for="c in p.ordonnances" :key="c.id" class="ordo-line" @click="choisirOrdonnance(c, p)">
               {{ c.ordonnanceType === 'SOINS' ? '💉 Ordonnance de soins' : '💊 Ordonnance' }} {{ c.numeroOrdonnance ? `n° ${c.numeroOrdonnance} — ` : '' }}du {{ formatDate(c.valideeLe || p.createdAt) }}
               ({{ c.medicaments.length }} médicament(s)) — {{ c.ordonnanceStatut === 'TRAITEE' ? 'traitée' : 'en attente' }}
+              <span
+                v-if="c.horsClinique && c.ordonnanceStatut !== 'TRAITEE'"
+                class="badge badge-warning"
+                title="Le médecin a indiqué que le patient achète hors de la clinique : elle peut quand même être servie ici s'il revient"
+              >🏪 Achat hors clinique</span>
             </div>
           </li>
         </ul>

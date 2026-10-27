@@ -1333,7 +1333,7 @@ onMounted(chargerMois);
   margin: 0;
 }
 
-/* ---------- Impression A4 paysage (modèle officiel) ---------- */
+/* ---------- Impression A4 portrait (modèle officiel) ---------- */
 @media screen {
   #rapport-print {
     position: fixed;
@@ -1341,9 +1341,13 @@ onMounted(chargerMois);
     top: 0;
   }
 }
-@page {
+/* Page nommée : ne touche pas aux impressions des autres écrans */
+@page rapport {
   size: A4 portrait;
   margin: 10mm 12mm;
+}
+#rapport-print {
+  page: rapport;
 }
 .print-a4 {
   width: 186mm;

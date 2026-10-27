@@ -1116,8 +1116,8 @@ onUnmounted(() => {
     top: 0;
   }
 }
+/* Pas de « size » : l'utilisateur choisit le papier et l'orientation dans la boîte d'impression */
 @page {
-  size: A4;
   margin: 16mm 14mm;
 }
 .labo-a4 {

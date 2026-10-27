@@ -65,7 +65,10 @@ const chargement = ref(true)
 const enCours = ref(null)
 
 // L'utilisateur ne voit que les vidéos des modules attribués à son rôle
-const videos = computed(() => toutes.value.filter((v) => auth.canAccess(v.module ?? v.code)))
+// (une vidéo commune à plusieurs modules liste ses modules dans « modules »)
+const videos = computed(() =>
+  toutes.value.filter((v) => (v.modules ?? [v.module ?? v.code]).some((m) => auth.canAccess(m))),
+)
 
 const duree = (s) => `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')}`
 

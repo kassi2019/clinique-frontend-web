@@ -2674,13 +2674,13 @@ onMounted(async () => {
   color: #0f766e; text-transform: uppercase; letter-spacing: 0.03em;
 }
 
-/* Impression : registres en paysage, ordonnance en portrait (pages nommées) */
+/* Impression : registres en paysage, ordonnance au choix (pages nommées) */
 @media screen {
   #ordo-print { position: fixed; left: -10000px; top: 0; }
   #cpn-print, #cpon-print, #acc-print, #pf-print { position: fixed; left: -10000px; top: 0; }
 }
 @page registre { size: A4 landscape; margin: 8mm 8mm; }
-@page ordo { size: A4 portrait; margin: 16mm 14mm; }
+@page ordo { margin: 16mm 14mm; } /* orientation au choix de l'utilisateur */
 #cpn-print, #cpon-print, #acc-print, #pf-print { page: registre; }
 #ordo-print { page: ordo; }
 /* ── Registres (A4 paysage, format officiel) ── */

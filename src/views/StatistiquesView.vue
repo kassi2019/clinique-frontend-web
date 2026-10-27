@@ -838,9 +838,13 @@ onMounted(async () => {
   background: rgba(255, 255, 255, 0.16);
 }
 
-@page {
+/* Page nommée : ne touche pas aux impressions des autres écrans */
+@page stats {
   size: A4 landscape;
   margin: 12mm;
+}
+#stat-print {
+  page: stats;
 }
 .stat-a4 {
   width: 277mm;

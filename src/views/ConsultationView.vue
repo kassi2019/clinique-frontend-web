@@ -280,11 +280,11 @@
             <div class="form-row">
               <div class="field">
                 <label>Profession</label>
-                <SelectSearch :model-value="separerValeurs(formConsult.profession)" :options="optionsMultiples('PROFESSION', formConsult.profession)" multiple libre placeholder="— Cocher une ou plusieurs valeurs —" @update:model-value="(v) => (formConsult.profession = joindreValeurs(v))" />
+                <SelectSearch v-model="formConsult.profession" :options="listesParams.PROFESSION.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
               <div class="field">
                 <label>Nationalité</label>
-                <SelectSearch :model-value="separerValeurs(formConsult.nationalite)" :options="optionsMultiples('NATIONALITE', formConsult.nationalite)" multiple libre placeholder="— Cocher une ou plusieurs valeurs —" @update:model-value="(v) => (formConsult.nationalite = joindreValeurs(v))" />
+                <SelectSearch v-model="formConsult.nationalite" :options="listesParams.NATIONALITE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
               <div class="field">
                 <label>Contacts téléphoniques</label>
@@ -295,11 +295,11 @@
             <div class="form-row">
               <div class="field">
                 <label>Résidence habituelle</label>
-                <SelectSearch :model-value="separerValeurs(formConsult.residenceHabituelle)" :options="optionsMultiples('RESIDENCE', formConsult.residenceHabituelle)" multiple libre placeholder="— Cocher une ou plusieurs valeurs —" @update:model-value="(v) => (formConsult.residenceHabituelle = joindreValeurs(v))" />
+                <SelectSearch v-model="formConsult.residenceHabituelle" :options="listesParams.RESIDENCE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
               <div class="field">
                 <label>Résidence actuelle</label>
-                <SelectSearch :model-value="separerValeurs(formConsult.residenceActuelle)" :options="optionsMultiples('RESIDENCE', formConsult.residenceActuelle)" multiple libre placeholder="— Cocher une ou plusieurs valeurs —" @update:model-value="(v) => (formConsult.residenceActuelle = joindreValeurs(v))" />
+                <SelectSearch v-model="formConsult.residenceActuelle" :options="listesParams.RESIDENCE.map((x) => ({ value: x.libelle, label: x.libelle }))" libre placeholder="— Choisir ou ajouter —" />
               </div>
             </div>
 
@@ -490,7 +490,7 @@
                   :value="imcCalcule"
                   readonly
                   class="champ-grise"
-                  :class="imcClasse && `imc-${imcClasse.niveau}`"
+                  :class="imcClasse ? `imc-${imcClasse.niveau}` : imcCalcule && patientMineur ? 'imc-enfant' : ''"
                   title="Calculé automatiquement à partir du poids et de la taille"
                 />
                 <!-- Classification OMS (adultes) : bleu = inférieur, vert = normal, rouge = supérieur à la normale -->
@@ -859,11 +859,11 @@
               :key="o.id"
               class="ordo-puce"
               :class="{ actif: o.id === ordonnanceActiveId, traitee: o.statut === 'TRAITEE' }"
-              :title="o.statut === 'TRAITEE' ? 'Déjà délivrée par la pharmacie (non modifiable)' : 'En attente à la pharmacie'"
+              :title="o.statut === 'TRAITEE' ? 'Déjà délivrée par la pharmacie (non modifiable)' : o.horsClinique ? 'Achat hors de la clinique : n’apparaît pas à la pharmacie' : 'En attente à la pharmacie'"
               @click="ordonnanceActiveId = o.id"
             >
-              💊 {{ o.numero }}
-              <span class="ordo-puce-etat">{{ o.statut === 'TRAITEE' ? 'délivrée' : 'en attente' }}</span>
+              {{ o.horsClinique && o.statut !== 'TRAITEE' ? '🏪' : '💊' }} {{ o.numero }}
+              <span class="ordo-puce-etat">{{ o.statut === 'TRAITEE' ? 'délivrée' : o.horsClinique ? 'hors clinique' : 'en attente' }}</span>
               <span class="ordo-puce-nb">{{ nbMedicamentsOrdonnance(o.id) }}</span>
             </button>
             <button class="btn btn-outline btn-sm" :disabled="creationOrdonnance" @click="nouvelleOrdonnance">
@@ -913,6 +913,28 @@
           >
             + Ajouter un médicament{{ ordonnanceActive ? ` à ${ordonnanceActive.numero}` : '' }}
           </button>
+
+          <!-- Le patient achète ses médicaments ailleurs : l'ordonnance ne part pas à la pharmacie de la clinique -->
+          <label
+            v-if="ordonnanceActive && ordonnanceActive.statut !== 'TRAITEE' && medicamentsOrdonnance.length > 0"
+            class="ordo-hors-clinique"
+            :class="{ actif: ordonnanceActive.horsClinique }"
+          >
+            <input
+              type="checkbox"
+              :checked="ordonnanceActive.horsClinique"
+              :disabled="horsCliniqueEnCours"
+              @change="(e) => basculerHorsClinique(e.target.checked)"
+            />
+            <span>
+              🏪 <strong>Le patient achète hors de la clinique</strong>
+              <small>
+                {{ ordonnanceActive.horsClinique
+                  ? `L'ordonnance ${ordonnanceActive.numero} n'apparaît pas à la pharmacie de la clinique : imprimez-la pour le patient.`
+                  : 'Cochez si le patient va acheter ses médicaments dans une autre pharmacie : l’ordonnance ne sera pas envoyée à la pharmacie de la clinique.' }}
+              </small>
+            </span>
+          </label>
 
           <!-- Ordonnance -->
           <div class="form-actions validation-row">
@@ -1056,6 +1078,7 @@
                   <th>Examen</th>
                   <th>Service</th>
                   <th>État</th>
+                  <th title="Cochez si le patient fait l'examen dans un autre laboratoire / centre d'imagerie">🏪 Hors clinique</th>
                   <th></th>
                 </tr>
               </thead>
@@ -1073,6 +1096,20 @@
                     <span v-if="l.resultatExterne" class="badge badge-success" title="Le résultat scanné est joint au dossier">
                       📎 Résultat joint
                     </span>
+                  </td>
+                  <!-- Le patient fait l'examen ailleurs : il ne part ni à la caisse, ni au labo / à l'imagerie -->
+                  <td class="examen-hors-clinique">
+                    <input
+                      v-if="examenBasculable(l)"
+                      type="checkbox"
+                      :checked="l.statut === 'EXTERNE'"
+                      :disabled="!consultation || examenHorsCliniqueEnCours === l.id || !!l.resultatExterne"
+                      :title="l.statut === 'EXTERNE'
+                        ? 'Fait hors de la clinique : n’apparaît ni à la caisse, ni au labo / à l’imagerie. Décochez pour le faire ici.'
+                        : 'Cochez si le patient fait cet examen ailleurs : il ne sera plus à payer ni visible au labo / à l’imagerie.'"
+                      @change="(e) => basculerExamenHorsClinique(l, e.target.checked)"
+                    />
+                    <span v-else-if="l.statut === 'EXTERNE'" title="Saisie libre : examen fait hors clinique">✔</span>
                   </td>
                   <td>
                     <button
@@ -1513,10 +1550,16 @@
           </p>
           <p class="fiche-a4-ligne">
             TA bras gauche : {{ historiqueDetail.passage?.tensionGauche || '—' }} &nbsp;&nbsp; TA bras droit : {{ historiqueDetail.passage?.tensionDroite || '—' }}
-            &nbsp;&nbsp; IMC : {{ historiqueDetail.imc || '—' }}
-            <template v-if="classerImc(historiqueDetail.imc, detail?.passage?.patient?.age)">
-              ({{ classerImc(historiqueDetail.imc, detail?.passage?.patient?.age).libelle }})
-            </template>
+            &nbsp;&nbsp; IMC :
+            <!-- Ancien dossier sans IMC enregistré : recalculé à partir du poids et de la taille du passage -->
+            <span
+              class="imc-historique"
+              :class="histImcClasse ? `imc-texte-${histImcClasse.niveau}` : histImc && histMineur ? 'imc-texte-enfant' : ''"
+            >
+              {{ histImc || '—' }}<template v-if="histImc"> kg/m²</template>
+              <template v-if="histImcClasse"> ({{ histImcClasse.libelle }})</template>
+              <template v-else-if="histImc && histMineur"> (Enfant : se référer au Z-score)</template>
+            </span>
           </p>
 
           <h2 class="fiche-a4-section">ANTÉCÉDENTS</h2>
@@ -2754,7 +2797,8 @@ const formConsult = reactive({})
 const savingConsult = ref(false)
 
 const OUI_NON_NA = ['Oui', 'Non', 'NA']
-const STATUTS_CONJUGAUX = ['Marié(e)', 'Concubinage', 'Célibataire', 'Séparé(e)', 'Veuf/Veuve', 'Autre']
+// NA : non applicable (enfant…) ou non renseigné
+const STATUTS_CONJUGAUX = ['Marié(e)', 'Concubinage', 'Célibataire', 'Séparé(e)', 'Veuf/Veuve', 'Autre', 'NA']
 const TYPES_POPULATION = ['Population générale', 'TS', 'OEV', 'HSH', 'PC']
 const PROTECTIONS_SOCIALES = ['Non assuré', 'CMU', 'Assurance privée (AP)', 'CMU + AP', 'Indigent']
 // Une seule issue à la fois (l'hospitalisation en fait partie)
@@ -2807,6 +2851,27 @@ const patientMineur = computed(() => {
   return age != null && age !== '' && Number(age) < 18
 })
 const imcClasse = computed(() => classerImc(imcCalcule.value, passageCourant.value?.patient?.age))
+/** IMC (kg/m²) à partir d'un poids et d'une taille (en cm, ou en m). */
+function calculerImc(poidsBrut, tailleBrute) {
+  const nombre = (v) => Number(String(v ?? '').replace(',', '.'))
+  const poids = nombre(poidsBrut)
+  let taille = nombre(tailleBrute)
+  if (!poids || !taille) return ''
+  if (taille > 3) taille = taille / 100
+  return (poids / (taille * taille)).toFixed(1)
+}
+
+// Historique : IMC enregistré, sinon recalculé (anciens dossiers saisis avant l'enregistrement de l'IMC)
+const histImc = computed(() => {
+  const h = historiqueDetail.value
+  if (!h) return ''
+  return h.imc || calculerImc(h.passage?.poids, h.passage?.taille)
+})
+const histImcClasse = computed(() => classerImc(histImc.value, detail.value?.passage?.patient?.age))
+const histMineur = computed(() => {
+  const age = detail.value?.passage?.patient?.age
+  return age != null && age !== '' && Number(age) < 18
+})
 
 /** Prix affiché sur l'ordonnance (tests automatiques), ex. 1 500. */
 function formatPrix(v) {
@@ -4121,6 +4186,34 @@ async function prescrireExamen(l) {
   }
 }
 
+/** Case « Hors clinique » : examen labo / imagerie prescrit, ni payé ni commencé à la clinique. */
+function examenBasculable(l) {
+  return (
+    !!l.prestationId &&
+    ['EXAMEN_LABO', 'IMAGERIE'].includes(l.prestation?.type) &&
+    ['EN_ATTENTE', 'EXTERNE'].includes(l.statut) &&
+    !resultatExamen(l)
+  )
+}
+
+const examenHorsCliniqueEnCours = ref(null)
+async function basculerExamenHorsClinique(l, horsClinique) {
+  examenHorsCliniqueEnCours.value = l.id
+  try {
+    await http.patch(`/consultations/examens/${l.id}/hors-clinique`, { horsClinique })
+    toastSuccess(
+      horsClinique
+        ? `${l.libelle} : fait hors clinique — il n'apparaît ni à la caisse, ni au labo / à l'imagerie.`
+        : `${l.libelle} : à faire à la clinique — renvoyé à la caisse.`,
+    )
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Modification impossible.')
+  } finally {
+    examenHorsCliniqueEnCours.value = null
+    await chargerDetail()
+  }
+}
+
 async function retirerExamen(l) {
   if (!consultation.value) return
   try {
@@ -4275,6 +4368,27 @@ watch(ordonnancesConsult, (liste) => {
     ordonnanceActiveId.value = liste.length ? liste[liste.length - 1].id : null
   }
 }, { immediate: true })
+
+// « Le patient achète hors de la clinique » : l'ordonnance sort de la liste « en attente » de la pharmacie
+const horsCliniqueEnCours = ref(false)
+async function basculerHorsClinique(horsClinique) {
+  if (!ordonnanceActive.value || !passageCourant.value) return
+  horsCliniqueEnCours.value = true
+  try {
+    await http.patch(`/consultations/ordonnances/${ordonnanceActive.value.id}/hors-clinique`, { horsClinique })
+    toastSuccess(
+      horsClinique
+        ? `Ordonnance ${ordonnanceActive.value.numero} : achat hors clinique — elle n'apparaît pas à la pharmacie.`
+        : `Ordonnance ${ordonnanceActive.value.numero} : renvoyée à la pharmacie de la clinique.`,
+    )
+    await chargerDetail()
+  } catch (e) {
+    toastError(e.response?.data?.message || 'Modification impossible.')
+    await chargerDetail()
+  } finally {
+    horsCliniqueEnCours.value = false
+  }
+}
 
 async function nouvelleOrdonnance() {
   if (!(await assurerConsultation())) return
@@ -4778,9 +4892,22 @@ onUnmounted(() => {
 .imc-texte-haut {
   color: #b91c1c;
 }
+/* Historique : IMC coloré (couleur conservée à l'impression) */
+.imc-historique {
+  font-weight: 700;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* Enfant (< 18 ans) : orange, se référer au Z-score */
+.constante-item input.imc-enfant {
+  background: #ffedd5 !important;
+  color: #c2410c !important;
+  border-color: #f97316 !important;
+  font-weight: 800;
+}
 .imc-texte-enfant {
-  color: var(--text-muted);
-  font-weight: 600;
+  color: #c2410c;
+  font-weight: 700;
 }
 .constante-item input {
   padding: 7px 10px;
@@ -5084,6 +5211,34 @@ onUnmounted(() => {
 }
 
 /* ---------- Ordonnances multiples : puces de sélection ---------- */
+/* Ordonnance « achat hors clinique » */
+.ordo-hors-clinique {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 14px 0 4px;
+  padding: 10px 12px;
+  border: 1.5px dashed var(--border-champ);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13.5px;
+}
+.ordo-hors-clinique input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: #b45309;
+  flex-shrink: 0;
+}
+.ordo-hors-clinique small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+.ordo-hors-clinique.actif {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
 .ordo-barre {
   display: flex;
   flex-wrap: wrap;
@@ -5415,6 +5570,14 @@ onUnmounted(() => {
   }
 }
 
+.examen-hors-clinique {
+  text-align: center;
+}
+.examen-hors-clinique input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
 /* ---------- Ordonnance format A4 ---------- */
 @media screen {
   #ordo-print {
@@ -5423,9 +5586,9 @@ onUnmounted(() => {
     top: 0;
   }
 }
+/* Pas de « size » : l'utilisateur choisit le papier et l'orientation dans la boîte d'impression */
 @media print {
   @page {
-    size: A4;
     margin: 16mm 14mm;
   }
 }
@@ -5452,6 +5615,12 @@ onUnmounted(() => {
   flex-direction: column;
   box-sizing: border-box;
   text-transform: none;
+}
+/* En paysage, la hauteur A4 portrait déborderait sur une 2ᵉ page */
+@media print and (orientation: landscape) {
+  .certificat-a4 {
+    min-height: auto;
+  }
 }
 .cert-entete {
   display: flex;

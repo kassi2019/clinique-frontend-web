@@ -1654,8 +1654,8 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.16);
 }
 
+/* Pas de « size » : l'utilisateur choisit le papier et l'orientation dans la boîte d'impression */
 @page {
-  size: A4;
   margin: 16mm 14mm;
 }
 .ima-a4 {
