@@ -469,7 +469,7 @@
             <button
               class="tab-btn"
               :class="{ active: sousOnglet === 'mouvement' }"
-              @click="sousOnglet = 'mouvement'; chargerMouvementsMed()"
+              @click="sousOnglet = 'mouvement'; chargerMouvementsMed(); chargerRecapSorties()"
             >
               📜 Mouvements
             </button>
@@ -503,14 +503,53 @@
               🖨️ Fiche d'inventaire
             </button>
           </div>
-          <div v-else class="toolbar">
-            <SelectSearch
-              v-model="mouvementMedId"
-              :options="optionsStocks"
-              placeholder="— Choisir un médicament —"
-              @update:model-value="chargerMouvementsMed"
-            />
-          </div>
+          <template v-else>
+            <div class="toolbar">
+              <button
+                class="btn btn-sm"
+                :class="vueMouvements === 'recap' ? 'btn-primary' : 'btn-outline'"
+                @click="vueMouvements = 'recap'; chargerRecapSorties()"
+              >
+                📊 Récapitulatif des sorties
+              </button>
+              <button
+                class="btn btn-sm"
+                :class="vueMouvements === 'produit' ? 'btn-primary' : 'btn-outline'"
+                @click="vueMouvements = 'produit'"
+              >
+                📜 Historique d'un produit
+              </button>
+            </div>
+            <div v-if="vueMouvements === 'recap'" class="toolbar">
+              <DateSaisie v-model="sortiesDebut" class="search-input" style="max-width: 160px; flex: none" title="Date de début (vide = aujourd'hui)" @change="chargerRecapSorties" />
+              <DateSaisie v-model="sortiesFin" class="search-input" style="max-width: 160px; flex: none" title="Date de fin (vide = aujourd'hui)" @change="chargerRecapSorties" />
+              <div style="min-width: 260px; flex: 1">
+                <SelectSearch
+                  v-model="sortiesProduits"
+                  :options="optionsStocks"
+                  multiple
+                  placeholder="Tous les produits (cocher pour filtrer)"
+                  @update:model-value="chargerRecapSorties"
+                />
+              </div>
+              <select v-model="sortiesCategorie" style="max-width: 170px" @change="chargerRecapSorties">
+                <option value="TOUS">Tous</option>
+                <option value="MEDICAMENTS">Médicaments</option>
+                <option value="CONSOMMABLES">Consommables</option>
+              </select>
+              <button class="btn btn-outline btn-sm" @click="chargerRecapSorties">🔄 Actualiser</button>
+              <button class="btn btn-outline btn-sm" :disabled="!recapSorties.lignes.length" @click="exporterSortiesExcel">📥 Excel</button>
+              <button class="btn btn-outline btn-sm" :disabled="!recapSorties.lignes.length" @click="imprimerSortiesPdf">🖨️ PDF</button>
+            </div>
+            <div v-else class="toolbar">
+              <SelectSearch
+                v-model="mouvementMedId"
+                :options="optionsStocks"
+                placeholder="— Choisir un médicament —"
+                @update:model-value="chargerMouvementsMed"
+              />
+            </div>
+          </template>
         </div>
 
         <p v-if="alertes && (alertes.stockBas.length || alertes.peremptions.length)" class="alert alert-error">
@@ -656,6 +695,80 @@
             </table>
           </div>
         </div>
+        </template>
+
+        <!-- ── MOUVEMENTS : récapitulatif des sorties sur une période ── -->
+        <template v-else-if="vueMouvements === 'recap'">
+          <div class="financier-grille">
+            <div class="financier-carte">
+              <div class="financier-label">Produits sortis</div>
+              <div class="financier-montant">{{ recapSorties.totaux.produits }}</div>
+              <div class="text-muted small-note">{{ libellePeriodeSorties() }}</div>
+            </div>
+            <div class="financier-carte">
+              <div class="financier-label">Quantité délivrée</div>
+              <div class="financier-montant">{{ recapSorties.totaux.dispense.toLocaleString('fr-FR') }}</div>
+            </div>
+            <div class="financier-carte">
+              <div class="financier-label">Quantité retirée</div>
+              <div class="financier-montant">{{ recapSorties.totaux.retire.toLocaleString('fr-FR') }}</div>
+              <div class="text-muted small-note">périmés, casse, perte, retour…</div>
+            </div>
+            <div class="financier-carte">
+              <div class="financier-label">Total sorti</div>
+              <div class="financier-montant">{{ recapSorties.totaux.total.toLocaleString('fr-FR') }}</div>
+              <div class="text-muted small-note">Valeur : {{ formatMontant(recapSorties.totaux.valeur) }}</div>
+            </div>
+          </div>
+          <div v-if="recapSorties.lignes.length === 0" class="empty-state">
+            Aucune sortie sur cette période.
+          </div>
+          <div v-else class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th>Unité</th>
+                  <th>Délivré</th>
+                  <th>Retiré</th>
+                  <th>Total sorti</th>
+                  <th title="Nombre d'opérations de sortie (une délivrance peut toucher plusieurs lots)">Nb sorties</th>
+                  <th title="Correctifs d'inventaire de la période — non comptés dans les sorties">Écart inventaire</th>
+                  <th>Valeur (prix de vente)</th>
+                  <th>Stock actuel</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="l in recapSorties.lignes" :key="l.medicamentId">
+                  <td>
+                    <strong>{{ nomProduitSortie(l) }}</strong>
+                    <span v-if="l.consommable" class="badge badge-muted">Consommable</span>
+                  </td>
+                  <td>{{ libelleUnite(l.unite) }}</td>
+                  <td>{{ l.dispense }}</td>
+                  <td>{{ l.retire }}</td>
+                  <td><strong>{{ l.total }}</strong></td>
+                  <td>{{ l.nbSorties }}</td>
+                  <td class="text-muted">{{ l.ecartInventaire > 0 ? '+' : '' }}{{ l.ecartInventaire || '—' }}</td>
+                  <td>{{ formatMontant(l.valeur) }}</td>
+                  <td>{{ l.stockActuel }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td><strong>TOTAL ({{ recapSorties.totaux.produits }} produit(s))</strong></td>
+                  <td></td>
+                  <td><strong>{{ recapSorties.totaux.dispense }}</strong></td>
+                  <td><strong>{{ recapSorties.totaux.retire }}</strong></td>
+                  <td><strong>{{ recapSorties.totaux.total }}</strong></td>
+                  <td></td>
+                  <td class="text-muted">{{ recapSorties.totaux.ecartInventaire > 0 ? '+' : '' }}{{ recapSorties.totaux.ecartInventaire || '—' }}</td>
+                  <td><strong>{{ formatMontant(recapSorties.totaux.valeur) }}</strong></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </template>
 
         <!-- ── MOUVEMENTS : historique par médicament ── -->
@@ -2399,6 +2512,105 @@ async function validerInventaireLot(l) {
   }
 }
 
+// ── Récapitulatif des sorties (onglet Mouvements) ──
+const vueMouvements = ref('recap') // 'recap' | 'produit'
+const sortiesDebut = ref('')
+const sortiesFin = ref('')
+const sortiesProduits = ref([])
+const sortiesCategorie = ref('TOUS')
+const RECAP_SORTIES_VIDE = {
+  lignes: [],
+  totaux: { produits: 0, dispense: 0, retire: 0, total: 0, ecartInventaire: 0, valeur: 0 },
+}
+const recapSorties = ref(RECAP_SORTIES_VIDE)
+
+async function chargerRecapSorties() {
+  try {
+    const { data } = await http.get('/pharmacie/sorties', {
+      params: {
+        cliniqueId: cliniqueId.value,
+        debut: sortiesDebut.value || undefined,
+        fin: sortiesFin.value || undefined,
+        medicamentIds: sortiesProduits.value.length ? sortiesProduits.value.join(',') : undefined,
+        categorie: sortiesCategorie.value,
+      },
+    })
+    recapSorties.value = data
+  } catch (e) {
+    recapSorties.value = RECAP_SORTIES_VIDE
+    toastError(e.response?.data?.message || 'Chargement des sorties impossible.')
+  }
+}
+
+function nomProduitSortie(l) {
+  return [l.nom, l.dosage, l.forme].filter(Boolean).join(' ')
+}
+
+function libelleUnite(u) {
+  return u === 'PLAQUE' ? 'Plaque' : u === 'BOITE' ? 'Boîte' : u || '—'
+}
+
+function libellePeriodeSorties() {
+  const jour = (iso) => iso.split('-').reverse().join('/')
+  const aujourdhui = new Date().toLocaleDateString('fr-FR')
+  const debut = sortiesDebut.value ? jour(sortiesDebut.value) : aujourdhui
+  const fin = sortiesFin.value ? jour(sortiesFin.value) : aujourdhui
+  return debut === fin ? `le ${debut}` : `du ${debut} au ${fin}`
+}
+
+const COLONNES_SORTIES = {
+  colonnes: ['Produit', 'Unité', 'Délivré', 'Retiré', 'Total sorti', 'Nb sorties', 'Écart inventaire', 'Valeur (prix de vente)'],
+  champs: ['produit', 'unite', 'dispense', 'retire', 'totalSorti', 'nbSorties', 'ecart', 'montant'],
+}
+
+function lignesRecapSorties() {
+  return recapSorties.value.lignes.map((l) => ({
+    produit: nomProduitSortie(l) + (l.consommable ? ' (consommable)' : ''),
+    unite: libelleUnite(l.unite),
+    dispense: l.dispense,
+    retire: l.retire,
+    totalSorti: l.total,
+    nbSorties: l.nbSorties,
+    ecart: l.ecartInventaire,
+    montant: l.valeur,
+  }))
+}
+
+function exporterSortiesExcel() {
+  const lignes = lignesRecapSorties().map((l) => {
+    const ligne = {}
+    COLONNES_SORTIES.champs.forEach((c, i) => {
+      ligne[COLONNES_SORTIES.colonnes[i]] = l[c]
+    })
+    return ligne
+  })
+  const t = recapSorties.value.totaux
+  lignes.push({
+    'Produit': `TOTAL (${t.produits} produit(s)) — ${libellePeriodeSorties()}`,
+    'Unité': '',
+    'Délivré': t.dispense,
+    'Retiré': t.retire,
+    'Total sorti': t.total,
+    'Nb sorties': '',
+    'Écart inventaire': t.ecartInventaire,
+    'Valeur (prix de vente)': t.valeur,
+  })
+  const aujourdhui = new Date().toISOString().slice(0, 10)
+  exporterXlsx(lignes, `sorties-pharmacie-${sortiesDebut.value || aujourdhui}_${sortiesFin.value || aujourdhui}`)
+}
+
+function imprimerSortiesPdf() {
+  const lignes = lignesRecapSorties()
+  imprimerZone({
+    titre: 'Récapitulatif des sorties de la pharmacie',
+    periode: libellePeriodeSorties(),
+    colonnes: COLONNES_SORTIES.colonnes,
+    champs: COLONNES_SORTIES.champs,
+    lignes,
+    sommes: sommesColonnes(lignes),
+  })
+}
+
 async function chargerMouvementsMed() {
   mouvements.value = []
   if (!mouvementMedId.value) return
@@ -2837,7 +3049,7 @@ const detailFinancierTotal = computed(() =>
 )
 
 /** Colonnes numériques : leur somme apparaît dans la ligne TOTAL. */
-const CHAMPS_NUMERIQUES = ['quantite', 'ecart', 'montant', 'prixAchat']
+const CHAMPS_NUMERIQUES = ['quantite', 'ecart', 'montant', 'prixAchat', 'dispense', 'retire', 'totalSorti']
 
 /** Somme de chaque colonne numérique du détail. */
 const detailFinancierSums = computed(() => {
@@ -2851,6 +3063,7 @@ const detailFinancierSums = computed(() => {
 /** Format d'une somme de colonne (montants en FCFA, quantités brutes). */
 function formatCelluleSomme(v, champ) {
   if (champ === 'montant' || champ === 'prixAchat') return `${Number(v ?? 0).toLocaleString('fr-FR')} F`
+  if (['dispense', 'retire', 'totalSorti'].includes(champ)) return `${v ?? 0}` // sorties : toujours positives
   return v > 0 ? `+${v}` : `${v}`
 }
 

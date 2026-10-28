@@ -206,6 +206,60 @@
         </div>
       </div>
     </div>
+
+    <!-- ============ Agents d'impression (PC de la clinique) ============ -->
+    <div class="card imprimante-card">
+      <div class="card-header">
+        <h2>🖥️ Agents d'impression</h2>
+        <div class="actions">
+          <button class="btn btn-outline btn-sm" :disabled="chargementAgents" @click="chargerAgents">
+            {{ chargementAgents ? 'Actualisation…' : 'Actualiser' }}
+          </button>
+        </div>
+      </div>
+      <p class="text-muted agents-aide">
+        Chaque PC où l'agent est installé apparaît ici. Cochez uniquement les postes dont
+        l'imprimante est branchée sur ce PC : la modification est prise en compte par l'agent
+        en moins d'une minute, sans réinstallation.
+      </p>
+
+      <p v-if="!agents.length" class="text-muted">
+        {{ chargementAgents ? 'Chargement…' : "Aucun agent ne s'est encore signalé (agent à mettre à jour sur les PC)." }}
+      </p>
+
+      <div v-for="agent in agents" :key="agent.id" class="agent-ligne">
+        <div class="agent-entete">
+          <strong class="printer-chip">{{ agent.nom }}</strong>
+          <span class="badge" :class="agentEnLigne(agent) ? 'badge-success' : 'badge-muted'">
+            {{ agentEnLigne(agent) ? 'En ligne' : 'Hors ligne' }}
+          </span>
+          <span class="text-muted agent-contact">Dernier contact : {{ formatContact(agent.dernierContact) }}</span>
+        </div>
+        <div class="agent-postes">
+          <label v-for="p in POSTES_AGENT" :key="p.value" class="agent-poste">
+            <input v-model="agent.postes" type="checkbox" :value="p.value" />
+            {{ p.label }}
+          </label>
+        </div>
+        <div class="agent-actions">
+          <button class="btn btn-primary btn-sm" :disabled="agentEnCours === agent.id" @click="enregistrerAgent(agent)">
+            {{ agentEnCours === agent.id ? 'Enregistrement…' : 'Enregistrer' }}
+          </button>
+          <button
+            v-if="confirmSuppressionAgent !== agent.id"
+            class="btn btn-outline btn-sm"
+            @click="confirmSuppressionAgent = agent.id"
+          >
+            Retirer
+          </button>
+          <template v-else>
+            <span class="text-muted">Retirer ce PC de la liste ?</span>
+            <button class="btn btn-danger btn-sm" @click="supprimerAgent(agent)">Oui, retirer</button>
+            <button class="btn btn-outline btn-sm" @click="confirmSuppressionAgent = null">Annuler</button>
+          </template>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -289,6 +343,63 @@ async function sauvegarderConfig() {
     toastError(e.response?.data?.message || e.message)
   } finally {
     savingConfig.value = false
+  }
+}
+
+// Agents d'impression : postes imprimés par chaque PC de la clinique
+const POSTES_AGENT = [
+  { value: 'TICKET', label: 'TICKET (ticket de passage)' },
+  { value: 'RECU', label: 'RECU (reçu de caisse)' },
+  { value: 'PHARMACIE', label: 'PHARMACIE (reçu pharmacie)' },
+  { value: 'ORDONNANCE', label: 'ORDONNANCE (ordonnance)' },
+  { value: 'IMAGERIE', label: 'IMAGERIE (imagerie)' },
+]
+const agents = ref([])
+const chargementAgents = ref(false)
+const agentEnCours = ref(null)
+const confirmSuppressionAgent = ref(null)
+
+async function chargerAgents() {
+  chargementAgents.value = true
+  try {
+    const { data } = await http.get('/impression/agents')
+    agents.value = data
+  } catch (e) {
+    toastError(e.response?.data?.message || e.message)
+  } finally {
+    chargementAgents.value = false
+  }
+}
+
+// L'agent se signale toutes les 30 s : au-delà de 2 minutes, il est hors ligne
+function agentEnLigne(agent) {
+  return Date.now() - new Date(agent.dernierContact).getTime() < 2 * 60 * 1000
+}
+
+function formatContact(date) {
+  return new Date(date).toLocaleString('fr-FR')
+}
+
+async function enregistrerAgent(agent) {
+  agentEnCours.value = agent.id
+  try {
+    await http.put(`/impression/agents/${agent.id}`, { postes: agent.postes })
+    toastSuccess(`Postes de ${agent.nom} enregistrés — appliqués par l'agent sous 30 secondes.`)
+  } catch (e) {
+    toastError(e.response?.data?.message || e.message)
+  } finally {
+    agentEnCours.value = null
+  }
+}
+
+async function supprimerAgent(agent) {
+  try {
+    await http.delete(`/impression/agents/${agent.id}`)
+    confirmSuppressionAgent.value = null
+    toastSuccess(`${agent.nom} retiré de la liste.`)
+    await chargerAgents()
+  } catch (e) {
+    toastError(e.response?.data?.message || e.message)
   }
 }
 
@@ -460,6 +571,7 @@ async function resetImage() {
 
 onMounted(() => {
   loadCliniques()
+  chargerAgents()
   http
     .get('/impression/printers')
     .then(({ data }) => (imprimantesWindows.value = data.printers))
@@ -566,5 +678,44 @@ watch(posteActif, appliquerConfigPoste)
 }
 .printer-chip {
   font-family: Consolas, monospace;
+}
+
+/* ---------- Agents d'impression ---------- */
+.agents-aide {
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.agent-ligne {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.agent-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.agent-contact {
+  font-size: 12px;
+}
+.agent-postes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-bottom: 10px;
+}
+.agent-poste {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.agent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 </style>
