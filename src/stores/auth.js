@@ -21,6 +21,22 @@ export const useAuthStore = defineStore('auth', {
       if (!modules || modules.length === 0) return true // accès complet si aucune restriction renseignée
       return modules.some((m) => m.code === moduleCode)
     },
+    /**
+     * Onglet autorisé (ex. 'PHARMACIE.STOCKS') : réglé par utilisateur.
+     * Aucun onglet coché pour le module = tous ses onglets ; l'administrateur voit tout.
+     */
+    canAccessOnglet: (state) => (code) => {
+      if (!state.user) return false
+      if (state.user.role?.code === 'ADMINISTRATEUR') return true
+      const module = code.split('.')[0]
+      const duModule = (state.user.onglets ?? []).filter((o) => o.split('.')[0] === module)
+      return duModule.length === 0 || duModule.includes(code)
+    },
+    /** Premier onglet autorisé parmi `cles` (dans l'ordre), ex. premierOnglet('CAISSE', ['attente', 'payes']). */
+    premierOnglet() {
+      return (module, cles) =>
+        cles.find((c) => this.canAccessOnglet(`${module}.${c.toUpperCase()}`)) ?? cles[0]
+    },
     /** L'administrateur n'a pas à pointer pour travailler (paramétrage, contrôle). */
     exempteDePointage: (state) => state.user?.role?.code === 'ADMINISTRATEUR',
     /** Les modules restent verrouillés tant que l'agent n'a pas pris son service. */

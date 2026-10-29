@@ -19,16 +19,16 @@
 
     <main class="fin-content">
       <nav class="tabs-nav">
-        <button class="tab-btn" :class="{ active: onglet === 'direct' }" @click="onglet = 'direct'">
+        <button v-if="voirOnglet('direct')" class="tab-btn" :class="{ active: onglet === 'direct' }" @click="onglet = 'direct'">
           🟢 En service maintenant <span class="tab-count">{{ direct.total }}</span>
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'services' }" @click="onglet = 'services'">
+        <button v-if="voirOnglet('services')" class="tab-btn" :class="{ active: onglet === 'services' }" @click="onglet = 'services'">
           📋 Services du mois
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'tarifs' }" @click="onglet = 'tarifs'">
+        <button v-if="voirOnglet('tarifs')" class="tab-btn" :class="{ active: onglet === 'tarifs' }" @click="onglet = 'tarifs'">
           💰 Tarifs des agents
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'fiches' }" @click="onglet = 'fiches'">
+        <button v-if="voirOnglet('fiches')" class="tab-btn" :class="{ active: onglet === 'fiches' }" @click="onglet = 'fiches'">
           🧾 Fiches de vacation
         </button>
       </nav>
@@ -431,6 +431,8 @@ import { useAuthStore } from '../stores/auth'
 import { confirmer, toastError, toastSuccess } from '../utils/notifications'
 
 const auth = useAuthStore()
+// Onglets autorisés par utilisateur (Paramétrage → Utilisateurs) : codes FINANCES.<ONGLET>
+const voirOnglet = (cle) => auth.canAccessOnglet(`FINANCES.${cle.toUpperCase()}`)
 const router = useRouter()
 const cliniqueId = computed(() => auth.user?.clinique?.id ?? null)
 const cliniqueNom = computed(() => auth.user?.clinique?.nom || 'Gestion Clinique')
@@ -438,7 +440,7 @@ const todayLabel = computed(() =>
   new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
 )
 
-const onglet = ref('direct')
+const onglet = ref(auth.premierOnglet('FINANCES', ['direct', 'services', 'tarifs', 'fiches']))
 const moisCourant = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -694,7 +696,10 @@ watch(onglet, (o) => {
   if (o === 'fiches') chargerFiches()
 })
 onMounted(() => {
-  chargerDirect()
+  // Onglet d'ouverture : le premier autorisé
+  if (onglet.value === 'direct') chargerDirect()
+  if (onglet.value === 'services') chargerServices()
+  if (onglet.value === 'fiches') chargerFiches()
   chargerAgents()
   minuterie = setInterval(() => {
     if (onglet.value === 'direct') chargerDirect()

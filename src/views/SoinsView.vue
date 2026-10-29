@@ -23,17 +23,17 @@
       <!-- Onglets -->
       <nav class="tabs-nav">
         <button
-          class="tab-btn"
+          v-if="voirOnglet('file')" class="tab-btn"
           :class="{ active: onglet === 'file' }"
           @click="onglet = 'file'; chargerFile()"
         >
           File d'attente
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'recherche' }" @click="onglet = 'recherche'">
+        <button v-if="voirOnglet('recherche')" class="tab-btn" :class="{ active: onglet === 'recherche' }" @click="onglet = 'recherche'">
           Recherche
         </button>
         <button
-          class="tab-btn"
+          v-if="voirOnglet('historique')" class="tab-btn"
           :class="{ active: onglet === 'historique' }"
           @click="onglet = 'historique'; chargerHistorique()"
         >
@@ -418,6 +418,8 @@ import { toastError, toastSuccess } from '../utils/notifications'
 import { badgeStatutSoin, libelleStatutSoin, libelleVoie } from '../utils/soins'
 
 const auth = useAuthStore()
+// Onglets autorisés par utilisateur (Paramétrage → Utilisateurs) : codes SOINS.<ONGLET>
+const voirOnglet = (cle) => auth.canAccessOnglet(`SOINS.${cle.toUpperCase()}`)
 const router = useRouter()
 
 const cliniqueId = computed(() => auth.user?.clinique?.id ?? null)
@@ -433,7 +435,7 @@ const todayLabel = computed(() => {
   })
 })
 
-const onglet = ref('file')
+const onglet = ref(auth.premierOnglet('SOINS', ['file', 'recherche', 'historique']))
 
 // ---- File d'attente (par ordre d'arrivée) ----
 const file = ref([])
@@ -666,6 +668,7 @@ function formatDateHeure(d) {
 onMounted(() => {
   // File d'attente par défaut (liste des patients à traiter)
   chargerFile()
+  if (onglet.value === 'historique') chargerHistorique()
 })
 
 onUnmounted(() => {

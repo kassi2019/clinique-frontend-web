@@ -131,6 +131,37 @@
               <option value="SUSPENDU">Suspendu</option>
             </select>
           </div>
+
+          <!-- Onglets autorisés : seulement pour les modules ouverts par le rôle -->
+          <div v-if="ongletsDuRole.length" class="field onglets-bloc">
+            <div class="onglets-tete">
+              <label>Onglets autorisés</label>
+              <div class="onglets-copie">
+                <SelectSearch
+                  :model-value="null"
+                  :options="optionsCopie"
+                  placeholder="Copier les droits de…"
+                  @update:model-value="copierOnglets"
+                />
+              </div>
+            </div>
+            <p class="text-muted onglets-aide">Aucune case cochée dans un module = tous ses onglets.</p>
+            <div v-for="m in ongletsDuRole" :key="m.code" class="onglets-module">
+              <strong>{{ m.nom }}</strong>
+              <span class="text-muted">
+                — {{ m.onglets.some((o) => form.onglets.includes(o.code)) ? 'accès limité' : 'tous les onglets' }}
+              </span>
+              <div class="onglets-cases">
+                <label v-for="o in m.onglets" :key="o.code" class="checkbox-label onglet-case">
+                  <input v-model="form.onglets" type="checkbox" :value="o.code" />
+                  {{ o.nom }}
+                </label>
+              </div>
+            </div>
+          </div>
+          <p v-else-if="roleChoisi?.code === 'ADMINISTRATEUR'" class="text-muted onglets-aide">
+            L'administrateur a accès à tous les onglets.
+          </p>
           <div class="modal-actions">
             <button type="button" class="btn btn-outline" @click="formVisible = false">✖ Annuler</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">
@@ -182,6 +213,8 @@ import SelectSearch from '../../components/SelectSearch.vue'
 import { toastError, toastSuccess } from '../../utils/notifications'
 
 const liste = ref([])
+const tousUtilisateurs = ref([]) // liste complète, pour « Copier les droits de… »
+const catalogueOnglets = ref([])
 const roles = ref([])
 const personnel = ref([])
 const loading = ref(false)
@@ -220,6 +253,49 @@ const optionsPersonnel = computed(() =>
 const optionsRoles = computed(() =>
   roles.value.map((r) => ({ value: r.id, label: r.nom })),
 )
+
+const roleChoisi = computed(() => roles.value.find((r) => r.id === form.roleId) ?? null)
+
+/** Onglets du catalogue, groupés par module, limités aux modules ouverts par le rôle. */
+const ongletsDuRole = computed(() => {
+  const role = roleChoisi.value
+  if (!role || role.code === 'ADMINISTRATEUR') return []
+  const habilitations = role.habilitations ?? []
+  // Rôle sans habilitation renseignée = accès à tous les modules (comme à la connexion)
+  const ouvert = (code) => habilitations.length === 0 || habilitations.some((h) => h.module?.code === code)
+  const groupes = []
+  for (const o of catalogueOnglets.value) {
+    if (!ouvert(o.module)) continue
+    let g = groupes.find((x) => x.code === o.module)
+    if (!g) {
+      const nom = habilitations.find((h) => h.module?.code === o.module)?.module?.nom ?? o.module
+      g = { code: o.module, nom, onglets: [] }
+      groupes.push(g)
+    }
+    g.onglets.push(o)
+  }
+  return groupes
+})
+
+const optionsCopie = computed(() =>
+  tousUtilisateurs.value
+    // Seulement les collègues du même rôle (mêmes modules, donc mêmes onglets possibles)
+    .filter((u) => u.id !== form.id && u.roleId === form.roleId)
+    .map((u) => ({ value: u.id, label: `${u.matricule} — ${u.personnel?.nom ?? ''} ${u.personnel?.prenom ?? ''}` })),
+)
+
+function copierOnglets(id) {
+  const u = tousUtilisateurs.value.find((x) => x.id === id)
+  if (!u) return
+  form.onglets = (u.onglets ?? []).map((o) => o.onglet)
+  toastSuccess(`Onglets de ${u.matricule} copiés — pensez à enregistrer.`)
+}
+
+/** Seuls les onglets des modules du rôle sont enregistrés (un changement de rôle nettoie le reste). */
+function ongletsAEnregistrer() {
+  const visibles = new Set(ongletsDuRole.value.flatMap((m) => m.onglets.map((o) => o.code)))
+  return form.onglets.filter((c) => visibles.has(c))
+}
 
 async function load() {
   loading.value = true
@@ -260,6 +336,7 @@ function openForm(u) {
       roleId: u.roleId,
       statut: u.statut,
       motDePasse: '',
+      onglets: (u.onglets ?? []).map((o) => o.onglet),
     })
   } else {
     const premier = personnelDisponibles.value[0]
@@ -269,6 +346,7 @@ function openForm(u) {
       matricule: premier?.matricule ?? '',
       roleId: roles.value[0]?.id ?? null,
       motDePasse: '123456', // mot de passe par défaut (§ cahier des charges)
+      onglets: [],
     })
   }
   formVisible.value = true
@@ -290,6 +368,7 @@ async function save() {
         matricule: form.matricule,
         roleId: form.roleId,
         statut: form.statut,
+        onglets: ongletsAEnregistrer(),
       })
     } else {
       await http.post('/utilisateurs', {
@@ -297,11 +376,12 @@ async function save() {
         matricule: form.matricule,
         motDePasse: form.motDePasse,
         roleId: form.roleId,
+        onglets: ongletsAEnregistrer(),
       })
     }
     formVisible.value = false
     toastSuccess(form.id ? 'Utilisateur modifié.' : 'Utilisateur créé.')
-    await load()
+    await Promise.all([load(), chargerTousUtilisateurs()])
   } catch (e) {
     toastError(e.response?.data?.message || 'Erreur lors de l\'enregistrement.')
   } finally {
@@ -373,6 +453,15 @@ async function reactiver(u) {
   }
 }
 
+async function chargerTousUtilisateurs() {
+  try {
+    const { data } = await http.get('/utilisateurs', { params: { perPage: 0 } })
+    tousUtilisateurs.value = data.data
+  } catch {
+    tousUtilisateurs.value = []
+  }
+}
+
 function formatDate(d) {
   return new Date(d).toLocaleString('fr-FR')
 }
@@ -380,6 +469,8 @@ function formatDate(d) {
 
 onMounted(async () => {
   load()
+  chargerTousUtilisateurs()
+  http.get('/modules/onglets').then(({ data }) => (catalogueOnglets.value = data)).catch(() => {})
   try {
     // perPage 0 = liste complète (pour le sélecteur de rattachement)
     const [r, p] = await Promise.all([
@@ -395,4 +486,39 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.onglets-bloc {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.onglets-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.onglets-copie {
+  min-width: 230px;
+}
+.onglets-aide {
+  font-size: 11px;
+  margin: 4px 0 8px;
+}
+.onglets-module + .onglets-module {
+  margin-top: 8px;
+}
+.onglets-cases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 4px;
+}
+.onglet-case {
+  font-weight: normal;
+  font-size: 13px;
+}
+.onglet-case input {
+  width: 16px;
+  height: 16px;
+}
 </style>

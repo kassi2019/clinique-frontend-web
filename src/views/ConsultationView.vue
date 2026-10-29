@@ -181,25 +181,25 @@
 
       <!-- Onglets (dans l'entête figé) -->
       <nav v-if="passageCourant && passageCourant.consultable" class="tabs-nav">
-        <button class="tab-btn" :class="{ active: onglet === 'fiche' }" @click="onglet = 'fiche'">
+        <button v-if="voirOnglet('fiche')" class="tab-btn" :class="{ active: onglet === 'fiche' }" @click="onglet = 'fiche'">
           📋 Fiche de consultation
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'medicaments' }" @click="onglet = 'medicaments'">
+        <button v-if="voirOnglet('medicaments')" class="tab-btn" :class="{ active: onglet === 'medicaments' }" @click="onglet = 'medicaments'">
           💊 Prescription de médicaments
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'soins' }" @click="onglet = 'soins'">
+        <button v-if="voirOnglet('soins')" class="tab-btn" :class="{ active: onglet === 'soins' }" @click="onglet = 'soins'">
           💉 Soins
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'examens' }" @click="onglet = 'examens'">
+        <button v-if="voirOnglet('examens')" class="tab-btn" :class="{ active: onglet === 'examens' }" @click="onglet = 'examens'">
           🔬 Examens (labo / imagerie)
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'certificat' }" @click="onglet = 'certificat'">
+        <button v-if="voirOnglet('certificat')" class="tab-btn" :class="{ active: onglet === 'certificat' }" @click="onglet = 'certificat'">
           📄 Certificat d'arrêt
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'historique' }" @click="onglet = 'historique'">
+        <button v-if="voirOnglet('historique')" class="tab-btn" :class="{ active: onglet === 'historique' }" @click="onglet = 'historique'">
           📚 Historique
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'reference' }" @click="onglet = 'reference'">
+        <button v-if="voirOnglet('reference')" class="tab-btn" :class="{ active: onglet === 'reference' }" @click="onglet = 'reference'">
           📤 Référence
         </button>
       </nav>
@@ -2563,6 +2563,8 @@ import {
 import ReferenceFiche from '../components/ReferenceFiche.vue'
 
 const auth = useAuthStore()
+// Onglets autorisés par utilisateur (Paramétrage → Utilisateurs) : codes CONSULTATION.<ONGLET>
+const voirOnglet = (cle) => auth.canAccessOnglet(`CONSULTATION.${cle.toUpperCase()}`)
 const router = useRouter()
 
 const cliniqueId = computed(() => auth.user?.clinique?.id ?? null)
@@ -2651,7 +2653,8 @@ async function ouvrirTerminee(a) {
 }
 
 // Onglets de la consultation
-const onglet = ref('fiche') // fiche | medicaments | examens | certificat
+const ONGLETS_CONSULTATION = ['fiche', 'medicaments', 'soins', 'examens', 'certificat', 'historique', 'reference']
+const onglet = ref(auth.premierOnglet('CONSULTATION', ONGLETS_CONSULTATION))
 
 // ── Certificat d'arrêt de travail (modèle officiel) ──
 const formCertificat = reactive({
@@ -3720,7 +3723,7 @@ async function choisirPassage(p) {
   resultats.value = []
   recherche.value = ''
   affectationOuverteId.value = null
-  onglet.value = 'fiche'
+  onglet.value = auth.premierOnglet('CONSULTATION', ONGLETS_CONSULTATION)
   // Stocks à jour pour la liste « Médicament » de la fiche
   chargerMedicamentsCatalogue()
   await chargerDetail()

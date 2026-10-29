@@ -24,7 +24,7 @@
       <aside class="stat-sidebar">
         <div class="sidebar-titre">📊 Rubriques</div>
         <button
-          v-for="m in menus"
+          v-for="m in menusAutorises"
           :key="m.code"
           class="menu-item"
           :class="{ active: rubrique === m.code }"
@@ -313,7 +313,11 @@ const menus = [
   { code: 'maternite', label: 'Maternité', icon: '🤰' },
 ]
 
-const rubrique = ref('frequentation')
+// Rubriques autorisées par utilisateur (Paramétrage → Utilisateurs) : codes STATISTIQUES.<RUBRIQUE>
+const menusAutorises = menus.filter((m) => auth.canAccessOnglet(`STATISTIQUES.${m.code.toUpperCase()}`))
+const rubrique = ref(
+  menusAutorises.some((m) => m.code === 'frequentation') ? 'frequentation' : (menusAutorises[0]?.code ?? 'frequentation'),
+)
 const menuActif = computed(() => menus.find((m) => m.code === rubrique.value) ?? menus[0])
 
 const aujourdHui = new Date().toISOString().slice(0, 10)

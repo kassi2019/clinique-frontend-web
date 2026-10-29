@@ -45,20 +45,20 @@
     <main class="pharmacie-content">
       <!-- Onglets -->
       <nav class="tabs-nav tabs-fixe">
-        <button class="tab-btn" :class="{ active: onglet === 'ordonnances' }" @click="onglet = 'ordonnances'">
+        <button v-if="voirOnglet('ordonnances')" class="tab-btn" :class="{ active: onglet === 'ordonnances' }" @click="onglet = 'ordonnances'">
           Ordonnances
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'stocks' }" @click="onglet = 'stocks'; chargerStocks()">
+        <button v-if="voirOnglet('stocks')" class="tab-btn" :class="{ active: onglet === 'stocks' }" @click="onglet = 'stocks'; chargerStocks()">
           Stocks
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'credits' }" @click="onglet = 'credits'; chargerCreditsPharma()">
+        <button v-if="voirOnglet('credits')" class="tab-btn" :class="{ active: onglet === 'credits' }" @click="onglet = 'credits'; chargerCreditsPharma()">
           🎫 Crédits & cas sociaux
           <span v-if="creditsPharma.credits.length" class="tab-count">{{ creditsPharma.credits.length }}</span>
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'financier' }" @click="onglet = 'financier'; chargerFinancier()">
+        <button v-if="voirOnglet('financier')" class="tab-btn" :class="{ active: onglet === 'financier' }" @click="onglet = 'financier'; chargerFinancier()">
           💰 Points financiers
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'externes' }" @click="onglet = 'externes'; chargerRapportExternes()">
+        <button v-if="voirOnglet('externes')" class="tab-btn" :class="{ active: onglet === 'externes' }" @click="onglet = 'externes'; chargerRapportExternes()">
           📄 Ordonnances externes
         </button>
       </nav>
@@ -1803,7 +1803,11 @@ const todayLabel = computed(() =>
 const MODES = { ESPECES: 'Espèces', MOBILE_MONEY: 'Mobile Money', CARTE: 'Carte bancaire' }
 const labelMode = (m) => MODES[m] || m
 
-const onglet = ref('ordonnances')
+// Onglets autorisés par utilisateur (Paramétrage → Utilisateurs) : codes PHARMACIE.<ONGLET>
+const voirOnglet = (cle) => auth.canAccessOnglet(`PHARMACIE.${cle.toUpperCase()}`)
+const onglet = ref(
+  ['ordonnances', 'stocks', 'credits', 'financier', 'externes'].find(voirOnglet) ?? 'ordonnances',
+)
 
 // Ordonnances
 const recherche = ref('')
@@ -1982,7 +1986,7 @@ async function dispenser(reglement) {
         ? `${reglement.type === 'CAS_SOCIAL' ? 'Cas social' : 'Crédit'} enregistré : ${paiement.paiement.numeroRecu}`
         : `Dispensation encaissée : ${paiement.paiement.numeroRecu}`,
     )
-    chargerCreditsPharma()
+    if (voirOnglet('credits')) chargerCreditsPharma()
     if (paiement.impression?.ok) {
       toastSuccess(`Reçu imprimé : ${paiement.impression.message}`)
     }
@@ -2227,7 +2231,7 @@ async function validerOrdoExterne(reglement) {
     ordoExtVisible.value = false
     chargerStocks()
     chargerAlertes()
-    chargerCreditsPharma()
+    if (voirOnglet('credits')) chargerCreditsPharma()
     if (onglet.value === 'externes') chargerRapportExternes()
   } catch (e) {
     toastError(e.response?.data?.message || "Erreur lors de l'enregistrement de l'ordonnance externe.")
@@ -3176,9 +3180,12 @@ onMounted(() => {
   chargerStocks()
   chargerConsommables()
   chargerAlertes()
-  chargerOrdonnancesAttente()
-  chargerCreditsPharma()
+  if (voirOnglet('ordonnances')) chargerOrdonnancesAttente()
+  if (voirOnglet('credits')) chargerCreditsPharma()
   chargerPeremptions()
+  // Onglet d'ouverture : le premier autorisé
+  if (onglet.value === 'financier') chargerFinancier()
+  if (onglet.value === 'externes') chargerRapportExternes()
   demarrerTempsReel()
 })
 onUnmounted(() => {

@@ -23,17 +23,17 @@
       <!-- Onglets -->
       <nav class="tabs-nav">
         <button
-          class="tab-btn"
+          v-if="voirOnglet('file')" class="tab-btn"
           :class="{ active: onglet === 'file' }"
           @click="onglet = 'file'; chargerFile()"
         >
           File d'attente
         </button>
-        <button class="tab-btn" :class="{ active: onglet === 'examens' }" @click="onglet = 'examens'">
+        <button v-if="voirOnglet('examens')" class="tab-btn" :class="{ active: onglet === 'examens' }" @click="onglet = 'examens'">
           Recherche
         </button>
         <button
-          class="tab-btn"
+          v-if="voirOnglet('historique')" class="tab-btn"
           :class="{ active: onglet === 'historique' }"
           @click="onglet = 'historique'; chargerHistorique()"
         >
@@ -541,6 +541,8 @@ import { useAuthStore } from '../stores/auth'
 import { toastError, toastSuccess } from '../utils/notifications'
 
 const auth = useAuthStore()
+// Onglets autorisés par utilisateur (Paramétrage → Utilisateurs) : codes LABORATOIRE.<ONGLET>
+const voirOnglet = (cle) => auth.canAccessOnglet(`LABORATOIRE.${cle.toUpperCase()}`)
 const router = useRouter()
 
 const cliniqueId = computed(() => auth.user?.clinique?.id ?? null)
@@ -565,7 +567,7 @@ const peutValider = computed(() => {
   return m ? m.validation !== false : false
 })
 
-const onglet = ref('file')
+const onglet = ref(auth.premierOnglet('LABORATOIRE', ['file', 'examens', 'historique']))
 
 // ---- File d'attente (par ordre d'arrivée) ----
 const file = ref([])
@@ -855,6 +857,7 @@ function formatDateHeure(d) {
 onMounted(async () => {
   // File d'attente par défaut (liste des patients à examiner)
   chargerFile()
+  if (onglet.value === 'historique') chargerHistorique()
   // Adresse de la clinique pour l'en-tête du compte rendu
   try {
     const { data } = await http.get('/cliniques', { params: { perPage: 0 } })

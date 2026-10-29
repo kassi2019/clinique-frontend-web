@@ -32,7 +32,7 @@
       <!-- ============ Onglets ============ -->
       <nav class="tabs-nav">
         <button
-          v-if="!posteConstante"
+          v-if="!posteConstante && voirOnglet('formulaire')"
           class="tab-btn"
           :class="{ active: onglet === 'formulaire' }"
           @click="onglet = 'formulaire'"
@@ -40,7 +40,7 @@
           Nouveau passage
         </button>
         <button
-          class="tab-btn"
+          v-if="voirOnglet('attente')" class="tab-btn"
           :class="{ active: onglet === 'attente' }"
           @click="changerOnglet('attente')"
         >
@@ -48,7 +48,7 @@
           <span class="tab-count" :class="{ 'tab-count-actif': onglet === 'attente' }">{{ compteurs.attente }}</span>
         </button>
         <button
-          class="tab-btn"
+          v-if="voirOnglet('terminee')" class="tab-btn"
           :class="{ active: onglet === 'terminee' }"
           @click="changerOnglet('terminee')"
         >
@@ -56,7 +56,7 @@
           <span class="tab-count" :class="{ 'tab-count-actif': onglet === 'terminee' }">{{ compteurs.terminee }}</span>
         </button>
         <button
-          class="tab-btn"
+          v-if="voirOnglet('historique')" class="tab-btn"
           :class="{ active: onglet === 'historique' }"
           @click="changerOnglet('historique')"
         >
@@ -935,6 +935,8 @@ import SelectSearch from '../components/SelectSearch.vue'
 import DateSaisie from '../components/DateSaisie.vue'
 
 const auth = useAuthStore()
+// Onglets autorisés par utilisateur (Paramétrage → Utilisateurs) : codes ACCUEIL.<ONGLET>
+const voirOnglet = (cle) => auth.canAccessOnglet(`ACCUEIL.${cle.toUpperCase()}`)
 const router = useRouter()
 
 const cliniqueId = computed(() => auth.user?.clinique?.id ?? null)
@@ -956,7 +958,7 @@ const peutBasculer = computed(
 function basculerPoste() {
   posteConstante.value = !posteConstante.value
   // Revenir sur l'onglet par défaut du poste cible
-  onglet.value = posteConstante.value ? 'attente' : 'formulaire'
+  onglet.value = ongletParDefaut()
   page.value = 1
   chargerListe()
 }
@@ -996,7 +998,12 @@ const optionsActes = computed(() =>
 )
 
 // Onglet actif par défaut : le premier de la barre selon le poste
-const onglet = ref(posteConstante.value ? 'attente' : 'formulaire')
+const onglet = ref(ongletParDefaut())
+/** Premier onglet autorisé, selon le poste (le poste constantes n'a pas « Nouveau passage »). */
+function ongletParDefaut() {
+  const cles = ['formulaire', 'attente', 'terminee', 'historique']
+  return auth.premierOnglet('ACCUEIL', posteConstante.value ? cles.slice(1) : cles)
+}
 const filtreDebut = ref('')
 const filtreFin = ref('')
 const filtreRecherche = ref('')

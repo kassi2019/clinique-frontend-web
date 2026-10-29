@@ -33,7 +33,7 @@
       <!-- File de la caisse : en attente de paiement / payés du jour / recherche -->
       <nav v-if="!passageCourant" class="tabs-nav">
         <button
-          class="tab-btn"
+          v-if="voirOnglet('attente')" class="tab-btn"
           :class="{ active: vueFile === 'attente' }"
           @click="
             vueFile = 'attente';
@@ -48,7 +48,7 @@
           >
         </button>
         <button
-          class="tab-btn"
+          v-if="voirOnglet('payes')" class="tab-btn"
           :class="{ active: vueFile === 'payes' }"
           @click="
             vueFile = 'payes';
@@ -58,7 +58,7 @@
           ✅ Payés du jour
         </button>
         <button
-          class="tab-btn"
+          v-if="voirOnglet('credits')" class="tab-btn"
           :class="{ active: vueFile === 'credits' }"
           @click="
             vueFile = 'credits';
@@ -73,7 +73,7 @@
           >
         </button>
         <button
-          class="tab-btn"
+          v-if="voirOnglet('recherche')" class="tab-btn"
           :class="{ active: vueFile === 'recherche' }"
           @click="vueFile = 'recherche'"
         >
@@ -883,6 +883,8 @@ import CaseSignature from "../components/CaseSignature.vue";
 import logoClinique from "../assets/logoclinique.jpeg";
 
 const auth = useAuthStore();
+// Onglets autorisés par utilisateur (Paramétrage → Utilisateurs) : codes CAISSE.<ONGLET>
+const voirOnglet = (cle) => auth.canAccessOnglet(`CAISSE.${cle.toUpperCase()}`);
 const router = useRouter();
 
 const cliniqueId = computed(() => auth.user?.clinique?.id ?? null);
@@ -933,7 +935,7 @@ const passageCourant = ref(null);
 let rechercheTimer = null;
 
 // ── File de la caisse (même logique que la consultation) ──
-const vueFile = ref("attente");
+const vueFile = ref(auth.premierOnglet("CAISSE", ["attente", "payes", "credits", "recherche"]));
 const file = ref({ attente: [], payes: [] });
 const filtreJourFile = ref(new Date().toISOString().slice(0, 10));
 
@@ -1361,6 +1363,7 @@ function formatDateHeure(d) {
 onMounted(async () => {
   chargerFile();
   chargerPayes();
+  if (vueFile.value === "credits") chargerCredits();
   try {
     const { data } = await http.get("/services", { params: { perPage: 0 } });
     services.value = data.data;

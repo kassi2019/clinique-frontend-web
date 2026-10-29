@@ -22,18 +22,18 @@
     <main class="hospitalisation-content">
       <!-- Onglets -->
       <nav class="tabs-nav">
-        <button class="tab-btn" :class="{ active: onglet === 'admissions' }" @click="onglet = 'admissions'">
+        <button v-if="voirOnglet('admissions')" class="tab-btn" :class="{ active: onglet === 'admissions' }" @click="onglet = 'admissions'">
           Admissions
         </button>
         <button
-          class="tab-btn"
+          v-if="voirOnglet('occupation')" class="tab-btn"
           :class="{ active: onglet === 'occupation' }"
           @click="onglet = 'occupation'; chargerLits()"
         >
           Occupation
         </button>
         <button
-          class="tab-btn"
+          v-if="voirOnglet('historique')" class="tab-btn"
           :class="{ active: onglet === 'historique' }"
           @click="onglet = 'historique'; chargerHistorique()"
         >
@@ -382,6 +382,8 @@ import { useAuthStore } from '../stores/auth'
 import { toastError, toastSuccess } from '../utils/notifications'
 
 const auth = useAuthStore()
+// Onglets autorisés par utilisateur (Paramétrage → Utilisateurs) : codes HOSPITALISATION.<ONGLET>
+const voirOnglet = (cle) => auth.canAccessOnglet(`HOSPITALISATION.${cle.toUpperCase()}`)
 const router = useRouter()
 
 const cliniqueId = computed(() => auth.user?.clinique?.id ?? null)
@@ -396,7 +398,7 @@ const todayLabel = computed(() =>
   }),
 )
 
-const onglet = ref('admissions')
+const onglet = ref(auth.premierOnglet('HOSPITALISATION', ['admissions', 'occupation', 'historique']))
 
 // ---- Admissions ----
 const recherche = ref('')
@@ -675,6 +677,7 @@ function formatDateHeure(d) {
 
 onMounted(async () => {
   await chargerLits()
+  if (onglet.value === 'historique') chargerHistorique()
   // Occupation en temps réel : rafraîchissement automatique
   refreshTimer = setInterval(() => {
     if (onglet.value === 'occupation') chargerLits()

@@ -203,13 +203,13 @@
         </div>
 
         <nav class="tabs-nav">
-          <button class="tab-btn" :class="{ active: ongletTraitement === 'cpn' }" @click="ongletTraitement = 'cpn'">1. CPN</button>
-          <button class="tab-btn" :class="{ active: ongletTraitement === 'cpon' }" @click="ongletTraitement = 'cpon'">2. CPON</button>
-          <button class="tab-btn" :class="{ active: ongletTraitement === 'accouchement' }" @click="ongletTraitement = 'accouchement'">3. Accouchement</button>
-          <button class="tab-btn" :class="{ active: ongletTraitement === 'pf' }" @click="ongletTraitement = 'pf'">4. PF</button>
-          <button class="tab-btn" :class="{ active: ongletTraitement === 'ordonnance' }" @click="ongletTraitement = 'ordonnance'; assurerConsultation()">5. Ordonnance</button>
-          <button class="tab-btn" :class="{ active: ongletTraitement === 'examens' }" @click="ongletTraitement = 'examens'; assurerConsultation(); chargerPrestations()">6. Examens</button>
-          <button class="tab-btn" :class="{ active: ongletTraitement === 'reference' }" @click="ongletTraitement = 'reference'">7. Référence</button>
+          <button v-if="voirOnglet('cpn')" class="tab-btn" :class="{ active: ongletTraitement === 'cpn' }" @click="ongletTraitement = 'cpn'">1. CPN</button>
+          <button v-if="voirOnglet('cpon')" class="tab-btn" :class="{ active: ongletTraitement === 'cpon' }" @click="ongletTraitement = 'cpon'">2. CPON</button>
+          <button v-if="voirOnglet('accouchement')" class="tab-btn" :class="{ active: ongletTraitement === 'accouchement' }" @click="ongletTraitement = 'accouchement'">3. Accouchement</button>
+          <button v-if="voirOnglet('pf')" class="tab-btn" :class="{ active: ongletTraitement === 'pf' }" @click="ongletTraitement = 'pf'">4. PF</button>
+          <button v-if="voirOnglet('ordonnance')" class="tab-btn" :class="{ active: ongletTraitement === 'ordonnance' }" @click="ongletTraitement = 'ordonnance'; assurerConsultation()">5. Ordonnance</button>
+          <button v-if="voirOnglet('examens')" class="tab-btn" :class="{ active: ongletTraitement === 'examens' }" @click="ongletTraitement = 'examens'; assurerConsultation(); chargerPrestations()">6. Examens</button>
+          <button v-if="voirOnglet('reference')" class="tab-btn" :class="{ active: ongletTraitement === 'reference' }" @click="ongletTraitement = 'reference'">7. Référence</button>
         </nav>
 
         <!-- ─── 1. CPN (registre complet, en pleine page) ─── -->
@@ -1591,6 +1591,8 @@ import { useAuthStore } from '../stores/auth'
 import { toastError, toastSuccess } from '../utils/notifications'
 
 const auth = useAuthStore()
+// Onglets autorisés par utilisateur (Paramétrage → Utilisateurs) : codes MATERNITE.<ONGLET>
+const voirOnglet = (cle) => auth.canAccessOnglet(`MATERNITE.${cle.toUpperCase()}`)
 const router = useRouter()
 
 const cliniqueId = computed(() => auth.user?.clinique?.id ?? null)
@@ -1750,21 +1752,28 @@ const detail = ref(null)
 const dossier = ref(null)
 const cpons = ref([])
 const pfs = ref([])
-const ongletTraitement = ref('cpn')
+const ONGLETS_TRAITEMENT = ['cpn', 'cpon', 'accouchement', 'pf', 'ordonnance', 'examens', 'reference']
+const ongletTraitement = ref(auth.premierOnglet('MATERNITE', ONGLETS_TRAITEMENT))
+/** Ouvre le traitement sur le premier onglet autorisé (Ordonnance / Examens : consultation requise). */
+async function ongletTraitementInitial() {
+  ongletTraitement.value = auth.premierOnglet('MATERNITE', ONGLETS_TRAITEMENT)
+  if (['ordonnance', 'examens'].includes(ongletTraitement.value)) await assurerConsultation()
+  if (ongletTraitement.value === 'examens') chargerPrestations()
+}
 const saving = ref(false)
 
 async function ouvrirTraitement(p) {
   passageCourant.value = p
-  ongletTraitement.value = 'cpn'
   recherche.value = ''
   resultatsRecherche.value = []
   await chargerDetail()
+  await ongletTraitementInitial()
 }
 
 async function rouvrirTraitement(p) {
   passageCourant.value = p
-  ongletTraitement.value = 'cpn'
   await chargerDetail()
+  await ongletTraitementInitial()
 }
 
 async function chargerDetail() {
