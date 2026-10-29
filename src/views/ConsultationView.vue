@@ -942,8 +942,22 @@
               <button class="btn btn-primary" :disabled="savingOrdo" @click="sauvegarderOrdonnance">
                 💾 {{ savingOrdo ? 'Sauvegarde…' : 'Sauvegarder l\'ordonnance' }}
               </button>
-              <button class="btn btn-outline" @click="imprimerOrdonnance">
-                🖨️ Imprimer l'ordonnance
+              <button
+                class="btn btn-outline"
+                :title="ordonnanceActive ? `Imprime uniquement l'ordonnance ${ordonnanceActive.numero} (sélectionnée ci-dessus)` : ''"
+                @click="imprimerOrdonnance"
+              >
+                🖨️ {{ ordonnanceActive && ordonnancesConsult.length > 1
+                  ? `Imprimer seulement ${ordonnanceActive.numero}`
+                  : 'Imprimer l\'ordonnance' }}
+              </button>
+              <button
+                v-if="ordonnancesAvecMedicaments.length > 1"
+                class="btn btn-outline"
+                :title="ordonnancesAvecMedicaments.map((o) => o.numero).join(', ') + ' — 2 ordonnances par feuille A4'"
+                @click="imprimerToutesOrdonnances"
+              >
+                🖨️ Imprimer toutes les ordonnances ({{ ordonnancesAvecMedicaments.length }})
               </button>
               <span v-if="consultation?.ordonnanceSauveeLe" class="badge badge-success ordo-saved-badge">
                 ✓ Sauvegardée le {{ formatDateHeure(consultation.ordonnanceSauveeLe) }}
@@ -1397,7 +1411,21 @@
       <div class="apercu-barre-actions">
         <button v-if="histExamenVu" class="btn btn-outline btn-sm btn-back" @click="histExamenVu = null">← Liste des examens</button>
         <CaseSignature v-if="histFeuilleVisible" :prescripteur-id="historiqueDetail?.medecinId" class="case-signature-barre" />
-        <button v-if="histFeuilleVisible" class="btn btn-primary btn-sm" @click="lancerImpression('historique')">🖨️ Imprimer (A4)</button>
+        <!-- Onglet Ordonnance : réimpression au format demi-A4 (2 par page, ligne ✂) -->
+        <button
+          v-if="histOnglet === 'ordonnance' && histOrdonnances.length"
+          class="btn btn-primary btn-sm"
+          @click="imprimerOrdonnancesHistorique()"
+        >
+          🖨️ {{ histOrdonnances.length > 1 ? `Imprimer toutes les ordonnances (${histOrdonnances.length})` : 'Imprimer l\'ordonnance' }}
+        </button>
+        <button
+          v-else-if="histFeuilleVisible && histOnglet !== 'ordonnance'"
+          class="btn btn-primary btn-sm"
+          @click="lancerImpression('historique')"
+        >
+          🖨️ Imprimer (A4)
+        </button>
         <button class="btn btn-outline btn-sm btn-back" @click="historiqueDetail = null">✖ Fermer</button>
       </div>
     </div>
@@ -1506,7 +1534,8 @@
       </div>
     </div>
 
-    <div v-if="histFeuilleVisible" id="hist-print">
+    <!-- Masquée pendant l'impression des ordonnances demi-A4 (sinon elle sortirait aussi) -->
+    <div v-if="histFeuilleVisible && zoneImpression !== 'ordonnance'" id="hist-print">
       <div class="ordo-ex-a4 hist-a4">
         <div class="fiche-a4-head">
           <h1>{{ cliniqueNom }}</h1>
@@ -1664,6 +1693,13 @@
             <h2 class="fiche-a4-section">
               {{ g.numero ? `Ordonnance N° ${g.numero}` : 'Ordonnance' }}
               <template v-if="g.statut"> — {{ g.statut === 'TRAITEE' ? 'délivrée par la pharmacie' : 'non délivrée' }}</template>
+              <button
+                v-if="histOrdonnances.length > 1"
+                class="btn btn-outline btn-sm hist-imprimer-une"
+                @click="imprimerOrdonnancesHistorique(g)"
+              >
+                🖨️ Imprimer seulement {{ g.numero || 'celle-ci' }}
+              </button>
             </h2>
             <table class="ordo-ex-table">
               <thead>
@@ -2017,11 +2053,15 @@
       </div>
     </div>
 
-    <!-- Modale : aperçu de l'ordonnance (format A4) -->
+    <!-- Modale : aperçu des ordonnances (demi-A4 : deux par page, séparées par la ligne ✂) -->
     <div v-if="apercuVisible" class="modal-backdrop">
       <div class="modal modal-a4">
-        <h2>📋 Aperçu de l'ordonnance (A4)</h2>
-        <div class="ordo-a4 apercu-a4">
+        <h2>
+          📋 {{ numerosImpr.length > 1
+            ? `Aperçu de toutes les ordonnances : ${numerosImpr.join(', ')}`
+            : `Aperçu de l'ordonnance${numerosImpr[0] ? ' ' + numerosImpr[0] : ''}` }}
+        </h2>
+        <div v-for="(o, i) in ordonnancesImpr" :key="i" class="ordo-a4 apercu-a4">
           <div class="ordo-a4-head">
             <img :src="logoClinique" alt="Logo" class="ordo-a4-logo" />
             <div class="ordo-a4-titre">
@@ -2029,17 +2069,17 @@
               <p v-if="cliniqueAdresse">{{ cliniqueAdresse }}</p>
             </div>
             <div class="ordo-a4-date">
-              <div>Date : {{ formatDate(new Date()) }}</div>
-              <div>N° ordre : {{ ordonnance?.passage?.numeroOrdre }}</div>
-              <div v-if="ordonnance?.numero">Ordonnance : {{ ordonnance.numero }}</div>
+              <div>Date : {{ formatDate(o.date) }}</div>
+              <div>N° ordre : {{ o.passage?.numeroOrdre }}</div>
+              <div v-if="o.numero">Ordonnance : {{ o.numero }}</div>
             </div>
           </div>
-          <h2 class="ordo-a4-title">ORDONNANCE MÉDICALE</h2>
+          <h2 class="ordo-a4-title">ORDONNANCE MÉDICALE<span v-if="o.total > 1" class="ordo-a4-page">{{ o.page > 1 ? `suite ${o.page}/${o.total}` : `${o.page}/${o.total}` }}</span></h2>
           <div class="ordo-a4-infos">
-            <div><strong>Patient :</strong> {{ ordonnance?.patient?.nom }} {{ ordonnance?.patient?.prenom }}</div>
-            <div><strong>Âge :</strong> {{ ordonnance?.patient?.age || '—' }} ans &nbsp;·&nbsp; <strong>Sexe :</strong> {{ ordonnance?.patient?.sexe === 'M' ? 'Masculin' : ordonnance?.patient?.sexe === 'F' ? 'Féminin' : '—' }}</div>
-            <div><strong>Code :</strong> {{ ordonnance?.patient?.code }}</div>
-            <div><strong>Médecin :</strong> Dr {{ auth.user?.personnel?.nom }} {{ auth.user?.personnel?.prenom }}</div>
+            <div><strong>Patient :</strong> {{ o.patient?.nom }} {{ o.patient?.prenom }}</div>
+            <div><strong>Âge :</strong> {{ o.patient?.age || '—' }} ans &nbsp;·&nbsp; <strong>Sexe :</strong> {{ o.patient?.sexe === 'M' ? 'Masculin' : o.patient?.sexe === 'F' ? 'Féminin' : '—' }}</div>
+            <div><strong>Code :</strong> {{ o.patient?.code }}</div>
+            <div><strong>Médecin :</strong> {{ o.medecinNom }}</div>
           </div>
 
           <table class="ordo-a4-table">
@@ -2053,11 +2093,11 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-if="!ordonnance || ordonnance.medicaments.length === 0">
+              <tr v-if="o.medicaments.length === 0">
                 <td colspan="5" class="ordo-a4-vide">Aucun médicament prescrit.</td>
               </tr>
-              <tr v-for="(m, i) in ordonnance?.medicaments" :key="m.id">
-                <td>{{ i + 1 }}</td>
+              <tr v-for="(m, j) in o.medicaments" :key="m.id">
+                <td>{{ o.decalage + j + 1 }}</td>
                 <td>
                   <strong>{{ m.medicamentNom }}</strong>
                   <span v-if="m.forme" class="ordo-a4-sous"> ({{ m.forme }})</span>
@@ -2071,11 +2111,11 @@
 
           <div class="ordo-a4-footer">
             <div class="ordo-a4-signature">
-              <BlocSignature :prescripteur-id="consultation?.medecinId">Signature et cachet du médecin</BlocSignature>
+              <BlocSignature :prescripteur-id="o.medecinId" compact>Signature et cachet du médecin</BlocSignature>
             </div>
             <div class="ordo-a4-merci">Merci de votre visite.</div>
           </div>
-          <div class="ordo-a4-cut" aria-hidden="true">✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ✂</div>
+          <div v-if="i % 2 === 0" class="ordo-a4-cut" aria-hidden="true">✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ✂</div>
         </div>
         <div class="modal-actions">
           <CaseSignature :prescripteur-id="consultation?.medecinId" class="case-signature-gauche" />
@@ -2345,9 +2385,9 @@
       </div>
     </div>
 
-    <!-- Ordonnance imprimable (A4, navigateur) -->
-    <div v-if="ordonnance && zoneImpression === 'ordonnance'" id="ordo-print">
-      <div class="ordo-a4">
+    <!-- Ordonnances imprimables : une demi-page A4 chacune, deux par page séparées par la ligne ✂ -->
+    <div v-if="ordonnancesImpr.length && zoneImpression === 'ordonnance'" id="ordo-print">
+      <div v-for="(o, i) in ordonnancesImpr" :key="i" class="ordo-a4" :class="{ 'ordo-a4-bas': i % 2 === 1 }">
         <div class="ordo-a4-head">
           <img :src="logoClinique" alt="Logo" class="ordo-a4-logo" />
           <div class="ordo-a4-titre">
@@ -2355,17 +2395,17 @@
             <p v-if="cliniqueAdresse">{{ cliniqueAdresse }}</p>
           </div>
           <div class="ordo-a4-date">
-            <div>Date : {{ formatDate(new Date()) }}</div>
-            <div>N° ordre : {{ ordonnance.passage.numeroOrdre }}</div>
-            <div v-if="ordonnance.numero">Ordonnance : {{ ordonnance.numero }}</div>
+            <div>Date : {{ formatDate(o.date) }}</div>
+            <div>N° ordre : {{ o.passage.numeroOrdre }}</div>
+            <div v-if="o.numero">Ordonnance : {{ o.numero }}</div>
           </div>
         </div>
-        <h2 class="ordo-a4-title">ORDONNANCE MÉDICALE</h2>
+        <h2 class="ordo-a4-title">ORDONNANCE MÉDICALE<span v-if="o.total > 1" class="ordo-a4-page">{{ o.page > 1 ? `suite ${o.page}/${o.total}` : `${o.page}/${o.total}` }}</span></h2>
         <div class="ordo-a4-infos">
-          <div><strong>Patient :</strong> {{ ordonnance.patient.nom }} {{ ordonnance.patient.prenom }}</div>
-          <div><strong>Âge :</strong> {{ ordonnance.patient.age || '—' }} ans &nbsp;·&nbsp; <strong>Sexe :</strong> {{ ordonnance.patient.sexe === 'M' ? 'Masculin' : ordonnance.patient.sexe === 'F' ? 'Féminin' : '—' }}</div>
-          <div><strong>Code :</strong> {{ ordonnance.patient.code }}</div>
-          <div><strong>Médecin :</strong> Dr {{ auth.user?.personnel?.nom }} {{ auth.user?.personnel?.prenom }}</div>
+          <div><strong>Patient :</strong> {{ o.patient.nom }} {{ o.patient.prenom }}</div>
+          <div><strong>Âge :</strong> {{ o.patient.age || '—' }} ans &nbsp;·&nbsp; <strong>Sexe :</strong> {{ o.patient.sexe === 'M' ? 'Masculin' : o.patient.sexe === 'F' ? 'Féminin' : '—' }}</div>
+          <div><strong>Code :</strong> {{ o.patient.code }}</div>
+          <div><strong>Médecin :</strong> {{ o.medecinNom }}</div>
         </div>
 
         <table class="ordo-a4-table">
@@ -2379,11 +2419,11 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="ordonnance.medicaments.length === 0">
+            <tr v-if="o.medicaments.length === 0">
               <td colspan="5" class="ordo-a4-vide">Aucun médicament prescrit.</td>
             </tr>
-            <tr v-for="(m, i) in ordonnance.medicaments" :key="m.id">
-              <td>{{ i + 1 }}</td>
+            <tr v-for="(m, j) in o.medicaments" :key="m.id">
+              <td>{{ o.decalage + j + 1 }}</td>
               <td>
                 <strong>{{ m.medicamentNom }}</strong>
                 <span v-if="m.forme" class="ordo-a4-sous"> ({{ m.forme }})</span>
@@ -2397,11 +2437,12 @@
 
         <div class="ordo-a4-footer">
           <div class="ordo-a4-signature">
-            <BlocSignature :prescripteur-id="consultation?.medecinId">Signature et cachet du médecin</BlocSignature>
+            <BlocSignature :prescripteur-id="o.medecinId" compact>Signature et cachet du médecin</BlocSignature>
           </div>
           <div class="ordo-a4-merci">Merci de votre visite.</div>
         </div>
-        <div class="ordo-a4-cut" aria-hidden="true">✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ✂</div>
+        <!-- Ligne de découpe sous l'ordonnance du haut : sépare les deux moitiés de la feuille -->
+        <div v-if="i % 2 === 0" class="ordo-a4-cut" aria-hidden="true">✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ✂</div>
       </div>
     </div>
 
@@ -3652,8 +3693,8 @@ const ajoutDuree = ref('')
 const ajoutEnCours = ref(false)
 const ajoutError = ref('')
 
-// Ordonnance
-const ordonnance = ref(null)
+// Ordonnances à imprimer (demi-A4 chacune : deux par page)
+const ordonnancesImpr = ref([])
 const apercuVisible = ref(false)
 
 function onRecherche() {
@@ -3696,7 +3737,7 @@ function quitterPatient() {
   passageCourant.value = null
   detail.value = null
   consultation.value = null
-  ordonnance.value = null
+  ordonnancesImpr.value = []
   apercuFicheVisible.value = false
   Object.keys(formConsult).forEach((k) => delete formConsult[k])
   chargerFile()
@@ -4405,26 +4446,84 @@ async function nouvelleOrdonnance() {
   }
 }
 
-/** Construit l'ordonnance pour l'aperçu et l'impression. */
-function construireApercu() {
-  if (!consultation.value || !passageCourant.value) return
-  ordonnance.value = {
-    patient: passageCourant.value.patient,
-    passage: passageCourant.value,
-    // Seule l'ordonnance sélectionnée est imprimée (elles sont indépendantes)
-    numero: ordonnanceActive.value?.numero ?? null,
-    medicaments: medicamentsOrdonnance.value,
-  }
+/** Numéros des ordonnances présentes dans l'aperçu (une ordonnance peut occuper plusieurs demi-pages). */
+const numerosImpr = computed(() => [...new Set(ordonnancesImpr.value.map((o) => o.numero).filter(Boolean))])
+
+/** Ordonnances de la consultation qui portent au moins un médicament. */
+const ordonnancesAvecMedicaments = computed(() =>
+  ordonnancesConsult.value.filter((o) => nbMedicamentsOrdonnance(o.id) > 0),
+)
+
+/** Nombre maximal de médicaments par demi-page : au-delà, la suite passe sur la demi-page suivante. */
+const MEDICAMENTS_PAR_DEMI_PAGE = 8
+
+/** Découpe une ordonnance en demi-pages de 8 médicaments (numérotation continue, « 1/2 », « 2/2 »…). */
+function decouperEnDemiPages(base, numero, liste) {
+  const medicaments = [...liste].sort((a, b) => a.id - b.id) // ordre de saisie
+  const total = Math.max(1, Math.ceil(medicaments.length / MEDICAMENTS_PAR_DEMI_PAGE))
+  return Array.from({ length: total }, (_, k) => ({
+    ...base,
+    numero,
+    page: k + 1,
+    total,
+    decalage: k * MEDICAMENTS_PAR_DEMI_PAGE,
+    medicaments: medicaments.slice(k * MEDICAMENTS_PAR_DEMI_PAGE, (k + 1) * MEDICAMENTS_PAR_DEMI_PAGE),
+  }))
 }
 
-/** L'ordonnance s'imprime en A4 : ouvre l'aperçu avant impression. */
+/** Construit l'ordonnance sélectionnée (ou toutes) pour l'aperçu et l'impression. */
+function construireApercu(toutes = false) {
+  if (!consultation.value || !passageCourant.value) return
+  const base = {
+    patient: passageCourant.value.patient,
+    passage: passageCourant.value,
+    date: new Date(),
+    medecinNom: `Dr ${auth.user?.personnel?.nom ?? ''} ${auth.user?.personnel?.prenom ?? ''}`.trim(),
+    medecinId: consultation.value.medecinId,
+  }
+  const meds = consultation.value.medicaments ?? []
+  ordonnancesImpr.value = toutes
+    ? ordonnancesAvecMedicaments.value.flatMap((o) =>
+        decouperEnDemiPages(base, o.numero, meds.filter((m) => m.ordonnanceId === o.id)),
+      )
+    : // Par défaut, seule l'ordonnance sélectionnée est imprimée (elles sont indépendantes)
+      decouperEnDemiPages(base, ordonnanceActive.value?.numero ?? null, medicamentsOrdonnance.value)
+}
+
+/** L'ordonnance s'imprime sur une demi-page A4 : ouvre l'aperçu avant impression. */
 async function imprimerOrdonnance() {
   construireApercu()
   apercuVisible.value = true
 }
 
+/**
+ * Historique : réimprime une ordonnance d'un passage antérieur (ou toutes) au format demi-A4,
+ * avec la date de la consultation et le médecin qui l'a prescrite.
+ */
+function imprimerOrdonnancesHistorique(groupe = null) {
+  const h = historiqueDetail.value
+  if (!h) return
+  const base = {
+    patient: detail.value?.passage?.patient ?? {},
+    passage: h.passage ?? {},
+    date: h.createdAt,
+    medecinNom: histMedecin.value,
+    medecinId: h.medecinId,
+  }
+  ordonnancesImpr.value = (groupe ? [groupe] : histOrdonnances.value).flatMap((g) =>
+    decouperEnDemiPages(base, g.numero, g.medicaments),
+  )
+  if (ordonnancesImpr.value.length) lancerImpression('ordonnance')
+}
+
+/** Toutes les ordonnances de la consultation, deux par page A4. */
+function imprimerToutesOrdonnances() {
+  construireApercu(true)
+  apercuVisible.value = true
+}
+
+/** Imprime ce que montre l'aperçu (une ordonnance ou toutes). */
 async function imprimerNavigateur() {
-  construireApercu()
   lancerImpression('ordonnance')
 }
 
@@ -5337,6 +5436,12 @@ onUnmounted(() => {
 .hist-texte {
   white-space: pre-wrap;
 }
+.hist-imprimer-une {
+  float: right;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
+}
 .hist-valide {
   font-style: italic;
   color: #475569;
@@ -5756,13 +5861,15 @@ onUnmounted(() => {
 .modal-a4 {
   max-width: 960px;
 }
+/* Ordonnance au format demi-A4 (148 mm de haut) : deux tiennent sur une page A4,
+   séparées par la ligne de découpe ✂ */
 .ordo-a4 {
   width: 210mm;
   max-width: 100%;
-  /* La hauteur s'adapte au contenu (liste des médicaments) */
+  min-height: 148mm;
   margin: 0 auto 16px;
   background: #ffffff;
-  padding: 14mm 12mm;
+  padding: 8mm 12mm 4mm;
   font-family: 'Segoe UI', system-ui, sans-serif;
   color: #1e293b;
   box-shadow: 0 10px 30px rgba(13, 148, 136, 0.12);
@@ -5770,68 +5877,77 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-sizing: border-box;
 }
 .ordo-a4-head {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   border-bottom: 2px solid #134e4a;
-  padding-bottom: 14px;
+  padding-bottom: 6px;
 }
 .ordo-a4-logo {
-  width: 64px;
-  height: 64px;
+  width: 44px;
+  height: 44px;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: 8px;
   flex-shrink: 0;
 }
 .ordo-a4-titre h1 {
-  font-size: 22px;
+  font-size: 17px;
   color: #134e4a;
   font-weight: 800;
   letter-spacing: 0.02em;
 }
 .ordo-a4-titre p {
-  font-size: 13px;
+  font-size: 11.5px;
   color: #475569;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 .ordo-a4-date {
   margin-left: auto;
   text-align: right;
-  font-size: 13px;
+  font-size: 11.5px;
   color: #1e293b;
   white-space: nowrap;
 }
 .ordo-a4-title {
   text-align: center;
-  font-size: 20px;
-  letter-spacing: 4px;
+  font-size: 15px;
+  letter-spacing: 3px;
   color: #134e4a;
-  margin: 20px 0 16px;
+  margin: 8px 0 6px;
   text-transform: uppercase;
+}
+/* « 1/2 », « suite 2/2 » : ordonnance de plus de 8 médicaments répartie sur plusieurs demi-pages */
+.ordo-a4-page {
+  margin-left: 10px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: none;
+  color: #475569;
 }
 .ordo-a4-infos {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px 24px;
-  font-size: 14px;
+  gap: 2px 16px;
+  font-size: 12px;
   border: 1px solid #d5eee9;
-  border-radius: 10px;
-  padding: 14px 16px;
-  margin-bottom: 18px;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
 }
 .ordo-a4-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 12px;
   table-layout: fixed;
   word-wrap: break-word;
 }
 .ordo-a4-table th,
 .ordo-a4-table td {
   border: 1px solid #cbd5e1;
-  padding: 8px 10px;
+  padding: 4px 6px;
   text-align: left;
   vertical-align: top;
   overflow-wrap: break-word;
@@ -5859,7 +5975,7 @@ onUnmounted(() => {
 .ordo-a4-table th {
   background: #f0fdfa;
   color: #134e4a;
-  font-size: 12px;
+  font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -5870,18 +5986,18 @@ onUnmounted(() => {
 .ordo-a4-vide {
   text-align: center;
   color: #64748b;
-  padding: 18px !important;
+  padding: 10px !important;
 }
 .ordo-a4-footer {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   border-top: 1px solid #d5eee9;
-  padding-top: 18px;
-  margin-top: 24px;
+  padding-top: 6px;
+  margin-top: auto; /* signature en bas de la demi-page */
 }
 .ordo-a4-cut {
-  margin-top: 16px;
+  margin-top: 4mm;
   text-align: center;
   font-size: 12px;
   letter-spacing: 2px;
@@ -5902,14 +6018,22 @@ onUnmounted(() => {
   color: inherit;
 }
 .ordo-a4-signature {
-  font-size: 13px;
+  font-size: 12px;
   color: #475569;
   font-style: italic;
+  min-height: 14mm; /* place pour signer à la main */
 }
 .ordo-a4-merci {
-  font-size: 13.5px;
+  font-size: 12px;
   font-weight: 700;
   color: #134e4a;
+}
+/* Page dédiée aux ordonnances : marges réduites pour loger deux demi-pages */
+@page ordo-demi {
+  margin: 8mm 12mm;
+}
+#ordo-print {
+  page: ordo-demi;
 }
 @media print {
   .ordo-a4 {
@@ -5919,6 +6043,17 @@ onUnmounted(() => {
     min-height: 0;
     width: 100%;
     padding: 0;
+  }
+  /* Chaque ordonnance occupe une demi-page : la ligne ✂ tombe au milieu de la feuille.
+     130 mm × 2 tient aussi avec les marges globales (265 mm utiles).
+     !important : la règle globale d'impression remet min-height à 0. */
+  #ordo-print .ordo-a4 {
+    min-height: 130mm !important;
+    padding: 2mm 0 0;
+  }
+  /* L'ordonnance du bas termine la page : la suivante repart en haut de la page d'après */
+  #ordo-print .ordo-a4-bas:not(:last-child) {
+    break-after: page;
   }
   .ordo-a4-head,
   .ordo-a4-title,

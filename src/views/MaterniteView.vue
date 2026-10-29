@@ -1519,14 +1519,17 @@
       </div>
     </div>
 
-    <!-- ============ Zone d'impression de l'ordonnance (A4) ============ -->
+    <!-- ============ Zone d'impression de l'ordonnance (demi-A4 : 8 médicaments max, deux par page, ligne ✂) ============ -->
     <div v-if="registreImprimable === 'ordonnance'" id="ordo-print">
-      <div class="ordo-a4">
+      <div v-for="(o, i) in ordoDemiPages" :key="i" class="ordo-a4" :class="{ 'ordo-a4-bas': i % 2 === 1 }">
         <div class="ordo-a4-head">
           <h1>{{ cliniqueNom }}</h1>
           <p v-if="cliniqueAdresse">{{ cliniqueAdresse }}</p>
         </div>
-        <div class="ordo-a4-titre">ORDONNANCE MÉDICALE</div>
+        <div class="ordo-a4-titre">
+          ORDONNANCE MÉDICALE
+          <span v-if="o.total > 1" class="ordo-a4-page">{{ o.page > 1 ? `suite ${o.page}/${o.total}` : `${o.page}/${o.total}` }}</span>
+        </div>
         <div class="ordo-a4-info">
           <div class="ordo-a4-ligne">
             <span class="ordo-a4-label">Patiente</span>
@@ -1546,10 +1549,14 @@
         </div>
         <table class="ordo-a4-table">
           <thead>
-            <tr><th>Médicament</th><th>Posologie</th><th>Quantité</th><th>Durée</th></tr>
+            <tr><th>N°</th><th>Médicament</th><th>Posologie</th><th>Quantité</th><th>Durée</th></tr>
           </thead>
           <tbody>
-            <tr v-for="m in detail?.passage.consultation?.medicaments ?? []" :key="m.id">
+            <tr v-if="o.medicaments.length === 0">
+              <td colspan="5" class="ordo-a4-vide">Aucun médicament prescrit.</td>
+            </tr>
+            <tr v-for="(m, j) in o.medicaments" :key="m.id">
+              <td>{{ o.decalage + j + 1 }}</td>
               <td>{{ m.nom }}</td>
               <td>{{ m.posologie || '—' }}</td>
               <td>{{ m.quantite || '—' }}</td>
@@ -1564,6 +1571,8 @@
             <div class="ordo-a4-cachet">Signature et cachet</div>
           </div>
         </div>
+        <!-- Ligne de découpe sous l'ordonnance du haut : sépare les deux moitiés de la feuille -->
+        <div v-if="i % 2 === 0" class="ordo-a4-cut" aria-hidden="true">✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ✂</div>
       </div>
     </div>
   </div>
@@ -2522,6 +2531,19 @@ function imprimerRegistre(type) {
   imprimerZone(type)
 }
 
+/** Ordonnance découpée en demi-pages A4 de 8 médicaments (numérotation continue, « 1/2 », « suite 2/2 »). */
+const MEDICAMENTS_PAR_DEMI_PAGE = 8
+const ordoDemiPages = computed(() => {
+  const meds = [...(detail.value?.passage?.consultation?.medicaments ?? [])].sort((a, b) => a.id - b.id)
+  const total = Math.max(1, Math.ceil(meds.length / MEDICAMENTS_PAR_DEMI_PAGE))
+  return Array.from({ length: total }, (_, k) => ({
+    page: k + 1,
+    total,
+    decalage: k * MEDICAMENTS_PAR_DEMI_PAGE,
+    medicaments: meds.slice(k * MEDICAMENTS_PAR_DEMI_PAGE, (k + 1) * MEDICAMENTS_PAR_DEMI_PAGE),
+  }))
+})
+
 function imprimerOrdonnance() {
   imprimerZone('ordonnance')
 }
@@ -2680,7 +2702,7 @@ onMounted(async () => {
   #cpn-print, #cpon-print, #acc-print, #pf-print { position: fixed; left: -10000px; top: 0; }
 }
 @page registre { size: A4 landscape; margin: 8mm 8mm; }
-@page ordo { margin: 16mm 14mm; } /* orientation au choix de l'utilisateur */
+@page ordo { margin: 8mm 12mm; } /* demi-A4 : deux ordonnances par page */
 #cpn-print, #cpon-print, #acc-print, #pf-print { page: registre; }
 #ordo-print { page: ordo; }
 /* ── Registres (A4 paysage, format officiel) ── */
@@ -2756,7 +2778,16 @@ onMounted(async () => {
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; color: #555; font-style: italic;
 }
+/* Demi-A4 : 8 médicaments max par demi-page, ligne ✂ au milieu de la feuille */
+.ordo-a4 { display: flex; flex-direction: column; min-height: 140mm; box-sizing: border-box; }
+.ordo-a4-page { margin-left: 8px; font-size: 11px; text-decoration: none; text-transform: none; color: #475569; }
+.ordo-a4-vide { text-align: center; color: #64748b; font-style: italic; }
+.ordo-a4 .ordo-a4-sign { margin-top: auto; padding-top: 8px; }
+.ordo-a4-cut { margin-top: 4mm; text-align: center; font-size: 12px; letter-spacing: 2px; color: #94a3b8; }
 @media print {
   .ordo-a4 { width: 100%; padding: 0; margin: 0; }
+  /* !important : la règle globale d'impression remet min-height à 0 */
+  #ordo-print .ordo-a4 { min-height: 130mm !important; padding-top: 2mm; break-inside: avoid; }
+  #ordo-print .ordo-a4-bas:not(:last-child) { break-after: page; }
 }
 </style>
