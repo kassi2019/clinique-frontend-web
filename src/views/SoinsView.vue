@@ -49,7 +49,7 @@
         </div>
         <div v-if="!file.length" class="empty-state">Aucun patient en attente de soins.</div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'SoinsView-1'">
             <thead>
               <tr>
                 <th>#</th>
@@ -157,7 +157,7 @@
               </div>
 
               <div v-if="s.lignes.length" class="table-wrap">
-                <table class="soin-medics">
+                <table v-data-table="'SoinsView-2'" class="soin-medics">
                   <thead>
                     <tr>
                       <th>Médicament</th>
@@ -206,7 +206,7 @@
             Aucun soin pour ce passage.
           </div>
           <div v-else-if="lignesSoins.length" class="table-wrap">
-            <table>
+            <table v-data-table="'SoinsView-3'">
               <thead>
                 <tr>
                   <th>Soin</th>
@@ -240,7 +240,7 @@
           <template v-if="toutesRealisations.length">
             <h3 class="section-title">Réalisations de ce passage</h3>
             <div class="table-wrap">
-              <table>
+              <table v-data-table="'SoinsView-4'">
                 <thead>
                   <tr>
                     <th>Date</th>
@@ -283,7 +283,7 @@
         </div>
 
         <div class="table-wrap">
-          <table>
+          <table v-data-table="'SoinsView-5'">
             <thead>
               <tr>
                 <th>Date réalisation</th>

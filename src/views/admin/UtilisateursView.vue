@@ -15,7 +15,7 @@
       <div v-else-if="error" class="alert alert-error">{{ error }}</div>
       <div v-else-if="liste.length === 0" class="empty-state">Aucun utilisateur créé.</div>
       <div v-else class="table-wrap">
-        <table>
+        <table v-data-table="'UtilisateursView-1'">
           <thead>
             <tr>
               <th>Matricule (login)</th>

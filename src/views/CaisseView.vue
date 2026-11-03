@@ -97,7 +97,7 @@
           Aucun patient en attente de paiement.
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'CaisseView-1'">
             <thead>
               <tr>
                 <th>#</th>
@@ -145,7 +145,7 @@
           Aucun paiement aujourd'hui.
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'CaisseView-2'">
             <thead>
               <tr>
                 <th>Heure</th>
@@ -282,7 +282,7 @@
           Aucun ticket de crédit ou cas social en cours.
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'CaisseView-3'">
             <thead>
               <tr>
                 <th>Ticket</th>
@@ -579,7 +579,7 @@
             Aucun paiement enregistré pour ce passage.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'CaisseView-5'">
               <thead>
                 <tr>
                   <th>N° reçu</th>
@@ -736,7 +736,7 @@
           <h1>{{ cliniqueNom }}</h1>
         </div>
         <div class="recu-sep"></div>
-        <h2 class="recu-title">REÇU DE PAIEMENT</h2>
+        <h2 class="recu-title">REÇU DE LA CAISSE</h2>
         <div class="recu-numero">{{ recuVisuel.numeroRecu }}</div>
         <div class="recu-sep"></div>
         <div class="recu-infos">
@@ -797,7 +797,7 @@
           </div>
         </div>
         <div class="recu-a4-regle"></div>
-        <h2 class="recu-a4-titre">REÇU DE PAIEMENT</h2>
+        <h2 class="recu-a4-titre">REÇU DE LA CAISSE</h2>
         <div class="recu-a4-numero">
           N° {{ recuA4.numeroRecu }} — {{ formatDateHeure(recuA4.createdAt) }}
         </div>

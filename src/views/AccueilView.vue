@@ -19,7 +19,7 @@
             class="btn btn-outline btn-sm btn-bascule"
             @click="basculerPoste"
           >
-            ⚡ Basculer vers {{ posteConstante ? 'Enregistrement' : 'Constante' }}
+            ⚡ Basculer vers {{ posteConstante ? 'Accueil' : 'Constante' }}
           </button>
           <button class="btn btn-outline btn-sm btn-back" @click="router.push({ name: 'home' })">
             ← Modules
@@ -107,7 +107,7 @@
           Aucun passage en attente de constante. 🎉
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'AccueilView-1'">
             <thead>
               <tr>
                 <th>N° ordre</th>
@@ -185,7 +185,7 @@
           Aucun passage avec constantes pour aujourd'hui.
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'AccueilView-2'">
             <thead>
               <tr>
                 <th>N° ordre</th>
@@ -261,7 +261,7 @@
           Aucun passage sur cette période.
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'AccueilView-3'">
             <thead>
               <tr>
                 <th>Date</th>
@@ -643,7 +643,7 @@
           Aucun rattachement.
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'AccueilView-4'">
             <thead>
               <tr>
                 <th>Assurance</th>
@@ -944,16 +944,11 @@ const cliniqueNom = computed(() => auth.user?.clinique?.nom || 'Gestion Clinique
 const cliniqueAdresse = ref('')
 
 // Poste de travail : service « Constante » (code CON).
-// Basculable temporairement pour les agents ACC/CON (sans toucher à la base).
+// Basculable temporairement (sans toucher à la base).
 const serviceCode = computed(() => auth.user?.personnel?.service?.code)
 const posteConstante = ref(serviceCode.value === 'CON')
-// Le bouton « Basculer » est visible pour les agents Accueil/Constantes
-// ET pour l'administrateur (pour vérifier/paramétrer les deux postes).
-const peutBasculer = computed(
-  () =>
-    ['ACC', 'CON'].includes(serviceCode.value) ||
-    auth.user?.role?.code === 'ADMINISTRATEUR',
-)
+// Le bouton « Basculer » est visible pour tout utilisateur ayant le module Accueil.
+const peutBasculer = computed(() => auth.canAccess('ACCUEIL'))
 
 function basculerPoste() {
   posteConstante.value = !posteConstante.value

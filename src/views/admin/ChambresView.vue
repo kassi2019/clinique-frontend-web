@@ -46,7 +46,7 @@
       Aucune chambre paramétrée. Ajoutez une première chambre et ses lits.
     </div>
     <div v-else class="table-wrap">
-      <table>
+      <table v-data-table="'ChambresView-1'">
         <thead>
           <tr>
             <th>Chambre</th>

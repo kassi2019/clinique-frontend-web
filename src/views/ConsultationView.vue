@@ -61,7 +61,7 @@
           </template>
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'ConsultationView-1'">
             <thead>
               <tr>
                 <th>#</th>
@@ -97,7 +97,7 @@
         <div class="card-header"><h2>Consultations terminées (aujourd'hui)</h2></div>
         <div v-if="file.terminees.length === 0" class="empty-state">Aucune consultation terminée aujourd'hui.</div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'ConsultationView-2'">
             <thead>
               <tr>
                 <th>Patient</th>
@@ -878,7 +878,7 @@
             Aucun médicament sur cette ordonnance.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'ConsultationView-3'">
               <thead>
                 <tr>
                   <th>Médicament</th>
@@ -975,7 +975,7 @@
             </p>
             <div v-if="soinsPrescrits.length === 0" class="text-muted small-note">Aucun soin prescrit.</div>
             <div v-else class="table-wrap">
-              <table>
+              <table v-data-table="'ConsultationView-4'">
                 <thead>
                   <tr>
                     <th>Type de soin</th>
@@ -1273,7 +1273,7 @@
             Aucun certificat enregistré — imprimez pour créer le premier.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'ConsultationView-6'">
               <thead>
                 <tr><th>Numéro</th><th>Établi le</th><th>Durée</th><th>Période</th><th></th></tr>
               </thead>
@@ -1440,7 +1440,7 @@
         Aucun examen hors clinique pour ce passage. Ajoutez-en un ci-dessous pour y joindre le résultat.
       </div>
       <div v-else class="table-wrap">
-        <table>
+        <table v-data-table="'ConsultationView-7'">
           <thead>
             <tr>
               <th>Examen</th>
@@ -1506,7 +1506,7 @@
         Aucun examen {{ histOnglet === 'labo' ? 'de laboratoire' : "d'imagerie" }} prescrit ni réalisé pour ce passage.
       </div>
       <div v-else class="table-wrap">
-        <table>
+        <table v-data-table="'ConsultationView-8'">
           <thead>
             <tr>
               <th>Examen</th>

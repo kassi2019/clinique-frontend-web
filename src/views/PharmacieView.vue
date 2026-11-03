@@ -105,7 +105,7 @@
             Aucune ordonnance en attente.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'PharmacieView-1'">
               <thead>
                 <tr>
                   <th>N° ordonnance</th>
@@ -317,7 +317,7 @@
             Aucune dispensation enregistrée.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'PharmacieView-3'">
               <thead>
                 <tr>
                   <th>Date</th>
@@ -381,7 +381,7 @@
             Total à encaisser : <strong>{{ creditsPharma.totalCredits.toLocaleString('fr-FR') }} FCFA</strong>
           </p>
           <div class="table-wrap">
-            <table>
+            <table v-data-table="'PharmacieView-4'">
               <thead>
                 <tr>
                   <th>Date</th><th>Reçu</th><th>Patient</th><th>Ordonnance</th><th>Motif</th>
@@ -414,7 +414,7 @@
         <h3 class="section-title">🤝 Cas sociaux pris en charge</h3>
         <div v-if="creditsPharma.casSociaux.length === 0" class="text-muted small-note">Aucun cas social enregistré.</div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'PharmacieView-5'">
             <thead>
               <tr><th>Date</th><th>Reçu</th><th>Patient</th><th>Ordonnance</th><th>Motif</th><th>Montant pris en charge</th><th>Par</th></tr>
             </thead>
@@ -503,6 +503,47 @@
               🖨️ Fiche d'inventaire
             </button>
           </div>
+          <!-- Filtres de l'inventaire (sans effet sur les saisies : un lot masqué garde sa quantité comptée) -->
+          <div v-if="sousOnglet === 'inventaire'" class="inv-filtres">
+            <input v-model="invLot" class="search-input inv-lot" type="search" placeholder="N° de lot…" />
+            <div class="inv-groupe">
+              <span class="inv-libelle">État :</span>
+              <button
+                v-for="o in INV_ETATS"
+                :key="o.v"
+                class="btn btn-sm"
+                :class="invEtat === o.v ? 'btn-primary' : 'btn-outline'"
+                @click="invEtat = o.v"
+              >
+                {{ o.l }}
+              </button>
+            </div>
+            <div class="inv-groupe">
+              <span class="inv-libelle">Comptage :</span>
+              <button
+                v-for="o in INV_COMPTAGES"
+                :key="o.v"
+                class="btn btn-sm"
+                :class="invComptage === o.v ? 'btn-primary' : 'btn-outline'"
+                @click="invComptage = o.v"
+              >
+                {{ o.l }}
+              </button>
+            </div>
+            <div class="inv-groupe">
+              <span class="inv-libelle">Trier par :</span>
+              <select v-model="invTri" class="inv-tri">
+                <option value="NOM">Nom A→Z</option>
+                <option value="PEREMPTION">Péremption la plus proche</option>
+                <option value="STOCK">Stock le plus bas</option>
+                <option value="ECART">Écart le plus grand</option>
+              </select>
+            </div>
+            <button v-if="invFiltreActif" class="btn btn-outline btn-sm" @click="effacerFiltresInventaire">✖ Effacer</button>
+            <span class="text-muted inv-compteur">
+              {{ produitsInventaire.length }} produit(s) · {{ produitsInventaire.reduce((n, p) => n + p.lots.length, 0) }} lot(s) affiché(s)
+            </span>
+          </div>
           <template v-else>
             <div class="toolbar">
               <button
@@ -560,7 +601,7 @@
         <!-- ── ENTREE : le tableau actuel ── -->
         <template v-if="sousOnglet === 'entree'">
           <div class="table-wrap">
-            <table>
+            <table v-data-table="'pharmacie-stocks-entree'">
               <thead>
                 <tr>
                   <th>Médicament</th>
@@ -616,8 +657,12 @@
           <div v-if="stocks.length === 0" class="empty-state">
             Aucun médicament en stock.
           </div>
+          <div v-else-if="produitsInventaire.length === 0" class="empty-state">
+            Aucun lot ne correspond aux filtres.
+            <button class="btn btn-outline btn-sm" @click="effacerFiltresInventaire">✖ Effacer les filtres</button>
+          </div>
           <div v-else class="inventaire-produits">
-            <div v-for="m in stocks" :key="m.id" class="inventaire-produit">
+            <div v-for="{ m, lots } in produitsInventaire" :key="m.id" class="inventaire-produit">
               <div class="inventaire-produit-entete">
                 <strong>{{ m.nom }}</strong>
                 <span v-if="m.dosage" class="text-muted">{{ m.dosage }}</span>
@@ -637,7 +682,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="l in lotsDe(m.id)" :key="l.id" :class="{ 'lot-corrige': lotCorrige(l) }">
+                  <tr v-for="l in lots" :key="l.id" :class="{ 'lot-corrige': lotCorrige(l) }">
                     <!-- N° de lot et péremption corrigeables pendant le comptage (lus sur la boîte) -->
                     <td>
                       <input
@@ -724,7 +769,7 @@
             Aucune sortie sur cette période.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'pharmacie-stocks-recap'">
               <thead>
                 <tr>
                   <th>Produit</th>
@@ -777,7 +822,7 @@
             Choisissez un médicament pour voir ses mouvements.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'pharmacie-stocks-mouvements'">
               <thead>
                 <tr>
                   <th>Date</th>
@@ -873,7 +918,7 @@
           Aucun retrait sur la période.
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'PharmacieView-9'">
             <thead>
               <tr>
                 <th>Date</th>
@@ -950,7 +995,7 @@
           Aucune ordonnance externe sur la période.
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'PharmacieView-10'">
             <thead>
               <tr>
                 <th>N°</th>
@@ -1283,7 +1328,7 @@
           Aucun médicament sous le seuil. ✅
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'PharmacieView-12'">
             <thead>
               <tr>
                 <th>Médicament</th>
@@ -1323,7 +1368,7 @@
           Aucune ligne sur la période.
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'PharmacieView-13'">
             <thead>
               <tr>
                 <th v-for="c in detailFinancierColonnes" :key="c">{{ c }}</th>
@@ -1397,7 +1442,7 @@
             <span>Valeur des écarts : <strong>{{ ficheInv.resume.valeurEcarts.toLocaleString('fr-FR') }} F</strong></span>
           </div>
           <div class="table-wrap fiche-inv-table">
-            <table>
+            <table v-data-table="'PharmacieView-14'">
               <thead>
                 <tr>
                   <th>Médicament</th><th>Lot</th><th>Péremption</th><th>Stock théorique</th>
@@ -1534,7 +1579,7 @@
           Aucun lot ne périme dans les 30 jours. ✅
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'PharmacieView-15'">
             <thead>
               <tr>
                 <th>Médicament</th>
@@ -1635,7 +1680,7 @@
         <h2>📜 Mouvements — {{ mouvementsCible?.nom }}</h2>
         <div v-if="mouvementsModal.length === 0" class="empty-state">Aucun mouvement.</div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'PharmacieView-16'">
             <thead>
               <tr>
                 <th>Date</th>
@@ -2356,6 +2401,75 @@ const optionsStocks = computed(() =>
 function lotsDe(medicamentId) {
   return tousLots.value.filter((l) => l.medicamentId === medicamentId)
 }
+
+// ── Filtres de l'onglet Inventaire ──
+const INV_ETATS = [
+  { v: 'TOUS', l: 'Tous' },
+  { v: 'PERIMES', l: 'Périmés' },
+  { v: 'PROCHES', l: 'Péremption ≤ 30 j' },
+  { v: 'ZERO', l: 'Stock à zéro' },
+  { v: 'SOUS_SEUIL', l: 'Sous le seuil' },
+]
+const INV_COMPTAGES = [
+  { v: 'TOUS', l: 'Tous' },
+  { v: 'NON_COMPTES', l: 'Non comptés' },
+  { v: 'COMPTES', l: 'Comptés' },
+  { v: 'ECART', l: 'Avec écart' },
+]
+const invLot = ref('')
+const invEtat = ref('TOUS')
+const invComptage = ref('TOUS')
+const invTri = ref('NOM')
+const invFiltreActif = computed(
+  () => !!invLot.value.trim() || invEtat.value !== 'TOUS' || invComptage.value !== 'TOUS' || invTri.value !== 'NOM',
+)
+function effacerFiltresInventaire() {
+  invLot.value = ''
+  invEtat.value = 'TOUS'
+  invComptage.value = 'TOUS'
+  invTri.value = 'NOM'
+}
+
+const lotCompte = (l) => inventaireSaisies.value[l.id] !== undefined && inventaireSaisies.value[l.id] !== ''
+const datePeremptionMs = (l) => (l.datePeremption ? new Date(l.datePeremption).getTime() : Infinity)
+
+function lotVisible(l) {
+  const rechercheLot = invLot.value.trim().toUpperCase()
+  if (rechercheLot && !String(l.numeroLot ?? '').toUpperCase().includes(rechercheLot)) return false
+  const maintenant = Date.now()
+  const peremption = datePeremptionMs(l)
+  if (invEtat.value === 'PERIMES' && !(peremption < maintenant)) return false
+  if (invEtat.value === 'PROCHES' && !(peremption >= maintenant && peremption <= maintenant + 30 * 86400000)) return false
+  if (invEtat.value === 'ZERO' && l.quantiteRestante !== 0) return false
+  if (invComptage.value === 'NON_COMPTES' && lotCompte(l)) return false
+  if (invComptage.value === 'COMPTES' && !lotCompte(l)) return false
+  if (invComptage.value === 'ECART' && ecartLot(l) === 0) return false
+  return true
+}
+
+/** Produits et lots affichés dans l'Inventaire, après filtres et tri. */
+const produitsInventaire = computed(() => {
+  // Sans filtre sur les lots, les produits sans lot restent affichés (comme avant)
+  const filtreLots = !!invLot.value.trim() || ['PERIMES', 'PROCHES', 'ZERO'].includes(invEtat.value) || invComptage.value !== 'TOUS'
+  let liste = stocks.value
+    // « Sous le seuil » : même règle que l'alerte « Stock bas » (calculée par le serveur)
+    .filter((m) => invEtat.value !== 'SOUS_SEUIL' || m.alerteStock)
+    .map((m) => ({ m, lots: lotsDe(m.id).filter(lotVisible) }))
+    .filter((p) => p.lots.length > 0 || !filtreLots)
+  const plusProche = (p) => Math.min(...p.lots.map(datePeremptionMs))
+  const plusGrandEcart = (p) => Math.max(0, ...p.lots.map((l) => Math.abs(ecartLot(l))))
+  if (invTri.value === 'PEREMPTION') {
+    liste = liste.map((p) => ({ ...p, lots: [...p.lots].sort((a, b) => datePeremptionMs(a) - datePeremptionMs(b)) }))
+    liste.sort((a, b) => plusProche(a) - plusProche(b))
+  } else if (invTri.value === 'STOCK') {
+    liste = [...liste].sort((a, b) => a.m.stock - b.m.stock)
+  } else if (invTri.value === 'ECART') {
+    liste = [...liste].sort((a, b) => plusGrandEcart(b) - plusGrandEcart(a))
+  } else {
+    liste = [...liste].sort((a, b) => a.m.nom.localeCompare(b.m.nom, 'fr'))
+  }
+  return liste
+})
 
 function ecartLot(l) {
   const saisie = inventaireSaisies.value[l.id]
@@ -3856,5 +3970,34 @@ onUnmounted(() => {
     top: 0;
     width: 190mm;
   }
+}
+.inv-filtres {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 6px 0 2px;
+}
+.inv-lot {
+  max-width: 170px;
+  flex: none;
+}
+.inv-groupe {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.inv-libelle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.inv-tri {
+  max-width: 220px;
+}
+.inv-compteur {
+  font-size: 12px;
+  margin-left: auto;
 }
 </style>

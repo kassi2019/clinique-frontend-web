@@ -82,7 +82,7 @@
           <div class="card mini">
             <h3>Parcours des patients</h3>
             <div class="table-wrap">
-              <table>
+              <table v-data-table="'StatistiquesView-1'">
                 <thead>
                   <tr><th>N° d'ordre</th><th>Patient</th><th>Service</th><th>Type</th><th>Statut</th></tr>
                 </thead>

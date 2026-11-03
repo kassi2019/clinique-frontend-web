@@ -67,7 +67,7 @@
           Aucun patient en attente d'examen.
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'ImagerieView-1'">
             <thead>
               <tr>
                 <th>#</th>
@@ -203,7 +203,7 @@
             Aucun examen d'imagerie payé pour ce passage.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'ImagerieView-2'">
               <thead>
                 <tr>
                   <th>Examen</th>
@@ -264,7 +264,7 @@
             Aucun examen antérieur pour ce patient.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'ImagerieView-3'">
               <thead>
                 <tr>
                   <th>Date</th>
@@ -417,7 +417,7 @@
             class="table-wrap"
             style="margin-top: 16px"
           >
-            <table>
+            <table v-data-table="'ImagerieView-4'">
               <thead>
                 <tr>
                   <th>Fiche</th>
@@ -476,7 +476,7 @@
         </div>
 
         <div class="table-wrap">
-          <table>
+          <table v-data-table="'ImagerieView-5'">
             <thead>
               <tr>
                 <th>Date</th>

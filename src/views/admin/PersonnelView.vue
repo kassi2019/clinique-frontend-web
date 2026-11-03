@@ -30,10 +30,10 @@
       <div v-else-if="error" class="alert alert-error">{{ error }}</div>
       <div v-else-if="liste.length === 0" class="empty-state">Aucun personnel trouvé.</div>
       <div v-else class="table-wrap">
-        <table>
+        <table v-data-table="'PersonnelView-1'">
           <thead>
             <tr>
-              <th>Photo</th>
+              <th data-dt-off>Photo</th>
               <th>Matricule</th>
               <th>Nom & prénom</th>
               <th>Fonction</th>

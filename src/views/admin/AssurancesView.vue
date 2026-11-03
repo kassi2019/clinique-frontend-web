@@ -242,7 +242,7 @@
         </div>
 
         <div class="table-wrap">
-          <table>
+          <table v-data-table="'AssurancesView-1'">
             <thead>
               <tr>
                 <th>Date</th>
@@ -321,7 +321,7 @@
         Aucune prise en charge facturée pour le moment.
       </div>
       <div v-else class="table-wrap">
-        <table>
+        <table v-data-table="'AssurancesView-2'">
           <thead>
             <tr>
               <th>Assurance</th><th>Factures</th><th>Montant facturé</th><th>Montant reçu</th><th>Reste à recouvrer</th><th></th>
@@ -348,7 +348,7 @@
       <h3 class="section-title">Règlements reçus</h3>
       <div v-if="recouvrement.reglements.length === 0" class="text-muted small-note">Aucun règlement enregistré.</div>
       <div v-else class="table-wrap">
-        <table>
+        <table v-data-table="'AssurancesView-3'">
           <thead>
             <tr><th>Date</th><th>Assurance</th><th>Montant</th><th>Mode</th><th>Référence</th><th>Commentaire</th><th></th></tr>
           </thead>
@@ -400,7 +400,7 @@
           </div>
         </div>
         <div class="table-wrap">
-          <table>
+          <table v-data-table="'AssurancesView-4'">
             <thead>
               <tr>
                 <th>Patient</th>
@@ -493,7 +493,7 @@
             Aucune prestation couverte pour cette formule.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'AssurancesView-5'">
               <thead>
                 <tr>
                   <th>Prestation</th>

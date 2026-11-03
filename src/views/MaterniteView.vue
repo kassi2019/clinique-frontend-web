@@ -85,7 +85,7 @@
           <div v-if="!recherche.trim()">
             <div v-if="!file.length" class="empty-state">Aucune patiente en attente.</div>
             <div v-else class="table-wrap">
-              <table>
+              <table v-data-table="'MaterniteView-1'">
                 <thead>
                   <tr>
                     <th>#</th>
@@ -138,7 +138,7 @@
             <DateSaisie v-model="jourTraites" class="search-input" style="max-width: 170px; flex: none" @change="chargerTraites()" />
           </div>
           <div class="table-wrap">
-            <table>
+            <table v-data-table="'MaterniteView-2'">
               <thead>
                 <tr>
                   <th>Patiente</th>
@@ -426,7 +426,7 @@
           <h3 class="section-title">Visites CPN enregistrées</h3>
           <div v-if="!dossier?.visites?.length" class="text-muted small-note">Aucune visite enregistrée.</div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'MaterniteView-3'">
               <thead>
                 <tr>
                   <th>Rang</th><th>Date</th><th>SA</th><th>Poids</th><th>TA</th><th>SP</th><th>MILDA / Fer</th><th></th>
@@ -571,7 +571,7 @@
           <h3 class="section-title">Consultations postnatales enregistrées</h3>
           <div v-if="cpons.length === 0" class="text-muted small-note">Aucune consultation postnatale enregistrée.</div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'MaterniteView-4'">
               <thead>
                 <tr><th>Date</th><th>Type</th><th>Report N° gestante</th><th>Lieu / mode accouchement</th><th></th></tr>
               </thead>
@@ -830,7 +830,7 @@
           <h3 class="section-title">Consultations PF enregistrées</h3>
           <div v-if="pfs.length === 0" class="text-muted small-note">Aucune consultation PF enregistrée.</div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'MaterniteView-5'">
               <thead>
                 <tr><th>Date</th><th>Méthode</th><th>Statut</th><th></th></tr>
               </thead>
@@ -862,7 +862,7 @@
               Aucun médicament prescrit.
             </div>
             <div v-else class="table-wrap">
-              <table>
+              <table v-data-table="'MaterniteView-6'">
                 <thead><tr><th>Médicament</th><th>Posologie</th><th>Quantité</th><th>Durée</th><th></th></tr></thead>
                 <tbody>
                   <tr v-for="m in detail.passage.consultation.medicaments" :key="m.id">
@@ -903,7 +903,7 @@
           <h3 class="section-title">Examens prescrits</h3>
           <div v-if="examensPrescrits.length === 0" class="text-muted small-note">Aucun examen prescrit.</div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'MaterniteView-7'">
               <thead><tr><th>Examen</th><th>Statut</th><th></th></tr></thead>
               <tbody>
                 <tr v-for="e in examensPrescrits" :key="e.id">

@@ -1,6 +1,6 @@
 <template>
   <div class="table-wrap">
-    <table>
+    <table v-data-table>
       <thead>
         <tr>
           <th v-for="c in colonnes" :key="c.cle">{{ c.libelle }}</th>

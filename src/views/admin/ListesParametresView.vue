@@ -55,7 +55,7 @@
         Aucune entrée — utilisez « ＋ Ajouter » ou « 📥 Charger (Excel) ».
       </div>
       <div v-else class="table-wrap">
-        <table>
+        <table v-data-table="'ListesParametresView-1'">
           <thead>
             <tr>
               <th>Libellé</th>

@@ -135,7 +135,7 @@
             Aucun séjour antérieur.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'HospitalisationView-1'">
               <thead>
                 <tr>
                   <th>Entrée</th>
@@ -201,7 +201,7 @@
           Aucun patient hospitalisé actuellement.
         </div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'HospitalisationView-2'">
             <thead>
               <tr>
                 <th>Patient</th>
@@ -256,7 +256,7 @@
         </div>
 
         <div class="table-wrap">
-          <table>
+          <table v-data-table="'HospitalisationView-3'">
             <thead>
               <tr>
                 <th>Entrée</th>

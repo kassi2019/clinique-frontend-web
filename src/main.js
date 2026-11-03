@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
+import dataTable from './directives/dataTable'
 import './assets/main.css'
 
 // ── Calibrage global : saisie en MAJUSCULES sur tous les formulaires ──
@@ -38,4 +39,6 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
+// Filtres par colonne + tri sur les tableaux : <table v-data-table>
+app.directive('data-table', dataTable)
 app.mount('#app')

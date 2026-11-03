@@ -32,7 +32,7 @@
       </div>
 
       <div class="table-wrap">
-        <table>
+        <table v-data-table="'JournalView-1'">
           <thead>
             <tr>
               <th>Date / heure</th>

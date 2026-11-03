@@ -16,7 +16,7 @@
       <div v-else-if="error" class="alert alert-error">{{ error }}</div>
       <div v-else-if="liste.length === 0" class="empty-state">Aucune clinique enregistrée.</div>
       <div v-else class="table-wrap">
-        <table>
+        <table v-data-table="'CliniquesView-1'">
           <thead>
             <tr>
               <th>Code</th>

@@ -648,3 +648,67 @@ select {
 }
 
 /* (En-têtes de tableaux : défilement normal, comme avant) */
+
+/* ---------- Tableaux filtrables (directive v-data-table) ---------- */
+.dt-filtres th {
+  padding: 4px 6px;
+  background: var(--surface);
+}
+.dt-filtre {
+  width: 100%;
+  min-width: 70px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-champ, #cbd5e1);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  text-transform: none;
+}
+.dt-filtre:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+th.dt-triable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+th.dt-triable:hover {
+  color: var(--primary);
+}
+.dt-tri {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.dt-bandeau {
+  caption-side: top;
+  text-align: left;
+  padding: 6px 2px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.dt-bandeau .btn {
+  margin-left: 10px;
+}
+
+/* ---------- Tableaux d'écran : traits légers entre les colonnes + cadre arrondi ---------- */
+.table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.table-wrap table th + th,
+.table-wrap table td + td {
+  border-left: 1px solid var(--border);
+}
+.table-wrap table tbody tr:last-child td,
+.table-wrap table tfoot tr:last-child td {
+  border-bottom: none;
+}
+/* Filtres et tri des tableaux : jamais à l'impression */
+@media print {
+  .dt-filtres,
+  .dt-bandeau,
+  .dt-tri {
+    display: none !important;
+  }
+}

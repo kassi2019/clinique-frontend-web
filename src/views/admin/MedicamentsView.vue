@@ -44,7 +44,7 @@
       <div v-else-if="error" class="alert alert-error">{{ error }}</div>
       <div v-else-if="liste.length === 0" class="empty-state">Aucun médicament.</div>
       <div v-else class="table-wrap">
-        <table>
+        <table v-data-table="'MedicamentsView-1'">
           <thead>
             <tr>
               <th>Nom</th>

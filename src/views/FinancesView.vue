@@ -89,7 +89,7 @@
         </p>
         <div v-if="!services.length" class="empty-state">Aucun service pointé sur ce mois.</div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'FinancesView-1'">
             <thead>
               <tr>
                 <th>Agent</th><th>Début</th><th>Fin</th><th>Durée</th><th>Présence</th><th>Vacations</th><th>État</th><th></th>

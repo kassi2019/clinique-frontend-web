@@ -49,7 +49,7 @@
         </div>
         <div v-if="!file.length" class="empty-state">Aucun patient en attente d'examen.</div>
         <div v-else class="table-wrap">
-          <table>
+          <table v-data-table="'LaboratoireView-1'">
             <thead>
               <tr>
                 <th>#</th>
@@ -148,7 +148,7 @@
             Aucun examen de laboratoire payé pour ce passage.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'LaboratoireView-2'">
               <thead>
                 <tr>
                   <th>Examen</th>
@@ -207,7 +207,7 @@
             Aucun examen antérieur pour ce patient.
           </div>
           <div v-else class="table-wrap">
-            <table>
+            <table v-data-table="'LaboratoireView-3'">
               <thead>
                 <tr>
                   <th>Date prélèvement</th>
@@ -261,7 +261,7 @@
         </div>
 
         <div class="table-wrap">
-          <table>
+          <table v-data-table="'LaboratoireView-4'">
             <thead>
               <tr>
                 <th>Date prélèvement</th>
@@ -407,7 +407,7 @@
         </div>
 
         <div class="table-wrap">
-          <table>
+          <table v-data-table="'LaboratoireView-6'">
             <thead>
               <tr>
                 <th>Paramètre</th>
