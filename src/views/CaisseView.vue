@@ -738,6 +738,10 @@
         <div class="recu-sep"></div>
         <h2 class="recu-title">REÇU DE LA CAISSE</h2>
         <div class="recu-numero">{{ recuVisuel.numeroRecu }}</div>
+        <div class="recu-infos">
+          <div>Date : {{ dateRecu(recuVisuel.createdAt) }}</div>
+          <div>Heure : {{ heureRecu(recuVisuel.createdAt) }}</div>
+        </div>
         <div class="recu-sep"></div>
         <div class="recu-infos">
           <div>
@@ -776,7 +780,6 @@
         </div>
         <div class="recu-infos">
           <div>Mode : {{ labelMode(recuVisuel.modePaiement) }}</div>
-          <div>{{ formatDateHeure(recuVisuel.createdAt) }}</div>
         </div>
         <div class="recu-sep"></div>
         <div class="recu-foot">Merci de votre visite</div>
@@ -1354,6 +1357,14 @@ async function annulerPaiement(p) {
   } catch (e) {
     toastError(e.response?.data?.message || "Erreur lors de l'annulation.");
   }
+}
+
+/** Date et heure séparées pour les reçus (heure actuelle si absente). */
+function dateRecu(d) {
+  return new Date(d ?? Date.now()).toLocaleDateString("fr-FR");
+}
+function heureRecu(d) {
+  return new Date(d ?? Date.now()).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
 function formatDateHeure(d) {

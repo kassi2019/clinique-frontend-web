@@ -264,7 +264,7 @@
           <table v-data-table="'AccueilView-3'">
             <thead>
               <tr>
-                <th>Date</th>
+                <th>Date et heure</th>
                 <th>N° ordre</th>
                 <th>Code du patient</th>
                 <th>Patient</th>
@@ -275,7 +275,7 @@
             </thead>
             <tbody>
               <tr v-for="pg in passages" :key="pg.id">
-                <td>{{ formatDate(pg.createdAt) }}</td>
+                <td style="white-space: nowrap">{{ formatDateHeureCourte(pg.createdAt) }}</td>
                 <td><strong>{{ pg.numeroOrdre }}</strong></td>
                 <td><span class="code-chip">{{ pg.patient.code }}</span></td>
                 <td>{{ pg.patient.nom }} {{ pg.patient.prenom }}</td>
@@ -1285,6 +1285,13 @@ function formatDate(d) {
 
 function formatDateHeure(d) {
   return new Date(d).toLocaleString('fr-FR')
+}
+
+/** Ex. « 06/11/2026 à 10:21 » (sans les secondes). */
+function formatDateHeureCourte(d) {
+  const dt = new Date(d)
+  const heure = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  return `${dt.toLocaleDateString('fr-FR')} à ${heure}`
 }
 
 function resetForm() {

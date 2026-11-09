@@ -1773,6 +1773,10 @@
         <div class="recu-sep"></div>
         <h2 class="recu-title">REÇU PHARMACIE</h2>
         <div class="recu-numero">{{ recuPharma.paiement.numeroRecu }}</div>
+        <div class="recu-infos">
+          <div>Date : {{ dateRecu(recuPharma.paiement.createdAt) }}</div>
+          <div>Heure : {{ heureRecu(recuPharma.paiement.createdAt) }}</div>
+        </div>
         <div class="recu-sep"></div>
         <div class="recu-infos">
           <div v-if="recuPharma.client"><strong>{{ recuPharma.client }}</strong></div>
@@ -1807,7 +1811,6 @@
         <div class="recu-infos">
           <div>Mode : {{ labelMode(recuPharma.paiement.modePaiement) }}</div>
           <div>Caissière : {{ auth.user?.personnel?.prenom }} {{ auth.user?.personnel?.nom }}</div>
-          <div>{{ formatDateHeure(recuPharma.paiement.createdAt) }}</div>
         </div>
         <div class="recu-sep"></div>
         <div class="recu-foot">Merci de votre visite</div>
@@ -2934,6 +2937,14 @@ async function confirmerConsommable() {
 function formatDate(d) {
   return new Date(d).toLocaleDateString('fr-FR')
 }
+/** Date et heure séparées pour les reçus (heure actuelle si absente). */
+function dateRecu(d) {
+  return new Date(d ?? Date.now()).toLocaleDateString('fr-FR')
+}
+function heureRecu(d) {
+  return new Date(d ?? Date.now()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
+
 function formatDateHeure(d) {
   return new Date(d).toLocaleString('fr-FR')
 }
