@@ -469,7 +469,7 @@
             <button
               class="tab-btn"
               :class="{ active: sousOnglet === 'mouvement' }"
-              @click="sousOnglet = 'mouvement'; chargerMouvementsMed(); chargerRecapSorties()"
+              @click="sousOnglet = 'mouvement'; chargerMouvementsMed(); chargerRecapSorties(); if (vueMouvements === 'entrees' || vueMouvements === 'ajustements') chargerMouvementsStock()"
             >
               📜 Mouvements
             </button>
@@ -533,6 +533,7 @@
             <div class="inv-groupe">
               <span class="inv-libelle">Trier par :</span>
               <select v-model="invTri" class="inv-tri">
+                <option value="STOCK_HAUT">Stock total le plus élevé</option>
                 <option value="NOM">Nom A→Z</option>
                 <option value="PEREMPTION">Péremption la plus proche</option>
                 <option value="STOCK">Stock le plus bas</option>
@@ -560,6 +561,51 @@
               >
                 📜 Historique d'un produit
               </button>
+              <button
+                class="btn btn-sm"
+                :class="vueMouvements === 'entrees' ? 'btn-primary' : 'btn-outline'"
+                @click="vueMouvements = 'entrees'; chargerMouvementsStock()"
+              >
+                📥 Entrées de stock
+              </button>
+              <button
+                class="btn btn-sm"
+                :class="vueMouvements === 'ajustements' ? 'btn-primary' : 'btn-outline'"
+                @click="vueMouvements = 'ajustements'; chargerMouvementsStock()"
+              >
+                ⚖️ Ajustements de stock
+              </button>
+            </div>
+            <!-- Entrées / ajustements : période, produits, filtres -->
+            <div v-if="vueMouvements === 'entrees' || vueMouvements === 'ajustements'" class="toolbar">
+              <DateSaisie v-model="mvtDebut" class="search-input" style="max-width: 160px; flex: none" title="Date de début (vide = aujourd'hui)" @change="chargerMouvementsStock" />
+              <DateSaisie v-model="mvtFin" class="search-input" style="max-width: 160px; flex: none" title="Date de fin (vide = aujourd'hui)" @change="chargerMouvementsStock" />
+              <button class="btn btn-outline btn-sm" title="Aujourd'hui" @click="periodeMvt('jour')">Aujourd'hui</button>
+              <button class="btn btn-outline btn-sm" title="Du 1er du mois à aujourd'hui" @click="periodeMvt('mois')">Ce mois</button>
+              <div style="min-width: 240px; flex: 1">
+                <SelectSearch
+                  v-model="mvtProduits"
+                  :options="optionsStocks"
+                  multiple
+                  placeholder="Tous les produits (cocher pour filtrer)"
+                  @update:model-value="chargerMouvementsStock"
+                />
+              </div>
+              <template v-if="vueMouvements === 'ajustements'">
+                <select v-model="mvtSens" style="max-width: 170px" @change="chargerMouvementsStock">
+                  <option value="TOUS">+ et −</option>
+                  <option value="PLUS">Positifs (+) seulement</option>
+                  <option value="MOINS">Négatifs (−) seulement</option>
+                </select>
+                <select v-model="mvtOrigine" style="max-width: 200px" @change="chargerMouvementsStock">
+                  <option value="TOUS">Inventaires et retraits</option>
+                  <option value="INVENTAIRE">Corrections d'inventaire</option>
+                  <option value="RETRAIT">Retraits (périmé, casse…)</option>
+                </select>
+              </template>
+              <button class="btn btn-outline btn-sm" @click="chargerMouvementsStock">🔄 Actualiser</button>
+              <button class="btn btn-outline btn-sm" :disabled="!mvtStock.lignes.length" @click="exporterMvtExcel">📥 Excel</button>
+              <button class="btn btn-outline btn-sm" :disabled="!mvtStock.lignes.length" @click="imprimerMvtPdf">🖨️ PDF</button>
             </div>
             <div v-if="vueMouvements === 'recap'" class="toolbar">
               <DateSaisie v-model="sortiesDebut" class="search-input" style="max-width: 160px; flex: none" title="Date de début (vide = aujourd'hui)" @change="chargerRecapSorties" />
@@ -582,7 +628,7 @@
               <button class="btn btn-outline btn-sm" :disabled="!recapSorties.lignes.length" @click="exporterSortiesExcel">📥 Excel</button>
               <button class="btn btn-outline btn-sm" :disabled="!recapSorties.lignes.length" @click="imprimerSortiesPdf">🖨️ PDF</button>
             </div>
-            <div v-else class="toolbar">
+            <div v-else-if="vueMouvements === 'produit'" class="toolbar">
               <SelectSearch
                 v-model="mouvementMedId"
                 :options="optionsStocks"
@@ -600,6 +646,28 @@
 
         <!-- ── ENTREE : le tableau actuel ── -->
         <template v-if="sousOnglet === 'entree'">
+          <!-- Légende des couleurs de la colonne Stock (règle SD/Qs : stock disponible ÷ consommation moyenne par jour sur 30 j) -->
+          <div class="legende-stock">
+            <span class="legende-titre">Légende de la colonne Stock (cliquer pour filtrer) :</span>
+            <button
+              v-for="e in LEGENDE_STOCK"
+              :key="e.code"
+              type="button"
+              class="legende-item"
+              :class="{ 'legende-active': filtreStatutStock === e.code }"
+              :style="filtreStatutStock === e.code ? { borderColor: e.couleur } : null"
+              :title="filtreStatutStock === e.code ? 'Cliquer pour afficher tous les médicaments' : `Afficher seulement : ${e.libelle}`"
+              @click="filtreStatutStock = filtreStatutStock === e.code ? null : e.code"
+            >
+              <span class="legende-pastille" :style="{ backgroundColor: e.couleur }"></span>
+              <strong>{{ e.libelle }}</strong>
+              <span class="text-muted">({{ e.regle }})</span>
+              <span class="legende-nb">{{ nbParStatutStock[e.code] ?? 0 }}</span>
+            </button>
+            <button v-if="filtreStatutStock" type="button" class="btn btn-outline btn-sm" @click="filtreStatutStock = null">
+              ✖ Tout afficher
+            </button>
+          </div>
           <div class="table-wrap">
             <table v-data-table="'pharmacie-stocks-entree'">
               <thead>
@@ -613,7 +681,10 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="m in stocks" :key="m.id">
+                <tr v-if="filtreStatutStock && stocksEntree.length === 0">
+                  <td colspan="6" class="text-muted">Aucun médicament dans cet état.</td>
+                </tr>
+                <tr v-for="m in stocksEntree" :key="m.id">
                   <td><strong>{{ m.nom }}</strong><span v-if="m.dosage" class="text-muted"> {{ m.dosage }}</span></td>
                   <td>
                     <span
@@ -669,8 +740,29 @@
                 <span class="badge" :class="m.stock > 0 ? 'badge-success' : 'badge-warning'">
                   Stock total : {{ m.stock }}
                 </span>
+                <span v-if="nbLotsVides(m.id) && invEtat !== 'ZERO'" class="text-muted lots-vides" :title="'Choisir « Stock à zéro » dans les filtres pour les revoir'">
+                  {{ nbLotsVides(m.id) }} lot(s) à 0 masqué(s)
+                </span>
+                <button
+                  class="btn btn-primary btn-sm btn-ajout-lot"
+                  title="Ajouter un lot oublié ou mal enregistré à l'entrée"
+                  @click="ouvrirAjoutLot(m)"
+                >
+                  ＋ Ajouter un lot
+                </button>
               </div>
-              <table class="inventaire-lots">
+              <div v-if="stockSansLot(m) > 0" class="inventaire-sans-lot">
+                <span>
+                  ⚠️ <strong>{{ stockSansLot(m) }} unité(s) sans lot</strong>
+                  (stock total {{ m.stock }}, lots {{ m.stock - stockSansLot(m) }}). Rattachez-les à un lot avant
+                  de valider le comptage : sinon le stock total sera ramené à la somme des lots.
+                </span>
+                <button class="btn btn-sm btn-rattacher" @click="ouvrirRattachement(m)">🔗 Rattacher à un lot</button>
+              </div>
+              <p v-if="lots.length === 0 && stockSansLot(m) <= 0" class="text-muted inventaire-aucun-lot">
+                Aucun lot en stock pour ce produit.
+              </p>
+              <table v-else class="inventaire-lots">
                 <thead>
                   <tr>
                     <th>Lot</th>
@@ -816,6 +908,110 @@
           </div>
         </template>
 
+        <!-- ── MOUVEMENTS : entrées de stock / ajustements ── -->
+        <template v-else-if="vueMouvements === 'entrees' || vueMouvements === 'ajustements'">
+          <div class="financier-grille">
+            <template v-if="vueMouvements === 'entrees'">
+              <div class="financier-carte">
+                <div class="financier-label">Entrées de stock</div>
+                <div class="financier-montant">{{ mvtStock.totaux.operations }}</div>
+                <div class="text-muted small-note">{{ libellePeriodeMvt() }}</div>
+              </div>
+              <div class="financier-carte">
+                <div class="financier-label">Produits concernés</div>
+                <div class="financier-montant">{{ mvtStock.totaux.produits }}</div>
+              </div>
+              <div class="financier-carte">
+                <div class="financier-label">Quantité entrée</div>
+                <div class="financier-montant">+{{ mvtStock.totaux.quantite.toLocaleString('fr-FR') }}</div>
+              </div>
+              <div class="financier-carte">
+                <div class="financier-label">Valeur d'achat</div>
+                <div class="financier-montant">{{ formatMontant(mvtStock.totaux.valeur) }}</div>
+                <div class="text-muted small-note">lots avec prix d'achat</div>
+              </div>
+            </template>
+            <template v-else>
+              <div class="financier-carte">
+                <div class="financier-label">Ajustements</div>
+                <div class="financier-montant">{{ mvtStock.totaux.operations }}</div>
+                <div class="text-muted small-note">{{ libellePeriodeMvt() }}</div>
+              </div>
+              <div class="financier-carte">
+                <div class="financier-label">Ajustements positifs (+)</div>
+                <div class="financier-montant ajust-plus">+{{ mvtStock.totaux.quantitePlus.toLocaleString('fr-FR') }}</div>
+                <div class="text-muted small-note">{{ mvtStock.totaux.nbPlus }} opération(s)</div>
+              </div>
+              <div class="financier-carte">
+                <div class="financier-label">Ajustements négatifs (−)</div>
+                <div class="financier-montant ajust-moins">{{ mvtStock.totaux.quantiteMoins.toLocaleString('fr-FR') }}</div>
+                <div class="text-muted small-note">{{ mvtStock.totaux.nbMoins }} opération(s)</div>
+              </div>
+              <div class="financier-carte">
+                <div class="financier-label">Solde net</div>
+                <div class="financier-montant" :class="mvtStock.totaux.quantite < 0 ? 'ajust-moins' : 'ajust-plus'">
+                  {{ mvtStock.totaux.quantite > 0 ? '+' : '' }}{{ mvtStock.totaux.quantite.toLocaleString('fr-FR') }}
+                </div>
+                <div class="text-muted small-note">Valeur : {{ formatMontant(mvtStock.totaux.valeur) }}</div>
+              </div>
+            </template>
+          </div>
+          <div v-if="mvtStock.lignes.length === 0" class="empty-state">
+            {{ vueMouvements === 'entrees' ? 'Aucune entrée de stock' : 'Aucun ajustement' }} sur cette période.
+          </div>
+          <div v-else class="table-wrap">
+            <table v-data-table="vueMouvements === 'entrees' ? 'pharmacie-mvt-entrees' : 'pharmacie-mvt-ajustements'">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Produit</th>
+                  <th>Lot</th>
+                  <th v-if="vueMouvements === 'entrees'">Péremption</th>
+                  <th v-if="vueMouvements === 'entrees'">Fournisseur</th>
+                  <th v-if="vueMouvements === 'ajustements'">Sens</th>
+                  <th>{{ vueMouvements === 'entrees' ? 'Quantité entrée' : 'Quantité' }}</th>
+                  <th v-if="vueMouvements === 'ajustements'">Stock avant → après</th>
+                  <th>{{ vueMouvements === 'entrees' ? 'Origine' : 'Nature' }}</th>
+                  <th>Valeur</th>
+                  <th>Par</th>
+                  <th>Commentaire</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="l in mvtStock.lignes" :key="l.id">
+                  <td style="white-space: nowrap">{{ formatDateHeure(l.date) }}</td>
+                  <td><strong>{{ l.produit }}</strong></td>
+                  <td>{{ l.lot }}</td>
+                  <td v-if="vueMouvements === 'entrees'">{{ l.peremption ? formatDate(l.peremption) : '—' }}</td>
+                  <td v-if="vueMouvements === 'entrees'">{{ l.fournisseur || '—' }}</td>
+                  <td v-if="vueMouvements === 'ajustements'">
+                    <span class="badge" :class="l.quantite > 0 ? 'badge-success' : 'badge-danger'">
+                      {{ l.quantite > 0 ? '+ Positif' : '− Négatif' }}
+                    </span>
+                  </td>
+                  <td>
+                    <strong :class="l.quantite > 0 ? 'ajust-plus' : 'ajust-moins'">{{ l.quantite > 0 ? '+' : '' }}{{ l.quantite }}</strong>
+                  </td>
+                  <td v-if="vueMouvements === 'ajustements'" class="text-muted">
+                    {{ l.stockAvant != null && l.stockApres != null ? `${l.stockAvant} → ${l.stockApres}` : '—' }}
+                  </td>
+                  <td>
+                    <span
+                      class="badge"
+                      :class="l.type === 'ENTREE' ? (l.origine === 'Entrée de stock' ? 'badge-success' : 'badge-warning') : l.type === 'RETRAIT' ? 'badge-danger' : 'badge-muted'"
+                    >
+                      {{ l.origine }}
+                    </span>
+                  </td>
+                  <td>{{ formatMontant(l.valeur) }}</td>
+                  <td>{{ l.par }}</td>
+                  <td class="text-muted">{{ l.commentaire && l.commentaire !== l.origine ? l.commentaire : '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
         <!-- ── MOUVEMENTS : historique par médicament ── -->
         <template v-else>
           <div v-if="mouvements.length === 0" class="empty-state">
@@ -838,9 +1034,9 @@
                   <td>
                     <span
                       class="badge"
-                      :class="mv.type === 'ENTREE' ? 'badge-success' : mv.type === 'SORTIE' ? 'badge-warning' : 'badge-muted'"
+                      :class="mv.type === 'ENTREE' ? 'badge-success' : mv.type === 'SORTIE' ? 'badge-warning' : mv.type === 'RETRAIT' ? 'badge-danger' : 'badge-muted'"
                     >
-                      {{ mv.type }}
+                      {{ LIBELLES_TYPE_MVT[mv.type] ?? mv.type }}
                     </span>
                   </td>
                   <td>{{ mv.quantite > 0 ? '+' : '' }}{{ mv.quantite }}</td>
@@ -1616,7 +1812,18 @@
     <!-- Modale : entrée de stock -->
     <div v-if="entreeVisible" class="modal-backdrop">
       <div class="modal">
-        <h2>📥 Entrée de stock — {{ entreeCible?.nom }}</h2>
+        <h2>
+          {{ entreeRattachement ? '🔗 Rattacher le stock sans lot' : entreeDepuisInventaire ? '＋ Ajouter un lot' : '📥 Entrée de stock' }}
+          — {{ entreeCible?.nom }}
+        </h2>
+        <p v-if="entreeRattachement" class="text-muted">
+          {{ entreeRattachement }} unité(s) sont comptées dans le stock total mais sans lot. Indiquez le lot lu sur
+          la boîte : le lot est créé <strong>sans augmenter le stock total</strong>. S'il y a plusieurs lots,
+          rattachez-les un par un (quantité de chaque lot).
+        </p>
+        <p v-else-if="entreeDepuisInventaire" class="text-muted">
+          Lot oublié ou mal enregistré à l'entrée : il est ajouté au stock et apparaît tout de suite dans l'inventaire.
+        </p>
         <p v-if="entreeError" class="alert alert-error">{{ entreeError }}</p>
         <form @submit.prevent="confirmerEntree">
           <div class="form-row">
@@ -1626,7 +1833,13 @@
             </div>
             <div class="field">
               <label>Quantité <span class="requis">*</span></label>
-              <input v-model.number="entreeForm.quantite" type="number" min="1" required />
+              <input
+                v-model.number="entreeForm.quantite"
+                type="number"
+                min="1"
+                :max="entreeRattachement || undefined"
+                required
+              />
             </div>
           </div>
           <div class="form-row">
@@ -1646,7 +1859,9 @@
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-outline" @click="entreeVisible = false">✖ Annuler</button>
-            <button type="submit" class="btn btn-primary" :disabled="entreeEnCours">Enregistrer l'entrée</button>
+            <button type="submit" class="btn btn-primary" :disabled="entreeEnCours">
+              {{ entreeRattachement ? 'Rattacher' : entreeDepuisInventaire ? 'Ajouter le lot' : "Enregistrer l'entrée" }}
+            </button>
           </div>
         </form>
       </div>
@@ -2405,12 +2620,36 @@ function lotsDe(medicamentId) {
   return tousLots.value.filter((l) => l.medicamentId === medicamentId)
 }
 
+// ── Légende des couleurs de stock (mêmes seuils que statutStock côté serveur) ──
+// SD = stock disponible ; Qs = consommation moyenne par jour sur 30 jours (colonne Seuil)
+const LEGENDE_STOCK = [
+  { code: 'RUPTURE', libelle: 'Rupture', couleur: '#dc2626', regle: 'stock à 0' },
+  { code: 'SOUS_STOCK', libelle: 'Sous stock', couleur: '#eab308', regle: 'moins de 5 jours de stock' },
+  { code: 'BIEN_STOCKE', libelle: 'Bien stocké', couleur: '#16a34a', regle: '5 à 20 jours de stock' },
+  { code: 'SURSTOCK', libelle: 'Surstock', couleur: '#2563eb', regle: 'plus de 20 jours de stock' },
+  { code: 'SANS_CONSOMMATION', libelle: 'Sans consommation', couleur: '#111827', regle: 'aucune sortie en 30 jours' },
+]
+// Filtre du tableau Entrée par couleur (clic sur la légende ; re-clic = tout afficher)
+const filtreStatutStock = ref(null)
+const stocksEntree = computed(() =>
+  filtreStatutStock.value ? stocks.value.filter((m) => m.statutStock?.code === filtreStatutStock.value) : stocks.value,
+)
+const nbParStatutStock = computed(() => {
+  const nb = {}
+  for (const m of stocks.value) {
+    const c = m.statutStock?.code
+    if (c) nb[c] = (nb[c] ?? 0) + 1
+  }
+  return nb
+})
+
 // ── Filtres de l'onglet Inventaire ──
 const INV_ETATS = [
   { v: 'TOUS', l: 'Tous' },
   { v: 'PERIMES', l: 'Périmés' },
   { v: 'PROCHES', l: 'Péremption ≤ 30 j' },
   { v: 'ZERO', l: 'Stock à zéro' },
+  { v: 'SANS_LOT', l: 'Stock sans lot' },
   { v: 'SOUS_SEUIL', l: 'Sous le seuil' },
 ]
 const INV_COMPTAGES = [
@@ -2422,15 +2661,17 @@ const INV_COMPTAGES = [
 const invLot = ref('')
 const invEtat = ref('TOUS')
 const invComptage = ref('TOUS')
-const invTri = ref('NOM')
+// Par défaut : le produit au plus grand stock total en haut
+const INV_TRI_DEFAUT = 'STOCK_HAUT'
+const invTri = ref(INV_TRI_DEFAUT)
 const invFiltreActif = computed(
-  () => !!invLot.value.trim() || invEtat.value !== 'TOUS' || invComptage.value !== 'TOUS' || invTri.value !== 'NOM',
+  () => !!invLot.value.trim() || invEtat.value !== 'TOUS' || invComptage.value !== 'TOUS' || invTri.value !== INV_TRI_DEFAUT,
 )
 function effacerFiltresInventaire() {
   invLot.value = ''
   invEtat.value = 'TOUS'
   invComptage.value = 'TOUS'
-  invTri.value = 'NOM'
+  invTri.value = INV_TRI_DEFAUT
 }
 
 const lotCompte = (l) => inventaireSaisies.value[l.id] !== undefined && inventaireSaisies.value[l.id] !== ''
@@ -2444,6 +2685,8 @@ function lotVisible(l) {
   if (invEtat.value === 'PERIMES' && !(peremption < maintenant)) return false
   if (invEtat.value === 'PROCHES' && !(peremption >= maintenant && peremption <= maintenant + 30 * 86400000)) return false
   if (invEtat.value === 'ZERO' && l.quantiteRestante !== 0) return false
+  // Lots épuisés masqués (ils encombraient la fiche) : visibles seulement avec le filtre « Stock à zéro »
+  if (invEtat.value !== 'ZERO' && l.quantiteRestante <= 0) return false
   if (invComptage.value === 'NON_COMPTES' && lotCompte(l)) return false
   if (invComptage.value === 'COMPTES' && !lotCompte(l)) return false
   if (invComptage.value === 'ECART' && ecartLot(l) === 0) return false
@@ -2457,6 +2700,7 @@ const produitsInventaire = computed(() => {
   let liste = stocks.value
     // « Sous le seuil » : même règle que l'alerte « Stock bas » (calculée par le serveur)
     .filter((m) => invEtat.value !== 'SOUS_SEUIL' || m.alerteStock)
+    .filter((m) => invEtat.value !== 'SANS_LOT' || stockSansLot(m) > 0)
     .map((m) => ({ m, lots: lotsDe(m.id).filter(lotVisible) }))
     .filter((p) => p.lots.length > 0 || !filtreLots)
   const plusProche = (p) => Math.min(...p.lots.map(datePeremptionMs))
@@ -2464,6 +2708,9 @@ const produitsInventaire = computed(() => {
   if (invTri.value === 'PEREMPTION') {
     liste = liste.map((p) => ({ ...p, lots: [...p.lots].sort((a, b) => datePeremptionMs(a) - datePeremptionMs(b)) }))
     liste.sort((a, b) => plusProche(a) - plusProche(b))
+  } else if (invTri.value === 'STOCK_HAUT') {
+    // Plus grand stock total d'abord ; à égalité, ordre alphabétique
+    liste = [...liste].sort((a, b) => b.m.stock - a.m.stock || a.m.nom.localeCompare(b.m.nom, 'fr'))
   } else if (invTri.value === 'STOCK') {
     liste = [...liste].sort((a, b) => a.m.stock - b.m.stock)
   } else if (invTri.value === 'ECART') {
@@ -2478,6 +2725,29 @@ function ecartLot(l) {
   const saisie = inventaireSaisies.value[l.id]
   if (saisie === undefined || saisie === '') return 0
   return Number(saisie) - l.quantiteRestante
+}
+
+/** Nombre de lots épuisés (stock à 0) d'un produit, masqués dans l'inventaire. */
+function nbLotsVides(medicamentId) {
+  return lotsDe(medicamentId).filter((l) => l.quantiteRestante <= 0).length
+}
+
+/**
+ * Recharge les lots en gardant les quantités déjà comptées et les corrections en cours
+ * (après l'ajout d'un lot pendant l'inventaire).
+ */
+async function rafraichirLotsInventaire() {
+  try {
+    const { data } = await http.get('/pharmacie/lots', { params: { cliniqueId: cliniqueId.value } })
+    tousLots.value = data ?? []
+  } catch {
+    return
+  }
+  const corrections = { ...correctionsLots.value }
+  for (const l of tousLots.value) {
+    if (!corrections[l.id]) corrections[l.id] = { numeroLot: l.numeroLot, datePeremption: jourIso(l.datePeremption) }
+  }
+  correctionsLots.value = corrections
 }
 
 /** Charge tous les lots de la clinique (groupés par produit). */
@@ -2634,7 +2904,7 @@ async function validerInventaireLot(l) {
 }
 
 // ── Récapitulatif des sorties (onglet Mouvements) ──
-const vueMouvements = ref('recap') // 'recap' | 'produit'
+const vueMouvements = ref('recap') // 'recap' | 'produit' | 'entrees' | 'ajustements'
 const sortiesDebut = ref('')
 const sortiesFin = ref('')
 const sortiesProduits = ref([])
@@ -2732,6 +3002,118 @@ function imprimerSortiesPdf() {
   })
 }
 
+// ── Entrées de stock / ajustements (onglet Mouvements) ──
+const LIBELLES_TYPE_MVT = {
+  ENTREE: 'Entrée de stock',
+  SORTIE: 'Délivrance',
+  INVENTAIRE: 'Ajustement (inventaire)',
+  RETRAIT: 'Ajustement (retrait)',
+}
+const isoJour = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+// Par défaut : du 1er du mois à aujourd'hui
+const mvtDebut = ref(isoJour(new Date(new Date().getFullYear(), new Date().getMonth(), 1)))
+const mvtFin = ref(isoJour(new Date()))
+const mvtProduits = ref([])
+const mvtSens = ref('TOUS')
+const mvtOrigine = ref('TOUS')
+const MVT_VIDE = {
+  lignes: [],
+  totaux: { operations: 0, produits: 0, quantite: 0, valeur: 0, nbPlus: 0, quantitePlus: 0, nbMoins: 0, quantiteMoins: 0 },
+}
+const mvtStock = ref(MVT_VIDE)
+
+function periodeMvt(p) {
+  const auj = new Date()
+  mvtFin.value = isoJour(auj)
+  mvtDebut.value = p === 'mois' ? isoJour(new Date(auj.getFullYear(), auj.getMonth(), 1)) : isoJour(auj)
+  chargerMouvementsStock()
+}
+
+async function chargerMouvementsStock() {
+  const nature = vueMouvements.value === 'ajustements' ? 'AJUSTEMENTS' : 'ENTREES'
+  try {
+    const { data } = await http.get('/pharmacie/mouvements-stock', {
+      params: {
+        cliniqueId: cliniqueId.value,
+        nature,
+        debut: mvtDebut.value || undefined,
+        fin: mvtFin.value || undefined,
+        medicamentIds: mvtProduits.value.length ? mvtProduits.value.join(',') : undefined,
+        sens: nature === 'AJUSTEMENTS' && mvtSens.value !== 'TOUS' ? mvtSens.value : undefined,
+        origine: nature === 'AJUSTEMENTS' && mvtOrigine.value !== 'TOUS' ? mvtOrigine.value : undefined,
+      },
+    })
+    mvtStock.value = data
+  } catch (e) {
+    mvtStock.value = MVT_VIDE
+    toastError(e.response?.data?.message || 'Chargement des mouvements impossible.')
+  }
+}
+
+function libellePeriodeMvt() {
+  const jour = (iso) => iso.split('-').reverse().join('/')
+  const aujourdhui = new Date().toLocaleDateString('fr-FR')
+  const debut = mvtDebut.value ? jour(mvtDebut.value) : aujourdhui
+  const fin = mvtFin.value ? jour(mvtFin.value) : aujourdhui
+  return debut === fin ? `le ${debut}` : `du ${debut} au ${fin}`
+}
+
+function lignesMvtExport() {
+  const entrees = vueMouvements.value === 'entrees'
+  return mvtStock.value.lignes.map((l) => ({
+    date: l.date,
+    produit: l.produit,
+    lot: l.lot,
+    detail: entrees ? (l.fournisseur || '—') : l.quantite > 0 ? '+ Positif' : '− Négatif',
+    quantite: l.quantite,
+    origine: l.origine,
+    montant: l.valeur,
+    par: l.par,
+  }))
+}
+
+function colonnesMvt() {
+  const entrees = vueMouvements.value === 'entrees'
+  return {
+    colonnes: ['Date', 'Produit', 'Lot', entrees ? 'Fournisseur' : 'Sens', 'Quantité', entrees ? 'Origine' : 'Nature', 'Valeur', 'Par'],
+    champs: ['date', 'produit', 'lot', 'detail', 'quantite', 'origine', 'montant', 'par'],
+  }
+}
+
+function exporterMvtExcel() {
+  const { colonnes, champs } = colonnesMvt()
+  const lignes = lignesMvtExport().map((l) => {
+    const ligne = {}
+    champs.forEach((c, i) => {
+      ligne[colonnes[i]] = c === 'date' ? formatDateHeure(l.date) : l[c]
+    })
+    return ligne
+  })
+  const t = mvtStock.value.totaux
+  lignes.push({
+    Date: `TOTAL — ${libellePeriodeMvt()}`,
+    Produit: `${t.produits} produit(s), ${t.operations} opération(s)`,
+    Quantité: t.quantite,
+    Valeur: t.valeur,
+  })
+  const nom = vueMouvements.value === 'entrees' ? 'entrees-stock' : 'ajustements-stock'
+  exporterXlsx(lignes, `${nom}-${mvtDebut.value || isoJour(new Date())}_${mvtFin.value || isoJour(new Date())}`)
+}
+
+function imprimerMvtPdf() {
+  const { colonnes, champs } = colonnesMvt()
+  const lignes = lignesMvtExport()
+  imprimerZone({
+    titre: vueMouvements.value === 'entrees' ? 'Entrées de stock — pharmacie' : 'Ajustements de stock (+ / −) — pharmacie',
+    periode: libellePeriodeMvt(),
+    colonnes,
+    champs,
+    lignes,
+    sommes: sommesColonnes(lignes),
+  })
+}
+
 async function chargerMouvementsMed() {
   mouvements.value = []
   if (!mouvementMedId.value) return
@@ -2777,7 +3159,33 @@ const entreeForm = reactive({})
 const entreeEnCours = ref(false)
 const entreeError = ref('')
 
+// Vrai quand la modale d'entrée est ouverte par « Ajouter un lot » de l'inventaire
+const entreeDepuisInventaire = ref(false)
+
+function ouvrirAjoutLot(m) {
+  ouvrirEntree(m)
+  entreeDepuisInventaire.value = true
+}
+
+// Rattachement du stock sans lot : quantité maximale (0 = mode normal)
+const entreeRattachement = ref(0)
+
+/** Unités comptées dans le stock total mais rattachées à aucun lot (stock total − somme des lots). */
+function stockSansLot(m) {
+  if (!tousLots.value.length) return 0 // lots pas encore chargés
+  const dansLots = lotsDe(m.id).reduce((s, l) => s + Math.max(0, l.quantiteRestante), 0)
+  return Math.max(0, (m.stock ?? 0) - dansLots)
+}
+
+function ouvrirRattachement(m) {
+  ouvrirAjoutLot(m)
+  entreeRattachement.value = stockSansLot(m)
+  entreeForm.quantite = entreeRattachement.value
+}
+
 function ouvrirEntree(m) {
+  entreeDepuisInventaire.value = false
+  entreeRattachement.value = 0
   entreeCible.value = m
   Object.keys(entreeForm).forEach((k) => delete entreeForm[k])
   Object.assign(entreeForm, { numeroLot: '', quantite: null, datePeremption: '', prixAchat: null, fournisseur: '' })
@@ -2793,6 +3201,8 @@ async function confirmerEntree() {
     await http.post('/pharmacie/entrees', {
       medicamentId: entreeCible.value.id,
       ...entreeForm,
+      ...(entreeDepuisInventaire.value ? { commentaire: "Lot ajouté depuis l'inventaire" } : {}),
+      ...(entreeRattachement.value ? { rattacher: true } : {}),
     })
     // Fournisseur saisi librement : ajouté automatiquement à la liste
     if (entreeForm.fournisseur?.trim()) {
@@ -2806,9 +3216,16 @@ async function confirmerEntree() {
       }
     }
     entreeVisible.value = false
-    toastSuccess('Entrée de stock enregistrée.')
+    toastSuccess(
+      entreeRattachement.value
+        ? 'Stock rattaché au lot (stock total inchangé).'
+        : entreeDepuisInventaire.value
+          ? 'Lot ajouté.'
+          : 'Entrée de stock enregistrée.',
+    )
     await chargerStocks()
     await chargerAlertes()
+    if (entreeDepuisInventaire.value) await rafraichirLotsInventaire()
   } catch (e) {
     entreeError.value = e.response?.data?.message || 'Erreur lors de l\'entrée.'
   } finally {
@@ -3334,6 +3751,103 @@ onUnmounted(() => {
 .qte-demandee {
   font-weight: 700;
   white-space: nowrap;
+}
+.ajust-plus {
+  color: #15803d;
+}
+.ajust-moins {
+  color: #dc2626;
+}
+.btn-ajout-lot {
+  margin-left: auto;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+}
+.inventaire-sans-lot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 8px 12px;
+  padding: 8px 12px;
+  background: #fef9c3;
+  border: 1px solid #facc15;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.btn-rattacher {
+  background: #ca8a04;
+  border-color: #ca8a04;
+  color: #fff;
+  font-weight: 700;
+}
+.btn-rattacher:hover {
+  background: #a16207;
+}
+.inventaire-sans-lot span {
+  flex: 1;
+  min-width: 260px;
+}
+.lots-vides {
+  font-size: 12px;
+  font-style: italic;
+}
+.inventaire-aucun-lot {
+  margin: 6px 0 4px;
+  font-size: 13px;
+}
+.legende-stock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin: 8px 0 10px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.legende-titre {
+  font-weight: 700;
+}
+.legende-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.legende-item:hover {
+  background: #e2e8f0;
+}
+.legende-item.legende-active {
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
+}
+.legende-nb {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #e2e8f0;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+.legende-pastille {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+@media print {
+  .legende-stock {
+    display: none;
+  }
 }
 .statut-stock-libelle {
   display: block;
@@ -4005,7 +4519,8 @@ onUnmounted(() => {
   color: var(--text-muted);
 }
 .inv-tri {
-  max-width: 220px;
+  max-width: 280px;
+  min-width: 250px;
 }
 .inv-compteur {
   font-size: 12px;
