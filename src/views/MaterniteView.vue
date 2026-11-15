@@ -135,7 +135,16 @@
         <section v-else class="card">
           <div class="card-header"><h2>Patientes traitées</h2></div>
           <div class="toolbar">
-            <DateSaisie v-model="jourTraites" class="search-input" style="max-width: 170px; flex: none" @change="chargerTraites()" />
+            <div class="champ-filtre">
+              <span class="champ-libelle">Jour</span>
+              <DateSaisie v-model="jourTraites" class="search-input" style="max-width: 170px" title="Vide = tous les jours" @change="chargerTraites()" />
+            </div>
+            <FiltresHeureUtilisateur
+              v-model:heure-debut="traitesHeureDebut"
+              v-model:heure-fin="traitesHeureFin"
+              :avec-utilisateur="false"
+              @change="chargerTraites()"
+            />
           </div>
           <div class="table-wrap">
             <table v-data-table="'MaterniteView-2'">
@@ -1581,6 +1590,7 @@
 <script setup>
 import DateHeureSaisie from '../components/DateHeureSaisie.vue'
 import DateSaisie from '../components/DateSaisie.vue'
+import FiltresHeureUtilisateur from '../components/FiltresHeureUtilisateur.vue'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import http from '../api/http'
@@ -1615,6 +1625,11 @@ const onglet = ref('attente')
 const file = ref([])
 const traites = ref({ data: [], total: 0, page: 1, perPage: 10, totalPages: 1 })
 const jourTraites = ref(new Date().toISOString().slice(0, 10))
+
+// Filtres facultatifs : heures et utilisateur (combinables avec la date)
+const traitesHeureDebut = ref('')
+const traitesHeureFin = ref('')
+const traitesUtilisateur = ref('')
 const recherche = ref('')
 const resultatsRecherche = ref([])
 let rechercheTimer = null
@@ -1732,6 +1747,8 @@ async function chargerTraites(page = 1) {
       params: {
         cliniqueId: cliniqueId.value,
         jour: jourTraites.value || undefined,
+        heureDebut: traitesHeureDebut.value || undefined,
+        heureFin: traitesHeureFin.value || undefined,
         page,
         perPage: traites.value.perPage,
       },

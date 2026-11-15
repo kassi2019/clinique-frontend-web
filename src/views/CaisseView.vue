@@ -85,13 +85,25 @@
       <section v-if="!passageCourant && vueFile === 'attente'" class="card">
         <div class="card-header">
           <h2>Patients à encaisser (par ordre d'arrivée)</h2>
-          <DateSaisie
-            v-model="filtreJourFile"
-            class="search-input"
-            style="max-width: 160px"
-            title="Vide = tous les jours"
-            @change="chargerFile"
-          />
+          <div class="toolbar barre-filtres-entete">
+            <div class="champ-filtre">
+              <span class="champ-libelle">Jour d'arrivée</span>
+              <DateSaisie
+                v-model="filtreJourFile"
+                class="search-input"
+                style="max-width: 160px"
+                title="Vide = tous les jours"
+                @change="chargerFile"
+              />
+            </div>
+            <FiltresHeureUtilisateur
+              v-model:heure-debut="fileHeureDebut"
+              v-model:heure-fin="fileHeureFin"
+              v-model:utilisateur-id="fileUtilisateur"
+              libelle-utilisateur="Agent d'accueil"
+              @change="chargerFile"
+            />
+          </div>
         </div>
         <div v-if="file.attente.length === 0" class="empty-state">
           Aucun patient en attente de paiement.
@@ -276,7 +288,7 @@
       <section v-if="!passageCourant && vueFile === 'credits'" class="card">
         <div class="card-header">
           <h2>Tickets de crédit et cas sociaux à solder</h2>
-          <button class="btn btn-outline btn-sm" @click="chargerCredits">🔄 Actualiser</button>
+          <button class="btn btn-outline btn-sm" @click="chargerCredits()">🔄 Actualiser</button>
         </div>
         <div v-if="credits.data.length === 0" class="empty-state">
           Aucun ticket de crédit ou cas social en cours.
@@ -873,6 +885,7 @@
 
 <script setup>
 import DateSaisie from '../components/DateSaisie.vue'
+import FiltresHeureUtilisateur from '../components/FiltresHeureUtilisateur.vue'
 import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import Swal from "sweetalert2";
 import { useRouter } from "vue-router";
@@ -942,12 +955,20 @@ const vueFile = ref(auth.premierOnglet("CAISSE", ["attente", "payes", "credits",
 const file = ref({ attente: [], payes: [] });
 const filtreJourFile = ref(new Date().toISOString().slice(0, 10));
 
+// Filtres facultatifs : heures et utilisateur (combinables avec la date)
+const fileHeureDebut = ref('')
+const fileHeureFin = ref('')
+const fileUtilisateur = ref('')
+
 async function chargerFile() {
   try {
     const { data } = await http.get("/caisse/file-attente", {
       params: {
         cliniqueId: cliniqueId.value,
         jour: filtreJourFile.value || undefined,
+        heureDebut: fileHeureDebut.value || undefined,
+        heureFin: fileHeureFin.value || undefined,
+        utilisateurId: fileUtilisateur.value || undefined,
         perPage: 100,
       },
     });

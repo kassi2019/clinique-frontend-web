@@ -88,15 +88,28 @@
         <!-- Liste des ordonnances en attente (sans recherche) -->
         <div v-if="!recherche.trim() && !ordonnance" class="ordo-attente">
           <div class="toolbar">
-            <select v-model="filtreStatutOrdo" class="search-input" style="max-width: 170px; flex: none" @change="chargerOrdonnancesAttente">
-              <option value="EN_ATTENTE">En attente</option>
-              <option value="TRAITEE">Traitées</option>
-            </select>
-            <DateSaisie
-              v-model="filtreDateOrdo"
-              class="search-input"
-              style="max-width: 170px; flex: none"
-              title="Vide = aujourd'hui"
+            <div class="champ-filtre">
+              <span class="champ-libelle">Statut</span>
+              <select v-model="filtreStatutOrdo" class="search-input" style="max-width: 170px" @change="chargerOrdonnancesAttente">
+                <option value="EN_ATTENTE">En attente</option>
+                <option value="TRAITEE">Traitées</option>
+              </select>
+            </div>
+            <div class="champ-filtre">
+              <span class="champ-libelle">Jour</span>
+              <DateSaisie
+                v-model="filtreDateOrdo"
+                class="search-input"
+                style="max-width: 170px"
+                title="Vide = aujourd'hui"
+                @change="chargerOrdonnancesAttente"
+              />
+            </div>
+            <FiltresHeureUtilisateur
+              v-model:heure-debut="ordoHeureDebut"
+              v-model:heure-fin="ordoHeureFin"
+              v-model:utilisateur-id="ordoUtilisateur"
+              libelle-utilisateur="Médecin"
               @change="chargerOrdonnancesAttente"
             />
             <button class="btn btn-outline btn-sm" @click="chargerOrdonnancesAttente">🔄 Actualiser</button>
@@ -578,11 +591,25 @@
             </div>
             <!-- Entrées / ajustements : période, produits, filtres -->
             <div v-if="vueMouvements === 'entrees' || vueMouvements === 'ajustements'" class="toolbar">
-              <DateSaisie v-model="mvtDebut" class="search-input" style="max-width: 160px; flex: none" title="Date de début (vide = aujourd'hui)" @change="chargerMouvementsStock" />
-              <DateSaisie v-model="mvtFin" class="search-input" style="max-width: 160px; flex: none" title="Date de fin (vide = aujourd'hui)" @change="chargerMouvementsStock" />
+              <div class="champ-filtre">
+                <span class="champ-libelle">Date début</span>
+                <DateSaisie v-model="mvtDebut" class="search-input" style="max-width: 160px" title="Vide = aujourd'hui" @change="chargerMouvementsStock" />
+              </div>
+              <div class="champ-filtre">
+                <span class="champ-libelle">Date fin</span>
+                <DateSaisie v-model="mvtFin" class="search-input" style="max-width: 160px" title="Vide = aujourd'hui" @change="chargerMouvementsStock" />
+              </div>
               <button class="btn btn-outline btn-sm" title="Aujourd'hui" @click="periodeMvt('jour')">Aujourd'hui</button>
               <button class="btn btn-outline btn-sm" title="Du 1er du mois à aujourd'hui" @click="periodeMvt('mois')">Ce mois</button>
-              <div style="min-width: 240px; flex: 1">
+              <FiltresHeureUtilisateur
+                v-model:heure-debut="mvtHeureDebut"
+                v-model:heure-fin="mvtHeureFin"
+                v-model:utilisateur-id="mvtUtilisateur"
+                :meme-jour="!mvtFin || mvtDebut === mvtFin"
+                @change="chargerMouvementsStock"
+              />
+              <div class="champ-filtre champ-souple" style="min-width: 240px">
+                <span class="champ-libelle">Produits</span>
                 <SelectSearch
                   v-model="mvtProduits"
                   :options="optionsStocks"
@@ -592,25 +619,45 @@
                 />
               </div>
               <template v-if="vueMouvements === 'ajustements'">
-                <select v-model="mvtSens" style="max-width: 170px" @change="chargerMouvementsStock">
-                  <option value="TOUS">+ et −</option>
-                  <option value="PLUS">Positifs (+) seulement</option>
-                  <option value="MOINS">Négatifs (−) seulement</option>
-                </select>
-                <select v-model="mvtOrigine" style="max-width: 200px" @change="chargerMouvementsStock">
-                  <option value="TOUS">Inventaires et retraits</option>
-                  <option value="INVENTAIRE">Corrections d'inventaire</option>
-                  <option value="RETRAIT">Retraits (périmé, casse…)</option>
-                </select>
+                <div class="champ-filtre">
+                  <span class="champ-libelle">Sens</span>
+                  <select v-model="mvtSens" style="max-width: 170px" @change="chargerMouvementsStock">
+                    <option value="TOUS">+ et −</option>
+                    <option value="PLUS">Positifs (+) seulement</option>
+                    <option value="MOINS">Négatifs (−) seulement</option>
+                  </select>
+                </div>
+                <div class="champ-filtre">
+                  <span class="champ-libelle">Origine</span>
+                  <select v-model="mvtOrigine" style="max-width: 200px" @change="chargerMouvementsStock">
+                    <option value="TOUS">Inventaires et retraits</option>
+                    <option value="INVENTAIRE">Corrections d'inventaire</option>
+                    <option value="RETRAIT">Retraits (périmé, casse…)</option>
+                  </select>
+                </div>
               </template>
               <button class="btn btn-outline btn-sm" @click="chargerMouvementsStock">🔄 Actualiser</button>
               <button class="btn btn-outline btn-sm" :disabled="!mvtStock.lignes.length" @click="exporterMvtExcel">📥 Excel</button>
               <button class="btn btn-outline btn-sm" :disabled="!mvtStock.lignes.length" @click="imprimerMvtPdf">🖨️ PDF</button>
             </div>
             <div v-if="vueMouvements === 'recap'" class="toolbar">
-              <DateSaisie v-model="sortiesDebut" class="search-input" style="max-width: 160px; flex: none" title="Date de début (vide = aujourd'hui)" @change="chargerRecapSorties" />
-              <DateSaisie v-model="sortiesFin" class="search-input" style="max-width: 160px; flex: none" title="Date de fin (vide = aujourd'hui)" @change="chargerRecapSorties" />
-              <div style="min-width: 260px; flex: 1">
+              <div class="champ-filtre">
+                <span class="champ-libelle">Date début</span>
+                <DateSaisie v-model="sortiesDebut" class="search-input" style="max-width: 160px" title="Vide = aujourd'hui" @change="chargerRecapSorties" />
+              </div>
+              <div class="champ-filtre">
+                <span class="champ-libelle">Date fin</span>
+                <DateSaisie v-model="sortiesFin" class="search-input" style="max-width: 160px" title="Vide = aujourd'hui" @change="chargerRecapSorties" />
+              </div>
+              <FiltresHeureUtilisateur
+                v-model:heure-debut="sortiesHeureDebut"
+                v-model:heure-fin="sortiesHeureFin"
+                v-model:utilisateur-id="sortiesUtilisateur"
+                :meme-jour="!sortiesFin || sortiesDebut === sortiesFin"
+                @change="chargerRecapSorties"
+              />
+              <div class="champ-filtre champ-souple" style="min-width: 260px">
+                <span class="champ-libelle">Produits</span>
                 <SelectSearch
                   v-model="sortiesProduits"
                   :options="optionsStocks"
@@ -619,11 +666,14 @@
                   @update:model-value="chargerRecapSorties"
                 />
               </div>
-              <select v-model="sortiesCategorie" style="max-width: 170px" @change="chargerRecapSorties">
-                <option value="TOUS">Tous</option>
-                <option value="MEDICAMENTS">Médicaments</option>
-                <option value="CONSOMMABLES">Consommables</option>
-              </select>
+              <div class="champ-filtre">
+                <span class="champ-libelle">Catégorie</span>
+                <select v-model="sortiesCategorie" style="max-width: 170px" @change="chargerRecapSorties">
+                  <option value="TOUS">Tous</option>
+                  <option value="MEDICAMENTS">Médicaments</option>
+                  <option value="CONSOMMABLES">Consommables</option>
+                </select>
+              </div>
               <button class="btn btn-outline btn-sm" @click="chargerRecapSorties">🔄 Actualiser</button>
               <button class="btn btn-outline btn-sm" :disabled="!recapSorties.lignes.length" @click="exporterSortiesExcel">📥 Excel</button>
               <button class="btn btn-outline btn-sm" :disabled="!recapSorties.lignes.length" @click="imprimerSortiesPdf">🖨️ PDF</button>
@@ -1055,18 +1105,31 @@
           <h2>💰 Points financiers de la pharmacie</h2>
         </div>
         <div class="toolbar">
-          <DateSaisie
-            v-model="financierDebut"
-            class="search-input"
-            style="max-width: 160px; flex: none"
-            title="Vide = sans début"
-            @change="chargerFinancier"
-          />
-          <DateSaisie
-            v-model="financierFin"
-            class="search-input"
-            style="max-width: 160px; flex: none"
-            title="Vide = sans fin"
+          <div class="champ-filtre">
+            <span class="champ-libelle">Date début</span>
+            <DateSaisie
+              v-model="financierDebut"
+              class="search-input"
+              style="max-width: 160px"
+              title="Vide = sans début"
+              @change="chargerFinancier"
+            />
+          </div>
+          <div class="champ-filtre">
+            <span class="champ-libelle">Date fin</span>
+            <DateSaisie
+              v-model="financierFin"
+              class="search-input"
+              style="max-width: 160px"
+              title="Vide = sans fin"
+              @change="chargerFinancier"
+            />
+          </div>
+          <FiltresHeureUtilisateur
+            v-model:heure-debut="financierHeureDebut"
+            v-model:heure-fin="financierHeureFin"
+            :avec-utilisateur="false"
+            :meme-jour="!!financierDebut && financierDebut === financierFin"
             @change="chargerFinancier"
           />
           <button class="btn btn-outline btn-sm" @click="chargerFinancier">🔄 Actualiser</button>
@@ -1152,9 +1215,31 @@
           <h2>📄 Rapport des ordonnances externes</h2>
           <button class="btn btn-primary btn-sm" @click="ouvrirOrdoExterne">＋ Saisir ordonnance externe</button>
         </div>
-        <div class="toolbar">
-          <DateSaisie v-model="externesDebut" class="search-input" style="max-width: 160px; flex: none" title="Vide = aujourd'hui" @change="chargerRapportExternes" />
-          <DateSaisie v-model="externesFin" class="search-input" style="max-width: 160px; flex: none" title="Vide = aujourd'hui" @change="chargerRapportExternes" />
+        <div class="toolbar toolbar-filtres">
+          <div class="champ-filtre">
+            <span class="champ-libelle">Date début</span>
+            <DateSaisie v-model="externesDebut" class="search-input" style="max-width: 160px" title="Vide = aujourd'hui" @change="chargerRapportExternes" />
+          </div>
+          <div class="champ-filtre">
+            <span class="champ-libelle">Date fin</span>
+            <DateSaisie v-model="externesFin" class="search-input" style="max-width: 160px" title="Vide = aujourd'hui" @change="chargerRapportExternes" />
+          </div>
+          <label class="champ-filtre">
+            <span class="champ-libelle">Heure début</span>
+            <input v-model="externesHeureDebut" type="time" class="search-input" style="max-width: 110px" title="Vide = 00:00" @change="chargerRapportExternes" />
+          </label>
+          <label class="champ-filtre">
+            <span class="champ-libelle">Heure fin</span>
+            <input v-model="externesHeureFin" type="time" class="search-input" style="max-width: 110px" title="Vide = 23:59" @change="chargerRapportExternes" />
+          </label>
+          <label class="champ-filtre">
+            <span class="champ-libelle">Utilisateur</span>
+            <select v-model="externesUtilisateurId" class="search-input" style="max-width: 200px" title="Utilisateur qui a encaissé" @change="chargerRapportExternes">
+              <option value="">Tous les utilisateurs</option>
+              <option v-for="u in externesVendeurs" :key="u.id" :value="String(u.id)">{{ u.nom }}</option>
+            </select>
+          </label>
+          <button v-if="externesHeureDebut || externesHeureFin || externesUtilisateurId" class="btn btn-outline btn-sm" title="Effacer heure et utilisateur" @click="effacerFiltresExternes">✖ Effacer</button>
           <button class="btn btn-outline btn-sm" @click="chargerRapportExternes">🔄 Actualiser</button>
           <button class="btn btn-outline btn-sm" :disabled="!rapportExternes.lignes.length" @click="exporterExternesExcel">📥 Excel</button>
           <button class="btn btn-outline btn-sm" :disabled="!rapportExternes.lignes.length" @click="imprimerExternesPdf">🖨️ PDF</button>
@@ -1616,12 +1701,14 @@
       <div class="modal modal-lg fiche-inv-modal">
         <h2>🖨️ Fiche d'inventaire</h2>
         <div class="toolbar">
-          <label class="fiche-inv-date">Du
+          <div class="champ-filtre">
+            <span class="champ-libelle">Date début</span>
             <DateSaisie v-model="ficheInvDebut" class="search-input" @change="chargerFicheInventaire" />
-          </label>
-          <label class="fiche-inv-date">au
+          </div>
+          <div class="champ-filtre">
+            <span class="champ-libelle">Date fin</span>
             <DateSaisie v-model="ficheInvFin" class="search-input" @change="chargerFicheInventaire" />
-          </label>
+          </div>
           <button class="btn btn-outline btn-sm" @click="chargerFicheInventaire">🔄 Actualiser</button>
         </div>
         <div v-if="ficheInvChargement" class="empty-state">Chargement…</div>
@@ -2036,6 +2123,7 @@
 
 <script setup>
 import DateSaisie from '../components/DateSaisie.vue'
+import FiltresHeureUtilisateur from '../components/FiltresHeureUtilisateur.vue'
 import SelectSearch from '../components/SelectSearch.vue'
 import { quantiteDemandee } from '../utils/quantite'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
@@ -2187,6 +2275,10 @@ async function choisirOrdonnance(c) {
 const ordonnancesAttente = ref([])
 const filtreStatutOrdo = ref('EN_ATTENTE')
 const filtreDateOrdo = ref('')
+// Filtres facultatifs : heures et utilisateur
+const ordoHeureDebut = ref('')
+const ordoHeureFin = ref('')
+const ordoUtilisateur = ref('')
 
 async function chargerOrdonnancesAttente() {
   try {
@@ -2196,6 +2288,9 @@ async function chargerOrdonnancesAttente() {
         statut: filtreStatutOrdo.value,
         debut: filtreDateOrdo.value || undefined,
         fin: filtreDateOrdo.value || undefined,
+        heureDebut: ordoHeureDebut.value || undefined,
+        heureFin: ordoHeureFin.value || undefined,
+        medecinId: ordoUtilisateur.value || undefined,
       },
     })
     ordonnancesAttente.value = data.liste ? data.ordonnances ?? [] : []
@@ -2512,13 +2607,54 @@ const RAPPORT_EXT_VIDE = {
 }
 const rapportExternes = ref(RAPPORT_EXT_VIDE)
 
+// Filtres supplémentaires (facultatifs, combinables avec les dates)
+const externesHeureDebut = ref('')
+const externesHeureFin = ref('')
+const externesUtilisateurId = ref('')
+const externesVendeurs = ref([])
+
+async function chargerVendeursExternes() {
+  if (externesVendeurs.value.length) return
+  try {
+    const { data } = await http.get('/pharmacie/ordonnances-externes/utilisateurs', {
+      params: { cliniqueId: cliniqueId.value },
+    })
+    externesVendeurs.value = Array.isArray(data) ? data : []
+  } catch {
+    externesVendeurs.value = []
+  }
+}
+
+function jourLocal() {
+  const n = new Date()
+  const p = (x) => String(x).padStart(2, '0')
+  return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`
+}
+
+function effacerFiltresExternes() {
+  externesHeureDebut.value = ''
+  externesHeureFin.value = ''
+  externesUtilisateurId.value = ''
+  chargerRapportExternes()
+}
+
 async function chargerRapportExternes() {
+  chargerVendeursExternes()
+  const memeJour = (externesFin.value || externesDebut.value) === externesDebut.value
+  if (memeJour && externesHeureDebut.value && externesHeureFin.value && externesHeureFin.value < externesHeureDebut.value) {
+    toastError("L'heure de fin doit être après l'heure de début.")
+    return
+  }
   try {
     const { data } = await http.get('/pharmacie/ordonnances-externes', {
       params: {
         cliniqueId: cliniqueId.value,
         debut: externesDebut.value || undefined,
-        fin: externesFin.value || undefined,
+        // Fin vide = aujourd'hui (comme affiché dans l'en-tête du PDF)
+        fin: externesFin.value || (externesDebut.value ? jourLocal() : undefined),
+        heureDebut: externesHeureDebut.value || undefined,
+        heureFin: externesHeureFin.value || undefined,
+        utilisateurId: externesUtilisateurId.value || undefined,
       },
     })
     rapportExternes.value = data
@@ -2566,6 +2702,17 @@ function exporterExternesExcel() {
   exporterXlsx(lignes, `ordonnances-externes-${new Date().toISOString().slice(0, 10)}`)
 }
 
+/** Ajoute heures et utilisateur filtrés au libellé de période (PDF). */
+function libellePeriodeExternes(base) {
+  let txt = base
+  if (externesHeureDebut.value || externesHeureFin.value) {
+    txt += ` (${externesHeureDebut.value || '00:00'} → ${externesHeureFin.value || '23:59'})`
+  }
+  const u = externesVendeurs.value.find((v) => String(v.id) === externesUtilisateurId.value)
+  if (u) txt += ` — Utilisateur : ${u.nom}`
+  return txt
+}
+
 function imprimerExternesPdf() {
   const lignes = lignesRapportExternes()
   const jour = (iso) => iso.split('-').reverse().join('/')
@@ -2574,7 +2721,7 @@ function imprimerExternesPdf() {
   const fin = externesFin.value ? jour(externesFin.value) : aujourdhui
   imprimerZone({
     titre: 'Rapport des ordonnances externes',
-    periode: debut === fin ? debut : `du ${debut} au ${fin}`,
+    periode: libellePeriodeExternes(debut === fin ? debut : `du ${debut} au ${fin}`),
     colonnes: COLONNES_EXTERNES.colonnes,
     champs: COLONNES_EXTERNES.champs,
     lignes,
@@ -2906,6 +3053,10 @@ async function validerInventaireLot(l) {
 // ── Récapitulatif des sorties (onglet Mouvements) ──
 const vueMouvements = ref('recap') // 'recap' | 'produit' | 'entrees' | 'ajustements'
 const sortiesDebut = ref('')
+// Filtres facultatifs : heures et utilisateur
+const sortiesHeureDebut = ref('')
+const sortiesHeureFin = ref('')
+const sortiesUtilisateur = ref('')
 const sortiesFin = ref('')
 const sortiesProduits = ref([])
 const sortiesCategorie = ref('TOUS')
@@ -2922,6 +3073,9 @@ async function chargerRecapSorties() {
         cliniqueId: cliniqueId.value,
         debut: sortiesDebut.value || undefined,
         fin: sortiesFin.value || undefined,
+        heureDebut: sortiesHeureDebut.value || undefined,
+        heureFin: sortiesHeureFin.value || undefined,
+        utilisateurId: sortiesUtilisateur.value || undefined,
         medicamentIds: sortiesProduits.value.length ? sortiesProduits.value.join(',') : undefined,
         categorie: sortiesCategorie.value,
       },
@@ -3013,6 +3167,10 @@ const isoJour = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 // Par défaut : du 1er du mois à aujourd'hui
 const mvtDebut = ref(isoJour(new Date(new Date().getFullYear(), new Date().getMonth(), 1)))
+// Filtres facultatifs : heures et utilisateur
+const mvtHeureDebut = ref('')
+const mvtHeureFin = ref('')
+const mvtUtilisateur = ref('')
 const mvtFin = ref(isoJour(new Date()))
 const mvtProduits = ref([])
 const mvtSens = ref('TOUS')
@@ -3039,6 +3197,9 @@ async function chargerMouvementsStock() {
         nature,
         debut: mvtDebut.value || undefined,
         fin: mvtFin.value || undefined,
+        heureDebut: mvtHeureDebut.value || undefined,
+        heureFin: mvtHeureFin.value || undefined,
+        utilisateurId: mvtUtilisateur.value || undefined,
         medicamentIds: mvtProduits.value.length ? mvtProduits.value.join(',') : undefined,
         sens: nature === 'AJUSTEMENTS' && mvtSens.value !== 'TOUS' ? mvtSens.value : undefined,
         origine: nature === 'AJUSTEMENTS' && mvtOrigine.value !== 'TOUS' ? mvtOrigine.value : undefined,
@@ -3442,6 +3603,10 @@ async function confirmerRetrait() {
 // ── Points financiers de la pharmacie ──
 const financier = reactive({ recus: 0, vendus: 0, perdus: 0, correctifs: 0, restants: 0 })
 const financierDebut = ref('')
+// Filtres facultatifs : heures et utilisateur
+const financierHeureDebut = ref('')
+const financierHeureFin = ref('')
+const financierUtilisateur = ref('')
 const financierFin = ref('')
 const retraits = ref([])
 
@@ -3453,6 +3618,8 @@ async function chargerFinancier() {
           cliniqueId: cliniqueId.value,
           debut: financierDebut.value || undefined,
           fin: financierFin.value || undefined,
+          heureDebut: financierHeureDebut.value || undefined,
+          heureFin: financierHeureFin.value || undefined,
         },
       }),
       http.get('/pharmacie/retraits', {
@@ -3533,6 +3700,8 @@ async function ouvrirDetailFinancier(type) {
         type,
         debut: financierDebut.value || undefined,
         fin: financierFin.value || undefined,
+        heureDebut: financierHeureDebut.value || undefined,
+        heureFin: financierHeureFin.value || undefined,
       },
     })
     detailFinancierListe.value = data ?? []

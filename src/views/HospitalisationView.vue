@@ -235,24 +235,40 @@
       <section v-else class="card">
         <div class="card-header"><h2>Historique des hospitalisations (§13)</h2></div>
         <div class="toolbar">
-          <DateSaisie
-            v-model="jourFiltre"
-            class="search-input"
-            style="max-width: 170px; flex: none"
+          <div class="champ-filtre">
+            <span class="champ-libelle">Jour d'entrée</span>
+            <DateSaisie
+              v-model="jourFiltre"
+              class="search-input"
+              style="max-width: 170px"
+              @change="chargerHistorique"
+            />
+          </div>
+          <FiltresHeureUtilisateur
+            v-model:heure-debut="histoHeureDebut"
+            v-model:heure-fin="histoHeureFin"
+            v-model:utilisateur-id="histoUtilisateur"
+            libelle-utilisateur="Agent"
             @change="chargerHistorique"
           />
-          <input
-            v-model="rechercheHisto"
-            class="search-input"
-            type="text"
-            placeholder="Rechercher par patient ou N° d'ordre…"
-            @input="onRechercheHisto"
-          />
-          <select v-model="statutFiltre" class="search-input" style="max-width: 150px; flex: none" @change="chargerHistorique">
-            <option value="">Tous statuts</option>
-            <option value="EN_COURS">En cours</option>
-            <option value="SORTI">Sortis</option>
-          </select>
+          <div class="champ-filtre champ-souple">
+            <span class="champ-libelle">Recherche</span>
+            <input
+              v-model="rechercheHisto"
+              class="search-input"
+              type="text"
+              placeholder="Rechercher par patient ou N° d'ordre…"
+              @input="onRechercheHisto"
+            />
+          </div>
+          <div class="champ-filtre">
+            <span class="champ-libelle">Statut</span>
+            <select v-model="statutFiltre" class="search-input" style="max-width: 150px" @change="chargerHistorique">
+              <option value="">Tous statuts</option>
+              <option value="EN_COURS">En cours</option>
+              <option value="SORTI">Sortis</option>
+            </select>
+          </div>
         </div>
 
         <div class="table-wrap">
@@ -372,6 +388,7 @@
 <script setup>
 import DateHeureSaisie from '../components/DateHeureSaisie.vue'
 import DateSaisie from '../components/DateSaisie.vue'
+import FiltresHeureUtilisateur from '../components/FiltresHeureUtilisateur.vue'
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Swal from 'sweetalert2'
@@ -416,6 +433,11 @@ let refreshTimer = null
 
 // ---- Historique ----
 const jourFiltre = ref(new Date().toISOString().slice(0, 10))
+
+// Filtres facultatifs : heures et utilisateur (combinables avec la date)
+const histoHeureDebut = ref('')
+const histoHeureFin = ref('')
+const histoUtilisateur = ref('')
 const rechercheHisto = ref('')
 const statutFiltre = ref('')
 const historique = ref({ data: [], total: 0, page: 1, perPage: 10, totalPages: 0 })
@@ -631,6 +653,9 @@ async function chargerHistorique() {
     const { data } = await http.get('/hospitalisation/sejours', {
       params: {
         jour: jourFiltre.value,
+        heureDebut: histoHeureDebut.value || undefined,
+        heureFin: histoHeureFin.value || undefined,
+        utilisateurId: histoUtilisateur.value || undefined,
         recherche: rechercheHisto.value.trim() || undefined,
         statut: statutFiltre.value || undefined,
         page: page.value,

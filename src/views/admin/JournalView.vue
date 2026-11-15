@@ -11,21 +11,35 @@
       </p>
 
       <div class="toolbar">
-        <DateSaisie
-          v-model="jourFiltre"
-          class="search-input"
-          style="max-width: 170px; flex: none"
-          title="Vide = tous les jours"
+        <div class="champ-filtre">
+          <span class="champ-libelle">Jour</span>
+          <DateSaisie
+            v-model="jourFiltre"
+            class="search-input"
+            style="max-width: 170px"
+            title="Vide = tous les jours"
+            @change="charger"
+          />
+        </div>
+        <FiltresHeureUtilisateur
+          v-model:heure-debut="journalHeureDebut"
+          v-model:heure-fin="journalHeureFin"
+          :avec-utilisateur="false"
           @change="charger"
         />
-        <SelectSearch v-model="entiteFiltre" :options="ENTITES_CONNUES.map((e) => ({ value: e, label: e }))" libre placeholder="Module (ex. passages)…" style="max-width: 200px; flex: none" @change="charger" />
-        <SelectSearch
-          v-model="utilisateurId"
-          :options="optionsUtilisateurs"
-          placeholder="— Tous les utilisateurs —"
-          style="max-width: 320px; flex: 1"
-          @change="charger"
-        />
+        <div class="champ-filtre">
+          <span class="champ-libelle">Module</span>
+          <SelectSearch v-model="entiteFiltre" :options="ENTITES_CONNUES.map((e) => ({ value: e, label: e }))" libre placeholder="Module (ex. passages)…" style="width: 200px" @change="charger" />
+        </div>
+        <div class="champ-filtre champ-souple">
+          <span class="champ-libelle">Utilisateur</span>
+          <SelectSearch
+            v-model="utilisateurId"
+            :options="optionsUtilisateurs"
+            placeholder="— Tous les utilisateurs —"
+            @change="charger"
+          />
+        </div>
         <button class="btn btn-outline btn-sm" @click="exporterExcel" title="Exporter la liste filtrée en Excel">
           📥 Excel
         </button>
@@ -89,6 +103,7 @@
 
 <script setup>
 import DateSaisie from '../../components/DateSaisie.vue'
+import FiltresHeureUtilisateur from '../../components/FiltresHeureUtilisateur.vue'
 import { onMounted, ref } from 'vue'
 import http from '../../api/http'
 import PaginationBar from '../../components/PaginationBar.vue'
@@ -107,6 +122,11 @@ const perPage = ref(50)
 const totalPages = ref(1)
 const chargement = ref(false)
 const jourFiltre = ref('')
+
+// Filtres facultatifs : heures et utilisateur (combinables avec la date)
+const journalHeureDebut = ref('')
+const journalHeureFin = ref('')
+const journalUtilisateur = ref('')
 const entiteFiltre = ref('')
 const utilisateurId = ref(null)
 const utilisateurs = ref([])
@@ -147,6 +167,8 @@ async function charger() {
         page: page.value,
         perPage: perPage.value,
         jour: jourFiltre.value || undefined,
+        heureDebut: journalHeureDebut.value || undefined,
+        heureFin: journalHeureFin.value || undefined,
         entite: entiteFiltre.value || undefined,
         utilisateurId: utilisateurId.value ?? undefined,
       },
@@ -170,6 +192,8 @@ async function exporterExcel() {
         page: 1,
         perPage: 2000,
         jour: jourFiltre.value || undefined,
+        heureDebut: journalHeureDebut.value || undefined,
+        heureFin: journalHeureFin.value || undefined,
         entite: entiteFiltre.value || undefined,
         utilisateurId: utilisateurId.value ?? undefined,
       },

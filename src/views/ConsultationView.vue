@@ -46,13 +46,24 @@
       <section v-if="estMedecin && !passageCourant && vueFile === 'attente'" class="card">
         <div class="card-header">
           <h2>Patients affectés (file d'attente)</h2>
-          <DateSaisie
-            v-model="filtreJourFile"
-            class="search-input"
-            style="max-width: 160px"
-            title="Vide = tous les jours"
-            @change="chargerFile"
-          />
+          <div class="toolbar barre-filtres-entete">
+            <div class="champ-filtre">
+              <span class="champ-libelle">Jour</span>
+              <DateSaisie
+                v-model="filtreJourFile"
+                class="search-input"
+                style="max-width: 160px"
+                title="Vide = aujourd'hui"
+                @change="chargerFile"
+              />
+            </div>
+            <FiltresHeureUtilisateur
+              v-model:heure-debut="fileHeureDebut"
+              v-model:heure-fin="fileHeureFin"
+              :avec-utilisateur="false"
+              @change="chargerFile"
+            />
+          </div>
         </div>
         <div v-if="file.enAttente.length === 0" class="empty-state">
           Aucun patient en attente.
@@ -2534,6 +2545,7 @@
 <script setup>
 import DateHeureSaisie from '../components/DateHeureSaisie.vue'
 import DateSaisie from '../components/DateSaisie.vue'
+import FiltresHeureUtilisateur from '../components/FiltresHeureUtilisateur.vue'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
@@ -2593,11 +2605,20 @@ let affectationOuverteId = ref(null)
 let pingTimer = null
 const filtreJourFile = ref(new Date().toISOString().slice(0, 10))
 
+// Filtres facultatifs : heures et utilisateur (combinables avec la date)
+const fileHeureDebut = ref('')
+const fileHeureFin = ref('')
+const fileUtilisateur = ref('')
+
 async function chargerFile() {
   if (!estMedecin.value) return
   try {
     const { data } = await http.get('/consultations/moi', {
-      params: { jour: filtreJourFile.value || undefined },
+      params: {
+        jour: filtreJourFile.value || undefined,
+        heureDebut: fileHeureDebut.value || undefined,
+        heureFin: fileHeureFin.value || undefined,
+      },
     })
     disponibilite.value = data.disponibilite
     file.value = { enAttente: data.enAttente ?? [], terminees: data.terminees ?? [] }

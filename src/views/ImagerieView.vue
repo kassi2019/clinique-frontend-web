@@ -460,19 +460,32 @@
           <h2>Historique des examens réalisés (§12)</h2>
         </div>
         <div class="toolbar">
-          <DateSaisie
-            v-model="jourFiltre"
-            class="search-input"
-            style="max-width: 170px; flex: none"
+          <div class="champ-filtre">
+            <span class="champ-libelle">Jour</span>
+            <DateSaisie
+              v-model="jourFiltre"
+              class="search-input"
+              style="max-width: 170px"
+              @change="chargerHistorique"
+            />
+          </div>
+          <FiltresHeureUtilisateur
+            v-model:heure-debut="histoHeureDebut"
+            v-model:heure-fin="histoHeureFin"
+            v-model:utilisateur-id="histoUtilisateur"
+            libelle-utilisateur="Utilisateur"
             @change="chargerHistorique"
           />
-          <input
-            v-model="rechercheHisto"
-            class="search-input"
-            type="text"
-            placeholder="Rechercher par patient ou N° d'ordre…"
-            @input="onRechercheHisto"
-          />
+          <div class="champ-filtre champ-souple">
+            <span class="champ-libelle">Recherche</span>
+            <input
+              v-model="rechercheHisto"
+              class="search-input"
+              type="text"
+              placeholder="Rechercher par patient ou N° d'ordre…"
+              @input="onRechercheHisto"
+            />
+          </div>
         </div>
 
         <div class="table-wrap">
@@ -825,6 +838,7 @@
 
 <script setup>
 import DateSaisie from '../components/DateSaisie.vue'
+import FiltresHeureUtilisateur from '../components/FiltresHeureUtilisateur.vue'
 import {
   computed,
   nextTick,
@@ -908,6 +922,11 @@ const crEnCours = ref(false);
 
 // ---- Historique ----
 const jourFiltre = ref(new Date().toISOString().slice(0, 10));
+
+// Filtres facultatifs : heures et utilisateur (combinables avec la date)
+const histoHeureDebut = ref('')
+const histoHeureFin = ref('')
+const histoUtilisateur = ref('')
 const rechercheHisto = ref("");
 const historique = ref({
   data: [],
@@ -1279,6 +1298,9 @@ async function chargerHistorique() {
     const { data } = await http.get("/imagerie/examens", {
       params: {
         jour: jourFiltre.value,
+        heureDebut: histoHeureDebut.value || undefined,
+        heureFin: histoHeureFin.value || undefined,
+        utilisateurId: histoUtilisateur.value || undefined,
         recherche: rechercheHisto.value.trim() || undefined,
         page: page.value,
         perPage: perPage.value,

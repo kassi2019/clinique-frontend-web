@@ -40,10 +40,37 @@
         <div class="stat-head card">
           <h2>{{ menuActif.icon }} {{ menuActif.label }}</h2>
           <div class="periode-bar">
-            <label>Période</label>
-            <DateSaisie v-model="debut" class="search-input" />
-            <span>→</span>
-            <DateSaisie v-model="fin" class="search-input" />
+            <div class="champ-filtre">
+              <span class="champ-libelle">Date début</span>
+              <DateSaisie v-model="debut" class="search-input" />
+            </div>
+            <div class="champ-filtre">
+              <span class="champ-libelle">Date fin</span>
+              <DateSaisie v-model="fin" class="search-input" />
+            </div>
+            <template v-if="rubrique === 'pharmacie'">
+              <label class="champ-filtre">
+                <span class="champ-libelle">Heure début</span>
+                <input v-model="heureDebut" type="time" class="search-input input-heure" title="Vide = 00:00" />
+              </label>
+              <label class="champ-filtre">
+                <span class="champ-libelle">Heure fin</span>
+                <input v-model="heureFin" type="time" class="search-input input-heure" title="Vide = 23:59" />
+              </label>
+              <label class="champ-filtre">
+                <span class="champ-libelle">Utilisateur</span>
+                <select v-model="utilisateurId" class="search-input input-utilisateur">
+                  <option value="">Tous</option>
+                  <option v-for="u in vendeurs" :key="u.id" :value="String(u.id)">{{ u.nom }}</option>
+                </select>
+              </label>
+              <button
+                v-if="heureDebut || heureFin || utilisateurId"
+                class="btn btn-outline btn-sm"
+                title="Effacer heure et utilisateur"
+                @click="effacerFiltresPharma"
+              >✖ Effacer</button>
+            </template>
             <button class="btn btn-primary btn-sm" @click="charger">🔄 Actualiser</button>
           </div>
           <div class="stat-actions">
@@ -197,23 +224,43 @@
 
         <!-- ══ Pharmacie ══ -->
         <section v-else-if="rubrique === 'pharmacie'" class="rubrique">
-          <div class="kpi-grid kpi-grid-sm">
-            <div class="kpi-card kpi-emerald"><div class="kpi-icon">💊</div><div class="kpi-num">{{ fmtF(d.pharmacie?.totalVentes) }}</div><div class="kpi-label">Ventes (F)</div></div>
-            <div class="kpi-card kpi-teal"><div class="kpi-icon">📦</div><div class="kpi-num">{{ d.pharmacie?.quantitesVendues ?? '—' }}</div><div class="kpi-label">Unités vendues</div></div>
+          <div class="kpi-grid kpi-grid-sm kpi-pharma">
+            <div class="kpi-card kpi-emerald"><div class="kpi-icon">💊</div><div class="kpi-num">{{ fmtF(d.pharmacie?.totalVentes) }}</div><div class="kpi-label">Ventes totales (F)</div><div class="kpi-sous">{{ fmtF(d.pharmacie?.quantitesVendues) }} unités</div></div>
+            <div class="kpi-card kpi-teal"><div class="kpi-icon">🩺</div><div class="kpi-num">{{ fmtF(d.pharmacie?.ventesCircuit) }}</div><div class="kpi-label">Consultations (F)</div><div class="kpi-sous">{{ fmtF(d.pharmacie?.unitesCircuit) }} unités</div></div>
+            <div class="kpi-card kpi-amber"><div class="kpi-icon">📄</div><div class="kpi-num">{{ fmtF(d.pharmacie?.ventesExternes) }}</div><div class="kpi-label">Ordonnances externes (F)</div><div class="kpi-sous">{{ fmtF(d.pharmacie?.unitesExternes) }} unités</div></div>
+            <div class="kpi-card kpi-sky"><div class="kpi-icon">📦</div><div class="kpi-num">{{ fmtF(d.pharmacie?.quantitesVendues) }}</div><div class="kpi-label">Unités vendues</div><div class="kpi-sous">{{ (d.pharmacie?.topMedicaments ?? []).length }} médicaments différents</div></div>
           </div>
-          <div class="deux-cols">
-            <div class="card mini">
-              <h3>Top médicaments vendus</h3>
-              <TableSimple :colonnes="[{cle:'medicament',libelle:'Médicament'},{cle:'quantite',libelle:'Qté'},{cle:'montant',libelle:'Montant (F)'}]" :lignes="(d.pharmacie?.topMedicaments ?? []).map((l) => ({...l, montant: fmtF(l.montant)}))" />
-            </div>
-            <div class="card mini">
-              <h3>Stocks faibles (≤ seuil d'alerte)</h3>
-              <TableSimple :colonnes="[{cle:'medicament',libelle:'Médicament'},{cle:'stock',libelle:'Stock'},{cle:'seuilAlerte',libelle:'Seuil'}]" :lignes="d.pharmacie?.stocksFaibles ?? []" />
-            </div>
-            <div class="card mini">
-              <h3>Péremptions proches (≤ 30 jours)</h3>
-              <TableSimple :colonnes="[{cle:'medicament',libelle:'Médicament'},{cle:'lot',libelle:'Lot'},{cle:'quantite',libelle:'Qté'},{cle:'peremption',libelle:'Péremption'}]" :lignes="d.pharmacie?.peremptions ?? []" />
-            </div>
+          <div class="onglets-pharma" role="tablist">
+            <button
+              v-for="o in ongletsPharma"
+              :key="o.code"
+              type="button"
+              role="tab"
+              :aria-selected="ongletPharma === o.code"
+              class="onglet-pharma"
+              :class="[{ actif: ongletPharma === o.code }, `ton-${o.code}`]"
+              @click="ongletPharma = o.code"
+            >
+              <span class="onglet-icone">{{ o.icon }}</span>
+              <span class="onglet-texte">{{ o.label }}</span>
+              <span class="onglet-compte">{{ (d.pharmacie?.[o.cle] ?? []).length }}</span>
+            </button>
+          </div>
+          <div class="card mini panneau-pharma">
+            <Transition name="onglet-fondu" mode="out-in">
+              <div v-if="ongletPharma === 'top'" key="top">
+                <h3>Top médicaments vendus</h3>
+                <TableSimple :colonnes="[{cle:'medicament',libelle:'Médicament'},{cle:'quantite',libelle:'Qté'},{cle:'montant',libelle:'Montant (F)'}]" :lignes="(d.pharmacie?.topMedicaments ?? []).map((l) => ({...l, montant: fmtF(l.montant)}))" />
+              </div>
+              <div v-else-if="ongletPharma === 'stocks'" key="stocks">
+                <h3>Stocks faibles (≤ seuil d'alerte)</h3>
+                <TableSimple :colonnes="[{cle:'medicament',libelle:'Médicament'},{cle:'stock',libelle:'Stock'},{cle:'seuilAlerte',libelle:'Seuil'}]" :lignes="d.pharmacie?.stocksFaibles ?? []" />
+              </div>
+              <div v-else key="peremptions">
+                <h3>Péremptions proches (≤ 30 jours)</h3>
+                <TableSimple :colonnes="[{cle:'medicament',libelle:'Médicament'},{cle:'lot',libelle:'Lot'},{cle:'quantite',libelle:'Qté'},{cle:'peremption',libelle:'Péremption'}]" :lignes="d.pharmacie?.peremptions ?? []" />
+              </div>
+            </Transition>
           </div>
         </section>
 
@@ -320,10 +367,40 @@ const rubrique = ref(
 )
 const menuActif = computed(() => menus.find((m) => m.code === rubrique.value) ?? menus[0])
 
+// Rubrique Pharmacie : un onglet par tableau
+const ongletsPharma = [
+  { code: 'top', label: 'Top médicaments vendus', icon: '💊', cle: 'topMedicaments' },
+  { code: 'stocks', label: 'Stocks faibles', icon: '📉', cle: 'stocksFaibles' },
+  { code: 'peremptions', label: 'Péremptions proches', icon: '⏳', cle: 'peremptions' },
+]
+const ongletPharma = ref('top')
+
 const aujourdHui = new Date().toISOString().slice(0, 10)
 const debut = ref(aujourdHui)
 const fin = ref(aujourdHui)
 const d = reactive({})
+// Filtres supplémentaires de la rubrique Pharmacie (facultatifs, combinables)
+const heureDebut = ref('')
+const heureFin = ref('')
+const utilisateurId = ref('')
+const vendeurs = ref([])
+
+async function chargerVendeurs() {
+  if (!cliniqueId.value || vendeurs.value.length) return
+  try {
+    const { data } = await http.get('/statistiques/pharmacie/utilisateurs', { params: { cliniqueId: cliniqueId.value } })
+    vendeurs.value = Array.isArray(data) ? data : []
+  } catch {
+    vendeurs.value = []
+  }
+}
+
+function effacerFiltresPharma() {
+  heureDebut.value = ''
+  heureFin.value = ''
+  utilisateurId.value = ''
+  charger()
+}
 const pageParcours = ref(1)
 const perPageParcours = ref(20)
 
@@ -363,13 +440,31 @@ const ENDPOINTS = {
   laboratoire: { url: '/statistiques/laboratoire', params: () => ({ debut: debut.value, fin: fin.value, cliniqueId: cliniqueId.value }) },
   imagerie: { url: '/statistiques/imagerie', params: () => ({ debut: debut.value, fin: fin.value, cliniqueId: cliniqueId.value }) },
   hospitalisation: { url: '/statistiques/hospitalisation', params: () => ({ debut: debut.value, fin: fin.value, cliniqueId: cliniqueId.value }) },
-  pharmacie: { url: '/statistiques/pharmacie', params: () => ({ debut: debut.value, fin: fin.value, cliniqueId: cliniqueId.value }) },
+  pharmacie: {
+    url: '/statistiques/pharmacie',
+    params: () => ({
+      debut: debut.value,
+      fin: fin.value,
+      heureDebut: heureDebut.value || undefined,
+      heureFin: heureFin.value || undefined,
+      utilisateurId: utilisateurId.value || undefined,
+      cliniqueId: cliniqueId.value,
+    }),
+  },
   maternite: { url: '/statistiques/maternite', params: () => ({ debut: debut.value, fin: fin.value, cliniqueId: cliniqueId.value }) },
 }
 
 async function charger() {
   const ep = ENDPOINTS[rubrique.value]
   if (!ep || !cliniqueId.value) return
+  if (rubrique.value === 'pharmacie') {
+    chargerVendeurs()
+    // Même jour : l'heure de fin doit suivre l'heure de début
+    if ((fin.value || debut.value) === debut.value && heureDebut.value && heureFin.value && heureFin.value < heureDebut.value) {
+      toastError("L'heure de fin doit être après l'heure de début.")
+      return
+    }
+  }
   try {
     const { data } = await http.get(ep.url, { params: ep.params() })
     d[rubrique.value] = data
@@ -459,16 +554,22 @@ const rapport = computed(() => {
         colonnes: [C('jour', 'Jour'), C('nombre', 'Entrées')],
         lignes: data.parJour ?? [],
       }
-    case 'pharmacie':
+    case 'pharmacie': {
+      // L'utilisateur filtré apparaît dans l'en-tête du PDF / Excel
+      const vendeur = vendeurs.value.find((u) => String(u.id) === utilisateurId.value)
       return {
-        titre, periode,
+        titre,
+        periode: vendeur ? `${periode} — Utilisateur : ${vendeur.nom}` : periode,
         resume: [
           { label: 'Ventes', valeur: `${fmtF(data.totalVentes)} F` },
+          { label: 'dont consultations', valeur: `${fmtF(data.ventesCircuit)} F` },
+          { label: 'dont ordonnances externes', valeur: `${fmtF(data.ventesExternes)} F` },
           { label: 'Unités vendues', valeur: data.quantitesVendues },
         ],
         colonnes: [C('medicament', 'Médicament'), C('quantite', 'Qté'), C('montant', 'Montant (F)')],
         lignes: (data.topMedicaments ?? []).map((l) => ({ ...l, montant: fmtF(l.montant) })),
       }
+    }
     case 'maternite':
       return {
         titre, periode,
@@ -524,6 +625,91 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.input-heure { max-width: 110px; flex: none; }
+.input-utilisateur { max-width: 200px; flex: none; }
+/* ── Pharmacie : cartes et onglets ── */
+.kpi-pharma .kpi-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+.kpi-pharma .kpi-label {
+  min-height: 2.6em; /* mêmes hauteurs même si le libellé passe sur 2 lignes */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.kpi-sous {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: #64748b;
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+.onglets-pharma {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 5px;
+  background: #e8f5f2;
+  border: 1px solid #d3ece7;
+  border-radius: 14px;
+}
+.onglet-pharma {
+  flex: 1 1 180px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 9px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #4b6b66;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+.onglet-pharma:hover:not(.actif) {
+  background: rgba(255, 255, 255, 0.6);
+  color: #0f766e;
+}
+.onglet-pharma:active { transform: scale(0.98); }
+.onglet-pharma:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; }
+.onglet-pharma.actif {
+  background: #fff;
+  color: #0f766e;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.15);
+}
+.onglet-icone { font-size: 16px; }
+.onglet-compte {
+  min-width: 24px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.onglet-pharma.actif.ton-top .onglet-compte { background: #0f766e; color: #fff; }
+.onglet-pharma.actif.ton-stocks .onglet-compte { background: #d97706; color: #fff; }
+.onglet-pharma.actif.ton-peremptions .onglet-compte { background: #e11d48; color: #fff; }
+.onglet-pharma.actif.ton-stocks { color: #b45309; }
+.onglet-pharma.actif.ton-peremptions { color: #be123c; }
+.panneau-pharma { min-height: 160px; }
+.onglet-fondu-enter-active,
+.onglet-fondu-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.onglet-fondu-enter-from { opacity: 0; transform: translateY(6px); }
+.onglet-fondu-leave-to { opacity: 0; transform: translateY(-4px); }
+@media (prefers-reduced-motion: reduce) {
+  .onglet-pharma, .onglet-fondu-enter-active, .onglet-fondu-leave-active { transition: none; }
+}
 .stat-page {
   min-height: 100vh;
   background: linear-gradient(170deg, #ffffff 0%, #eef9f7 55%, #e3f4f0 100%);
@@ -675,7 +861,7 @@ onMounted(async () => {
 }
 .periode-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
   flex-wrap: wrap;
   font-size: 13px;

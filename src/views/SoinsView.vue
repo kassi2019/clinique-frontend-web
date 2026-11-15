@@ -267,19 +267,32 @@
       <section v-else-if="onglet === 'historique'" class="card">
         <div class="card-header"><h2>Historique des soins réalisés</h2></div>
         <div class="toolbar">
-          <DateSaisie
-            v-model="jourFiltre"
-            class="search-input"
-            style="max-width: 170px; flex: none"
+          <div class="champ-filtre">
+            <span class="champ-libelle">Jour</span>
+            <DateSaisie
+              v-model="jourFiltre"
+              class="search-input"
+              style="max-width: 170px"
+              @change="chargerHistorique"
+            />
+          </div>
+          <FiltresHeureUtilisateur
+            v-model:heure-debut="histoHeureDebut"
+            v-model:heure-fin="histoHeureFin"
+            v-model:utilisateur-id="histoUtilisateur"
+            libelle-utilisateur="Agent"
             @change="chargerHistorique"
           />
-          <input
-            v-model="rechercheHisto"
-            class="search-input"
-            type="text"
-            placeholder="Rechercher par patient, soin ou N° d'ordre…"
-            @input="onRechercheHisto"
-          />
+          <div class="champ-filtre champ-souple">
+            <span class="champ-libelle">Recherche</span>
+            <input
+              v-model="rechercheHisto"
+              class="search-input"
+              type="text"
+              placeholder="Rechercher par patient, soin ou N° d'ordre…"
+              @input="onRechercheHisto"
+            />
+          </div>
         </div>
 
         <div class="table-wrap">
@@ -409,6 +422,7 @@
 <script setup>
 import DateHeureSaisie from '../components/DateHeureSaisie.vue'
 import DateSaisie from '../components/DateSaisie.vue'
+import FiltresHeureUtilisateur from '../components/FiltresHeureUtilisateur.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import http from '../api/http'
@@ -466,6 +480,11 @@ const realisationEnCours = ref(false)
 
 // ---- Historique ----
 const jourFiltre = ref(new Date().toISOString().slice(0, 10))
+
+// Filtres facultatifs : heures et utilisateur (combinables avec la date)
+const histoHeureDebut = ref('')
+const histoHeureFin = ref('')
+const histoUtilisateur = ref('')
 const rechercheHisto = ref('')
 const historique = ref({ data: [], total: 0, page: 1, perPage: 10, totalPages: 0 })
 const page = ref(1)
@@ -614,6 +633,9 @@ async function chargerHistorique() {
     const { data } = await http.get('/soins/realisations', {
       params: {
         jour: jourFiltre.value,
+        heureDebut: histoHeureDebut.value || undefined,
+        heureFin: histoHeureFin.value || undefined,
+        utilisateurId: histoUtilisateur.value || undefined,
         recherche: rechercheHisto.value.trim() || undefined,
         page: page.value,
         perPage: perPage.value,

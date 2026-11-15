@@ -211,13 +211,28 @@
     <!-- ============ FACTURATION ============ -->
     <div v-if="vue === 'facturation'">
       <div class="toolbar">
-        <DateSaisie v-model="factDebut" class="search-input" style="max-width: 160px; flex: none" @change="chargerFacturation" />
-        <span>→</span>
-        <DateSaisie v-model="factFin" class="search-input" style="max-width: 160px; flex: none" @change="chargerFacturation" />
-        <select v-model="factAssuranceId" class="search-input" style="max-width: 220px; flex: none" @change="chargerFacturation">
-          <option :value="null">Toutes les assurances</option>
-          <option v-for="a in assurances" :key="a.id" :value="a.id">{{ a.libelle }}</option>
-        </select>
+        <div class="champ-filtre">
+          <span class="champ-libelle">Date début</span>
+          <DateSaisie v-model="factDebut" class="search-input" style="max-width: 160px" @change="chargerFacturation" />
+        </div>
+        <div class="champ-filtre">
+          <span class="champ-libelle">Date fin</span>
+          <DateSaisie v-model="factFin" class="search-input" style="max-width: 160px" @change="chargerFacturation" />
+        </div>
+        <FiltresHeureUtilisateur
+          v-model:heure-debut="factHeureDebut"
+          v-model:heure-fin="factHeureFin"
+          :avec-utilisateur="false"
+          :meme-jour="!factFin || factDebut === factFin"
+          @change="chargerFacturation"
+        />
+        <div class="champ-filtre">
+          <span class="champ-libelle">Assurance</span>
+          <select v-model="factAssuranceId" class="search-input" style="max-width: 220px" @change="chargerFacturation">
+            <option :value="null">Toutes les assurances</option>
+            <option v-for="a in assurances" :key="a.id" :value="a.id">{{ a.libelle }}</option>
+          </select>
+        </div>
         <button class="btn btn-outline btn-sm" @click="chargerFacturation">🔄 Actualiser</button>
         <button class="btn btn-outline btn-sm" :disabled="facturation.total === 0" @click="exporterFacturationExcel">📊 Excel</button>
         <button class="btn btn-primary btn-sm" :disabled="facturation.total === 0" @click="imprimerFacturation">🖨️ Imprimer (A4)</button>
@@ -650,6 +665,7 @@
 
 <script setup>
 import DateSaisie from '../../components/DateSaisie.vue'
+import FiltresHeureUtilisateur from '../../components/FiltresHeureUtilisateur.vue'
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import * as XLSX from 'xlsx'
 import http from '../../api/http'
@@ -669,6 +685,11 @@ const vue = ref('assurances')
 
 // Facturation des assurances
 const factDebut = ref(new Date().toISOString().slice(0, 10))
+
+// Filtres facultatifs : heures et utilisateur (combinables avec la date)
+const factHeureDebut = ref('')
+const factHeureFin = ref('')
+const factUtilisateur = ref('')
 const factFin = ref(new Date().toISOString().slice(0, 10))
 const factAssuranceId = ref(null)
 const facturation = ref({ lignes: [], total: 0, page: 1, perPage: 20, totalPages: 1, parAssurance: [] })
@@ -682,6 +703,8 @@ async function chargerFacturation() {
         cliniqueId: cliniqueId.value,
         debut: factDebut.value,
         fin: factFin.value,
+        heureDebut: factHeureDebut.value || undefined,
+        heureFin: factHeureFin.value || undefined,
         assuranceId: factAssuranceId.value ?? undefined,
         patientId: factPatient.value?.id ?? undefined,
         page: factPage.value,
@@ -755,6 +778,8 @@ async function facturationComplete() {
       cliniqueId: cliniqueId.value,
       debut: factDebut.value,
       fin: factFin.value,
+      heureDebut: factHeureDebut.value || undefined,
+      heureFin: factHeureFin.value || undefined,
       assuranceId: factAssuranceId.value ?? undefined,
       patientId: factPatient.value?.id ?? undefined,
       perPage: 0,

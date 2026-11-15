@@ -76,7 +76,10 @@
           <h2>Services pointés</h2>
         </div>
         <div class="toolbar">
-          <DateSaisie v-model="mois" mensuel class="search-input champ-court" @change="chargerServices" />
+          <div class="champ-filtre">
+            <span class="champ-libelle">Mois</span>
+            <DateSaisie v-model="mois" mensuel class="search-input champ-court" @change="chargerServices" />
+          </div>
           <select v-model="filtreAgent" class="search-input champ-moyen" @change="chargerServices">
             <option :value="null">Tous les agents</option>
             <option v-for="a in agents" :key="a.personnelId" :value="a.personnelId">{{ a.nom }} {{ a.prenom }}</option>
@@ -194,7 +197,10 @@
           </div>
         </div>
         <div class="toolbar">
-          <DateSaisie v-model="mois" mensuel class="search-input champ-court" @change="chargerFiches" />
+          <div class="champ-filtre">
+            <span class="champ-libelle">Mois</span>
+            <DateSaisie v-model="mois" mensuel class="search-input champ-court" @change="chargerFiches" />
+          </div>
           <button class="btn btn-primary btn-sm" :disabled="calculEnCours" @click="genererFiches">
             {{ calculEnCours ? 'Calcul…' : '🔄 Calculer / recalculer les fiches du mois' }}
           </button>

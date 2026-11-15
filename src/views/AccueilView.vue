@@ -237,21 +237,39 @@
         </div>
 
         <div class="toolbar">
-          <label class="periode-label">Du</label>
-          <DateSaisie v-model="filtreDebut" class="search-input" style="max-width: 150px; flex: none" @change="page = 1; chargerListe()" />
-          <label class="periode-label">Au</label>
-          <DateSaisie v-model="filtreFin" class="search-input" style="max-width: 150px; flex: none" @change="page = 1; chargerListe()" />
-          <input
-            v-model="filtreRecherche"
-            class="search-input"
-            type="text"
-            placeholder="Filtrer (nom, prénom, code, N° d'ordre)…"
-            @input="onRechercheListe"
+          <div class="champ-filtre">
+            <span class="champ-libelle">Date début</span>
+            <DateSaisie v-model="filtreDebut" class="search-input" style="max-width: 150px" @change="page = 1; chargerListe()" />
+          </div>
+          <div class="champ-filtre">
+            <span class="champ-libelle">Date fin</span>
+            <DateSaisie v-model="filtreFin" class="search-input" style="max-width: 150px" @change="page = 1; chargerListe()" />
+          </div>
+          <FiltresHeureUtilisateur
+            v-model:heure-debut="listeHeureDebut"
+            v-model:heure-fin="listeHeureFin"
+            v-model:utilisateur-id="listeUtilisateur"
+            libelle-utilisateur="Agent d'accueil"
+            :meme-jour="!filtreFin || filtreDebut === filtreFin"
+            @change="page = 1; chargerListe()"
           />
-          <select v-model="filtreService" @change="page = 1; chargerListe()">
-            <option :value="null">Tous les services</option>
-            <option v-for="s in services" :key="s.id" :value="s.id">{{ s.nom }}</option>
-          </select>
+          <div class="champ-filtre champ-souple">
+            <span class="champ-libelle">Recherche</span>
+            <input
+              v-model="filtreRecherche"
+              class="search-input"
+              type="text"
+              placeholder="Filtrer (nom, prénom, code, N° d'ordre)…"
+              @input="onRechercheListe"
+            />
+          </div>
+          <div class="champ-filtre">
+            <span class="champ-libelle">Service</span>
+            <select v-model="filtreService" @change="page = 1; chargerListe()">
+              <option :value="null">Tous les services</option>
+              <option v-for="s in services" :key="s.id" :value="s.id">{{ s.nom }}</option>
+            </select>
+          </div>
           <span class="count-pill">{{ total }} passage(s)</span>
         </div>
 
@@ -933,6 +951,7 @@ import { toastError, toastInfo, toastSuccess } from '../utils/notifications'
 import PaginationBar from '../components/PaginationBar.vue'
 import SelectSearch from '../components/SelectSearch.vue'
 import DateSaisie from '../components/DateSaisie.vue'
+import FiltresHeureUtilisateur from '../components/FiltresHeureUtilisateur.vue'
 
 const auth = useAuthStore()
 // Onglets autorisés par utilisateur (Paramétrage → Utilisateurs) : codes ACCUEIL.<ONGLET>
@@ -1001,6 +1020,11 @@ function ongletParDefaut() {
 }
 const filtreDebut = ref('')
 const filtreFin = ref('')
+
+// Filtres facultatifs : heures et utilisateur (combinables avec la date)
+const listeHeureDebut = ref('')
+const listeHeureFin = ref('')
+const listeUtilisateur = ref('')
 const filtreRecherche = ref('')
 const filtreService = ref(null)
 let listeTimer = null
@@ -1406,6 +1430,9 @@ async function chargerListe() {
     if (onglet.value === 'historique') {
       params.debut = filtreDebut.value || undefined
       params.fin = filtreFin.value || undefined
+      params.heureDebut = listeHeureDebut.value || undefined
+      params.heureFin = listeHeureFin.value || undefined
+      params.utilisateurId = listeUtilisateur.value || undefined
     } else {
       // Données du jour par défaut (backend) : en attente / terminée
       params.constantes = onglet.value === 'attente' ? 'NON' : 'OUI'
@@ -1437,6 +1464,9 @@ async function chargerCompteurs() {
           cliniqueId: cliniqueId.value,
           debut: filtreDebut.value || undefined,
           fin: filtreFin.value || undefined,
+          heureDebut: listeHeureDebut.value || undefined,
+          heureFin: listeHeureFin.value || undefined,
+          utilisateurId: listeUtilisateur.value || undefined,
           perPage: 1,
         },
       }),
